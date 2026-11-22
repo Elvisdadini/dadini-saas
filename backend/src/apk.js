@@ -12,13 +12,21 @@ function directorioApk() {
   return directorio;
 }
 
+function protocolo(req) {
+  return (req.get('x-forwarded-proto') || req.protocol).split(',')[0].trim();
+}
+
 function urlPublica(req, archivo) {
-  const base = (process.env.DADINI_APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  const base = (process.env.DADINI_APP_URL || `${protocolo(req)}://${req.get('host')}`).replace(/\/$/, '');
   return `${base}/uploads/apk/${archivo}`;
 }
 
 // Publica la APK incluida en el repositorio cuando no hay una cargada por el usuario.
 function asegurarApkPorDefecto(db, req) {
+  if (req && protocolo(req) === 'https' && db.configuracion.apk?.url?.startsWith('http://')) {
+    db.configuracion.apk.url = db.configuracion.apk.url.replace(/^http:\/\//, 'https://');
+    save();
+  }
   if (db.configuracion.apk?.url || db.configuracion.apk_desactivada) return db.configuracion.apk || null;
   const ruta = path.join(directorioApk(), ARCHIVO_POR_DEFECTO);
   if (!fs.existsSync(ruta)) return null;

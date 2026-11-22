@@ -9,6 +9,7 @@ const syncRemote = require('./supabase-sync');
 const { init: initDb, load, save, base, motor, flush, cerrarStore } = require('./db');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = config.port;
 
 const advertencias = config.validarConfiguracion();
