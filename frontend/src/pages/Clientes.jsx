@@ -11,7 +11,7 @@ import Mapa from '../components/Mapa';
 import { abrirEnMapas, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, EmptyState, Estado, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
-const VACIO = { nombre: '', tipo: 'minorista', zona: 'Centro', direccion: '', telefono: '', email: '', limite_credito: 0, contacto: '', notas: '', activo: true, latitud: '', longitud: '', precision: null, ruta_venta: '', dia_visita: '', categoria_cliente_id: '' };
+const VACIO = { nombre: '', tipo: 'minorista', zona: 'Centro', direccion: '', telefono: '', email: '', limite_credito: 0, contacto: '', notas: '', activo: true, latitud: '', longitud: '', precision: null, ruta_venta: '', dia_visita: '', categoria_cliente_id: '', vendedor_id: '' };
 
 export default function Clientes() {
   const { user } = useAuth();
@@ -39,6 +39,8 @@ export default function Clientes() {
   const [visitaForm, setVisitaForm] = useState({ resultado: 'pedido', motivo: '', notas: '', latitud: '', longitud: '' });
   const [reasignarModal, setReasignarModal] = useState(false);
   const [reasignarForm, setReasignarForm] = useState({ vendedor_id: '', ruta_venta: '', zona: '', reasignar_pedidos: true });
+  const [asignarModal, setAsignarModal] = useState(false);
+  const [asignarForm, setAsignarForm] = useState({ vendedor_id: '', cliente_ids: [] });
   const [vendedores, setVendedores] = useState([]);
   const [saving, setSaving] = useState(false);
   const [ubicando, setUbicando] = useState(false);
@@ -62,12 +64,14 @@ export default function Clientes() {
     api.get('/usuarios').then((r) => setVendedores((r.usuarios || []).filter((u) => ['ventas', 'preventista'].includes(u.rol)))).catch(() => {});
   }, []);
 
-  const puedeEditar = useMemo(() => ['admin', 'dueno', 'ventas', 'preventista', 'cobranzas'].includes(user?.rol), [user]);
+  const puedeEditar = useMemo(() => puede(user, 'clientes'), [user]);
+  const puedeCrear = useMemo(() => puede(user, 'clientes_crear'), [user]);
+  const puedeAsignar = useMemo(() => puede(user, 'clientes_editar'), [user]);
 
   const abrirNuevo = () => { setEditando(null); setForm(VACIO); setFormOpen(true); };
   const abrirEditar = (c) => {
     setEditando(c);
-    setForm({ nombre: c.nombre, tipo: c.tipo, zona: c.zona, direccion: c.direccion, telefono: c.telefono, email: c.email, limite_credito: c.limite_credito, contacto: c.contacto, notas: c.notas, activo: c.activo, latitud: c.latitud ?? '', longitud: c.longitud ?? '', precision: c.precision ?? null, ruta_venta: c.ruta_venta || '', dia_visita: c.dia_visita || '', categoria_cliente_id: c.categoria_cliente_id || '' });
+    setForm({ nombre: c.nombre, tipo: c.tipo, zona: c.zona, direccion: c.direccion, telefono: c.telefono, email: c.email, limite_credito: c.limite_credito, contacto: c.contacto, notas: c.notas, activo: c.activo, latitud: c.latitud ?? '', longitud: c.longitud ?? '', precision: c.precision ?? null, ruta_venta: c.ruta_venta || '', dia_visita: c.dia_visita || '', categoria_cliente_id: c.categoria_cliente_id || '', vendedor_id: c.vendedor_id || '' });
     setFormOpen(true);
   };
 
@@ -82,9 +86,10 @@ export default function Clientes() {
       } else {
         const respuesta = await api.post('/clientes', form);
         const nuevo = respuesta.cliente;
-        toast('Cliente creado correctamente');
+        const creados = respuesta.automatico || [];
+        toast(creados.length ? `Cliente creado · ${creados.join(', ')}` : 'Cliente creado correctamente');
         setFormOpen(false);
-        setCreadoModal(nuevo);
+        setCreadoModal({ ...nuevo, automatico: creados });
         setDiaSugerido(nuevo?.dia_visita || null);
       }
       cargar();
@@ -185,6 +190,28 @@ export default function Clientes() {
     } catch (error) { toast(error.message, 'error'); }
   };
 
+  const guardarAsignacionMasiva = async () => {
+    if (!asignarForm.vendedor_id || !asignarForm.cliente_ids.length) return toast('Selecciona un vendedor y al menos un cliente.', 'error');
+    setSaving(true);
+    try {
+      const r = await api.post('/clientes/asignar-vendedor', {
+        vendedor_id: Number(asignarForm.vendedor_id),
+        cliente_ids: asignarForm.cliente_ids.map(Number),
+      });
+      toast(`${r.asignados} clientes asignados · distribuidor automático aplicado${r.automatico?.length ? ` · ${r.automatico.join(', ')}` : ''}`);
+      setAsignarModal(false);
+      setAsignarForm({ vendedor_id: '', cliente_ids: [] });
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setSaving(false); }
+  };
+
+  const alternarClienteAsignacion = (id) => {
+    setAsignarForm((f) => ({
+      ...f,
+      cliente_ids: f.cliente_ids.includes(id) ? f.cliente_ids.filter((x) => x !== id) : [...f.cliente_ids, id],
+    }));
+  };
+
   const columnasClientes = ['nombre', 'codigo', 'tipo', 'zona', 'direccion', 'telefono', 'email', 'contacto', 'limite_credito', 'latitud', 'longitud', 'ruta_venta', 'dia_visita', 'notas'];
 
   const procesarExcelClientes = async (evento) => {
@@ -221,8 +248,10 @@ export default function Clientes() {
         actions={puedeEditar && (
           <>
             <Link className="btn btn-ghost" to="/clientes/categorias"><Tag size={14} /> Categorías</Link>
-            <button className="btn btn-outline" onClick={() => setImportOpen(true)}><Upload size={14} /> Importar Excel</button>
-            <button className="btn btn-primary" onClick={abrirNuevo}><Plus size={15} /> Nuevo cliente</button>
+            <Link className="btn btn-ghost" to="/ventas/rutas"><MapPin size={14} /> Rutas y zonas</Link>
+            {puedeAsignar && <button className="btn btn-outline" onClick={() => setAsignarModal(true)}><Users size={14} /> Asignar vendedores</button>}
+            {puedeCrear && <button className="btn btn-outline" onClick={() => setImportOpen(true)}><Upload size={14} /> Importar Excel</button>}
+            {puedeCrear && <button className="btn btn-primary" onClick={abrirNuevo}><Plus size={15} /> Nuevo cliente</button>}
           </>
         )}
       />
@@ -297,14 +326,18 @@ export default function Clientes() {
         <div className="form-stack">
           <div className="field"><label>Nombre o razón social <span className="req">*</span></label><input className="input" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej. Minimarket La Recoleta" /></div>
           <div className="field-row">
-            <div className="field"><label>Tipo de cliente</label><select className="select" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}><option value="minorista">Minorista</option><option value="mayorista">Mayorista</option></select></div>
-            <div className="field"><label>Zona / barrio</label><input className="input" value={form.zona} onChange={(e) => setForm({ ...form, zona: e.target.value })} placeholder="Cala Cala, El Prado…" /></div>
+            <div className="field"><label>Vendedor asignado</label><select className="select" value={form.vendedor_id} onChange={(e) => setForm({ ...form, vendedor_id: e.target.value })}><option value="">Automático (quien crea el cliente)</option>{(data?.vendedores || []).map((v) => <option key={v.id} value={v.id}>{v.nombre}</option>)}</select><span className="hint">La ruta, zona, día, categoría y distribuidor se derivan de este vendedor.</span></div>
+            <div className="field"><label>Tipo de cliente</label><select className="select" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>{(data?.tipos_cliente || []).map((t) => <option key={t.id} value={t.nombre.toLowerCase()}>{t.nombre}</option>)}</select></div>
           </div>
           <div className="field-row">
-            <div className="field"><label>Ruta de preventa</label><select className="select" value={form.ruta_venta} onChange={(e) => setForm({ ...form, ruta_venta: e.target.value })}><option value="">Sin asignar</option><option value="R1">R1</option><option value="R2">R2</option></select></div>
-            <div className="field"><label>Día de visita</label><select className="select" value={form.dia_visita} onChange={(e) => setForm({ ...form, dia_visita: e.target.value })}><option value="">Sin asignar</option>{[1, 2, 3, 4, 5, 6, 7].map((d) => <option key={d} value={d}>{['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][d]}</option>)}</select></div>
+            <div className="field"><label>Zona / barrio</label><select className="select" value={form.zona} onChange={(e) => setForm({ ...form, zona: e.target.value })}><option value="">Automática según vendedor</option>{(data?.zonas || []).map((z) => <option key={z} value={z}>{z}</option>)}</select></div>
+            <div className="field"><label>Ruta de preventa</label><select className="select" value={form.ruta_venta} onChange={(e) => setForm({ ...form, ruta_venta: e.target.value })}><option value="">Automática según vendedor</option>{(data?.rutasVenta || []).map((r) => <option key={r.id} value={r.codigo}>{r.codigo} · {r.zona}</option>)}</select></div>
           </div>
-          <div className="field"><label>Categoría de cliente</label><select className="select" value={form.categoria_cliente_id} onChange={(e) => setForm({ ...form, categoria_cliente_id: e.target.value })}><option value="">Automática según vendedor</option>{(data?.categorias || []).map((c) => <option key={c.id} value={c.id}>{c.nombre} · {c.descuento_porcentaje}%</option>)}</select></div>
+          <div className="field-row">
+            <div className="field"><label>Día de visita</label><select className="select" value={form.dia_visita} onChange={(e) => setForm({ ...form, dia_visita: e.target.value })}><option value="">Automático según vendedor</option>{[1, 2, 3, 4, 5, 6, 7].map((d) => <option key={d} value={d}>{['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][d]}</option>)}</select></div>
+            <div className="field"><label>Categoría de cliente</label><select className="select" value={form.categoria_cliente_id} onChange={(e) => setForm({ ...form, categoria_cliente_id: e.target.value })}><option value="">Automática según vendedor</option>{(data?.categorias || []).map((c) => <option key={c.id} value={c.id}>{c.nombre} · {c.descuento_porcentaje}%</option>)}</select></div>
+          </div>
+          <div className="notice notice-info"><ShieldCheck size={15} /> Si falta una ruta, zona, tipo o categoría, el sistema la crea automáticamente y asigna el distribuidor del vendedor para evitar errores al guardar.</div>
           <div className="field"><label>Dirección</label><input className="input" value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} placeholder="Calle, número y referencia" /></div>
           <div className="geo-editor">
             <div className="geo-editor-head">
@@ -480,13 +513,31 @@ export default function Clientes() {
         </div>
       </Modal>
 
+      <Modal open={asignarModal} onClose={() => setAsignarModal(false)} title="Asignar clientes a vendedores" subtitle="Ruta, zona, día, categoría y distribuidor se asignan en forma automática." size="lg"
+        footer={<><button className="btn btn-ghost" onClick={() => setAsignarModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={guardarAsignacionMasiva} disabled={saving}>{saving ? 'Guardando…' : `Asignar ${asignarForm.cliente_ids.length} clientes`}</button></>}>
+        <div className="form-stack">
+          <div className="field"><label>Vendedor</label><select className="select" value={asignarForm.vendedor_id} onChange={(e) => setAsignarForm({ ...asignarForm, vendedor_id: e.target.value })}><option value="">Seleccionar…</option>{(data?.vendedores || []).map((v) => <option key={v.id} value={v.id}>{v.nombre} · {v.ruta_venta || 'sin ruta'}</option>)}</select></div>
+          <div className="field"><label>Clientes a asignar</label>
+            <div className="grid grid-2" style={{ gap: 6, maxHeight: 280, overflowY: 'auto' }}>
+              {(data?.clientes || []).map((c) => (
+                <label key={c.id} className="check"><input type="checkbox" checked={asignarForm.cliente_ids.includes(c.id)} onChange={() => alternarClienteAsignacion(c.id)} /> {c.nombre}<span className="hint"> · {c.ruta_venta || 'sin ruta'}</span></label>
+              ))}
+            </div>
+          </div>
+          <div className="notice notice-info"><ShieldCheck size={15} /> Al asignar, cada cliente hereda el distribuidor del vendedor y se crean las zonas, rutas, tipos y categorías que falten.</div>
+        </div>
+      </Modal>
+
       <Modal open={Boolean(creadoModal)} onClose={() => setCreadoModal(null)} title="Cliente creado" subtitle={`${creadoModal?.codigo || ''} · ${creadoModal?.nombre || ''}`} size="md">
         <div className="form-stack">
-          <div className="notice notice-info"><CheckCircle2 size={15} /> El cliente ya está en la cartera con su ruta y zona asignadas. El siguiente paso es venderle desde el mapa de ruta.</div>
+          <div className="notice notice-info"><CheckCircle2 size={15} /> El cliente quedó registrado con ruta, zona, categoría, tipo y distribuidor asignados automáticamente.</div>
           <div className="grid grid-2" style={{ gap: 10 }}>
             <div className="mini-stat"><span>Ruta</span><strong>{creadoModal?.ruta_venta || '—'}</strong></div>
             <div className="mini-stat"><span>Día de visita</span><strong>{['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][diaSugerido] || '—'}</strong></div>
+            <div className="mini-stat"><span>Zona</span><strong>{creadoModal?.zona || '—'}</strong></div>
+            <div className="mini-stat"><span>Distribuidor</span><strong>{(data?.distribuidores || []).find((d) => d.id === creadoModal?.distribuidor_id)?.nombre || '—'}</strong></div>
           </div>
+          {creadoModal?.automatico?.length > 0 && <div className="notice notice-warn"><Plus size={15} /> Se crearon automáticamente: {creadoModal.automatico.join(', ')}.</div>}
           <div className="grid" style={{ gap: 8 }}>
             <button className="btn btn-primary btn-block" onClick={() => {
               const query = new URLSearchParams();

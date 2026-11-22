@@ -1,0 +1,156 @@
+const express = require('express');
+const { load, save } = require('../db');
+const { authRequired, allow } = require('../auth');
+const { nextId, audit } = require('../utils');
+const { asegurarZona, asegurarTipoCliente, asignarCliente, sincronizarAsignaciones } = require('../asignacion');
+
+const router = express.Router();
+router.use(authRequired);
+
+const GESTION = ['admin', 'dueno', 'supervisor', 'ventas', 'preventista'];
+
+router.get('/', (req, res) => {
+  const db = load();
+  const vendedores = db.usuarios
+    .filter((u) => ['ventas', 'preventista', 'vendedor_camion'].includes(u.rol) && u.activo)
+    .map((u) => ({
+      id: u.id, nombre: u.nombre, rol: u.rol, ruta_venta: u.ruta_venta || null,
+      zona_venta: u.zona_venta || null, dias_visita: u.dias_visita || [],
+      repartidor_id: u.repartidor_id || null, categoria_cliente_id: u.categoria_cliente_id || null,
+    }));
+  return res.json({
+    rutas: [...(db.rutas_venta || [])].sort((a, b) => a.codigo.localeCompare(b.codigo)),
+    zonas: db.zonas || [],
+    tipos_cliente: db.tipos_cliente || [],
+    categorias: db.cliente_categorias || [],
+    vendedores,
+    distribuidores: (db.repartidores || []).filter((r) => r.activo),
+  });
+});
+
+router.post('/', allow(...GESTION), (req, res) => {
+  const db = load();
+  const { codigo, nombre, zona, dia_visita, vendedor_id, distribuidor_id, activa } = req.body || {};
+  const vendedor = db.usuarios.find((u) => u.id === Number(vendedor_id));
+  if (!vendedor) return res.status(400).json({ error: 'Selecciona un vendedor válido.' });
+  const zonaFinal = String(zona || vendedor.zona_venta || '').trim() || 'Centro';
+  const zonaObj = asegurarZona(db, zonaFinal);
+  const distribuidor = distribuidor_id
+    ? Number(distribuidor_id)
+    : (vendedor.repartidor_id ? Number(vendedor.repartidor_id) : null);
+  const codigoFinal = String(codigo || '').trim() || `R${(db.rutas_venta || []).length + 1}`;
+  if ((db.rutas_venta || []).some((r) => String(r.codigo).toLowerCase() === codigoFinal.toLowerCase())) {
+    return res.status(400).json({ error: 'Ya existe una ruta con ese código.' });
+  }
+  const dia = Number(dia_visita) || Number(vendedor.dias_visita?.[0]) || 1;
+  const ruta = {
+    id: nextId(db.rutas_venta),
+    codigo: codigoFinal,
+    nombre: String(nombre || '').trim() || `Ruta ${codigoFinal}`,
+    zona: zonaObj.nombre,
+    zona_id: zonaObj.id,
+    dia_visita: dia,
+    vendedor_id: vendedor.id,
+    distribuidor_id: distribuidor,
+    activa: activa !== false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  db.rutas_venta.push(ruta);
+  if (!vendedor.ruta_venta) vendedor.ruta_venta = ruta.codigo;
+  if (!vendedor.zona_venta) vendedor.zona_venta = ruta.zona;
+  if (!vendedor.repartidor_id && distribuidor) vendedor.repartidor_id = distribuidor;
+  if (!(vendedor.dias_visita || []).length) vendedor.dias_visita = [dia];
+  audit(db, req, 'Ruta de venta creada', 'Rutas de venta', `${ruta.codigo} · ${ruta.zona} · día ${dia} · ${vendedor.nombre}`);
+  save();
+  return res.status(201).json({ ruta, automatico: { zona_creada: zonaObj.creada, distribuidor_id: distribuidor } });
+});
+
+router.put('/:id', allow(...GESTION), (req, res) => {
+  const db = load();
+  const ruta = (db.rutas_venta || []).find((r) => r.id === Number(req.params.id));
+  if (!ruta) return res.status(404).json({ error: 'Ruta de venta no encontrada.' });
+  const { codigo, nombre, zona, dia_visita, vendedor_id, distribuidor_id, activa } = req.body || {};
+  if (vendedor_id) {
+    const vendedor = db.usuarios.find((u) => u.id === Number(vendedor_id));
+    if (!vendedor) return res.status(400).json({ error: 'Vendedor no encontrado.' });
+    ruta.vendedor_id = vendedor.id;
+    if (distribuidor_id === undefined && vendedor.repartidor_id) ruta.distribuidor_id = Number(vendedor.repartidor_id);
+  }
+  if (codigo !== undefined) ruta.codigo = String(codigo || ruta.codigo).trim();
+  if (nombre !== undefined) ruta.nombre = nombre;
+  if (zona !== undefined) {
+    const zonaObj = asegurarZona(db, zona);
+    ruta.zona = zonaObj.nombre;
+    ruta.zona_id = zonaObj.id;
+  }
+  if (dia_visita !== undefined) ruta.dia_visita = Number(dia_visita) || ruta.dia_visita;
+  if (distribuidor_id !== undefined) ruta.distribuidor_id = distribuidor_id ? Number(distribuidor_id) : null;
+  if (activa !== undefined) ruta.activa = Boolean(activa);
+  ruta.updated_at = new Date().toISOString();
+  audit(db, req, 'Ruta de venta actualizada', 'Rutas de venta', ruta.codigo);
+  save();
+  return res.json({ ruta });
+});
+
+router.patch('/:id/estado', allow(...GESTION), (req, res) => {
+  const db = load();
+  const ruta = (db.rutas_venta || []).find((r) => r.id === Number(req.params.id));
+  if (!ruta) return res.status(404).json({ error: 'Ruta de venta no encontrada.' });
+  ruta.activa = req.body?.activa !== false;
+  ruta.updated_at = new Date().toISOString();
+  audit(db, req, ruta.activa ? 'Ruta de venta activada' : 'Ruta de venta desactivada', 'Rutas de venta', ruta.codigo);
+  save();
+  return res.json({ ruta });
+});
+
+router.delete('/:id', allow('admin', 'dueno'), (req, res) => {
+  const db = load();
+  const ruta = (db.rutas_venta || []).find((r) => r.id === Number(req.params.id));
+  if (!ruta) return res.status(404).json({ error: 'Ruta de venta no encontrada.' });
+  db.rutas_venta = db.rutas_venta.filter((r) => r.id !== ruta.id);
+  audit(db, req, 'Ruta de venta eliminada', 'Rutas de venta', ruta.codigo);
+  save();
+  return res.json({ ok: true });
+});
+
+router.post('/zonas', allow(...GESTION), (req, res) => {
+  const db = load();
+  const nombre = String(req.body?.nombre || '').trim();
+  if (!nombre) return res.status(400).json({ error: 'Escribe el nombre de la zona.' });
+  const zona = asegurarZona(db, nombre);
+  if (!zona.creada) return res.status(400).json({ error: 'Esa zona ya existe.' });
+  audit(db, req, 'Zona creada', 'Rutas de venta', zona.nombre);
+  save();
+  return res.status(201).json({ zona });
+});
+
+router.post('/tipos', allow(...GESTION), (req, res) => {
+  const db = load();
+  const nombre = String(req.body?.nombre || '').trim();
+  if (!nombre) return res.status(400).json({ error: 'Escribe el nombre del tipo de cliente.' });
+  const tipo = asegurarTipoCliente(db, nombre);
+  if (!tipo.creado) return res.status(400).json({ error: 'Ese tipo de cliente ya existe.' });
+  audit(db, req, 'Tipo de cliente creado', 'Rutas de venta', tipo.nombre);
+  save();
+  return res.status(201).json({ tipo });
+});
+
+// Crea o completa zonas y tipos que falten, y vuelve a derivar el
+// distribuidor de cada cliente/ruta desde el vendedor asignado.
+router.post('/sincronizar', allow(...GESTION), (req, res) => {
+  const db = load();
+  (db.clientes || []).forEach((c) => asignarCliente(db, c, db.usuarios.find((u) => u.id === c.vendedor_id), {}));
+  const actualizados = sincronizarAsignaciones(db);
+  audit(db, req, 'Asignaciones sincronizadas', 'Rutas de venta', `${actualizados} registros actualizados`);
+  save();
+  return res.json({
+    ok: true,
+    actualizados,
+    zonas: (db.zonas || []).length,
+    tipos_cliente: (db.tipos_cliente || []).length,
+    rutas_venta: (db.rutas_venta || []).length,
+  });
+});
+
+module.exports = router;

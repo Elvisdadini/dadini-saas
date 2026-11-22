@@ -10,7 +10,7 @@ import {
   Avatar, Badge, EmptyState, Estado, Fecha, Modal, Money, PageHeader, SkeletonRows, Tabs, useToast,
 } from '../ui';
 
-const USUARIO_VACIO = { nombre: '', email: '', rol: 'ventas', cargo: '', telefono: '', password: 'Dadini2026!', repartidor_id: '', vehiculo_id: '', ruta_venta: 'R1', zona_venta: '', categoria_cliente_id: '', es_venta_directa: false, salario_base: 2500, comision_venta_pct: 0, comision_distribucion_pct: 0, bono_fijo: 0, descuento_fijo: 0, dias_visita: [1, 2, 3, 4, 5], activo: true };
+const USUARIO_VACIO = { nombre: '', email: '', rol: 'ventas', cargo: '', telefono: '', password: 'Dadini2026!', repartidor_id: '', vehiculo_id: '', ruta_venta: 'R1', zona_venta: '', categoria_cliente_id: '', es_venta_directa: false, salario_base: 2500, comision_venta_pct: 0, comision_distribucion_pct: 0, bono_fijo: 0, descuento_fijo: 0, dias_visita: [1, 2, 3, 4, 5], activo: true, plantilla: '', permisos: [] };
 
 export default function Administracion() {
   const { user, refresh } = useAuth();
@@ -37,6 +37,7 @@ export default function Administracion() {
   const [auditAccion, setAuditAccion] = useState('todas');
   const [busy, setBusy] = useState(false);
   const [reset, setReset] = useState(null);
+  const [catalogos, setCatalogos] = useState({ modulos: [], acciones: [], plantillas: [] });
 
   const cargarUsuarios = async () => {
     setLoading(true);
@@ -44,10 +45,11 @@ export default function Administracion() {
       const data = await api.get(`/usuarios${qs({ search, rol })}`);
       setUsuarios(data.usuarios);
       setResumen(data.resumen);
-      const [rep, veh, cat] = await Promise.all([api.get('/repartidores'), api.get('/vehiculos'), api.get('/categorias')]);
+      const [rep, veh, cat, per] = await Promise.all([api.get('/repartidores'), api.get('/vehiculos'), api.get('/categorias'), api.get('/permisos')]);
       setRepartidores(rep.repartidores || []);
       setVehiculos(veh.vehiculos || []);
       setCategorias(cat.categorias || []);
+      setCatalogos(per);
     } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
   };
 
@@ -78,8 +80,23 @@ export default function Administracion() {
 
   const abrirUsuario = (u = null) => {
     setEditing(u);
-    setForm(u ? { nombre: u.nombre, email: u.email, rol: u.rol, cargo: u.cargo, telefono: u.telefono, password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo } : USUARIO_VACIO);
+    setForm(u ? { nombre: u.nombre, email: u.email, rol: u.rol, cargo: u.cargo, telefono: u.telefono, password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo, plantilla: u.plantilla_permisos || '', permisos: u.permisos || [] } : USUARIO_VACIO);
     setModal(true);
+  };
+
+  const aplicarPlantilla = (id) => {
+    const plantilla = (catalogos.plantillas || []).find((p) => p.id === id);
+    if (!plantilla) return;
+    setForm((f) => ({ ...f, plantilla: id, rol: plantilla.rol, permisos: [...plantilla.permisos] }));
+    toast(`Modelo ${plantilla.nombre} aplicado · ${plantilla.permisos.length} funciones activas`);
+  };
+
+  const alternarPermiso = (codigo) => {
+    setForm((f) => ({
+      ...f,
+      plantilla: 'personalizado',
+      permisos: (f.permisos || []).includes(codigo) ? f.permisos.filter((p) => p !== codigo) : [...(f.permisos || []), codigo],
+    }));
   };
 
   const guardarUsuario = async () => {
@@ -336,8 +353,30 @@ export default function Administracion() {
               </>
             )}
           </div>
+          <div className="divider" />
+          <strong className="small">Modelo y permisos de acceso</strong>
+          <div className="field"><label>Modelo de permisos</label>
+            <select className="select" value={form.plantilla || ''} onChange={(e) => aplicarPlantilla(e.target.value)}>
+              <option value="">Personalizado / sin modelo</option>
+              {(catalogos.plantillas || []).map((p) => <option key={p.id} value={p.id}>{p.nombre} · {p.permisos.length} funciones</option>)}
+            </select>
+            <span className="hint">Elige Vendedor, Distribuidor, Almacén, Supervisor, Ventas directa o Cobranzas para limitar el acceso.</span>
+          </div>
+          {(form.rol === 'admin' || form.rol === 'dueno') ? (
+            <div className="notice notice-info"><ShieldCheck size={15} /> Administradores y dueños tienen todas las funciones activas.</div>
+          ) : (
+            <>
+              <span className="small muted">Funciones activas ({(form.permisos || []).length}):</span>
+              <div className="grid grid-3" style={{ gap: 8 }}>
+                {[...(catalogos.modulos || []), ...(catalogos.acciones || [])].map((permiso) => (
+                  <label key={permiso.codigo} className="check"><input type="checkbox" checked={(form.permisos || []).includes(permiso.codigo)} onChange={() => alternarPermiso(permiso.codigo)} /> {permiso.etiqueta}</label>
+                ))}
+              </div>
+              <span className="hint">Los cambios aparecen o desaparecen para el usuario al cerrar sesión y volver a ingresar.</span>
+            </>
+          )}
           {!editing && <div className="field"><label>Contraseña inicial</label><input className="input" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /><span className="hint">Mínimo 8 caracteres. El usuario puede cambiarla luego.</span></div>}
-          <div className="notice notice-info"><ShieldCheck size={15} /> El rol define los módulos visibles: Ventas, Almacén, Distribución, Cobranzas o Administración total.</div>
+          <div className="notice notice-info"><ShieldCheck size={15} /> Los permisos limitan funciones sensibles: nadie que no sea supervisión o administración puede borrar pedidos, cobranzas ni alterar los reportes mensuales.</div>
         </div>
       </Modal>
 

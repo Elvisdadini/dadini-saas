@@ -1,6 +1,6 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, nextCode, audit, num, round2, hoy, addDaysISO } = require('../utils');
 const { pedidoResumen, recalcularCliente, buscarPedidos, stockEn } = require('../services');
 const { config: configCredito, vencimientoDe, diasCredito, normalizarConfig, interesDe } = require('../credito');
@@ -298,6 +298,9 @@ router.patch('/:id/estado', allow('ventas', 'preventista', 'distribucion'), (req
     return res.status(400).json({ error: `No se puede pasar de "${pedido.estado}" a "${estado}".` });
   }
   if (estado === 'cancelado') {
+    if (!['admin', 'dueno'].includes(req.user.rol) && !(req.user.permisos || []).includes('pedidos_editar')) {
+      return res.status(403).json({ error: 'Solo supervisión o administración puede cancelar pedidos.' });
+    }
     pedido.items.forEach((l) => {
       const movil = pedido.almacen_movil_id ? db.almacenes_moviles?.find((a) => a.id === pedido.almacen_movil_id) : null;
       if (movil) {
@@ -433,7 +436,7 @@ router.patch('/:id/asignar-ruta', allow('distribucion', 'ventas'), (req, res) =>
   return res.json({ pedido: pedidoResumen(db, pedido, true) });
 });
 
-router.put('/:id', allow('ventas'), (req, res) => {
+router.put('/:id', requirePermiso('pedidos_editar'), allow('ventas'), (req, res) => {
   const db = load();
   const pedido = db.pedidos.find((p) => p.id === Number(req.params.id));
   if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado.' });

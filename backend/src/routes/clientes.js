@@ -1,9 +1,10 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, audit, num, round2, matches } = require('../utils');
 const { pedidoResumen } = require('../services');
 const { esCoordenaValida } = require('../geo');
+const { asignarCliente, distribuidorDeVendedor } = require('../asignacion');
 
 const router = express.Router();
 router.use(authRequired);
@@ -39,10 +40,15 @@ router.get('/', (req, res) => {
     if (req.user.zona_venta) clientes = clientes.filter((c) => c.zona === req.user.zona_venta || c.ruta_venta === req.user.ruta_venta);
     else if (req.user.ruta_venta) clientes = clientes.filter((c) => c.ruta_venta === req.user.ruta_venta);
   }
-  const zonas = [...new Set(db.clientes.map((c) => c.zona))].sort();
+  const zonas = [...new Set([...(db.zonas || []).map((z) => z.nombre), ...db.clientes.map((c) => c.zona)].filter(Boolean))].sort();
   return res.json({
     clientes: clientes.sort((a, b) => b.comprado - a.comprado),
     zonas,
+    zonasCatalogo: db.zonas || [],
+    tiposCliente: db.tipos_cliente || [],
+    rutasVenta: db.rutas_venta || [],
+    vendedores: db.usuarios.filter((u) => ['ventas', 'preventista', 'vendedor_camion'].includes(u.rol)).map((u) => ({ id: u.id, nombre: u.nombre, ruta_venta: u.ruta_venta, zona_venta: u.zona_venta, repartidor_id: u.repartidor_id })),
+    distribuidores: db.repartidores || [],
     categorias: db.cliente_categorias || [],
     resumen: {
       total: db.clientes.filter((c) => c.activo).length,
@@ -72,7 +78,7 @@ router.get('/:id', (req, res) => {
   return res.json({ cliente, pedidos, visitas });
 });
 
-router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas'), (req, res) => {
+router.post('/', requirePermiso('clientes_crear'), allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas'), (req, res) => {
   const db = load();
   const { nombre, tipo, zona, direccion, telefono, email, limite_credito, contacto, notas, latitud, longitud, precision, ruta_venta, dia_visita, categoria_cliente_id } = req.body || {};
   if (!nombre) return res.status(400).json({ error: 'El nombre del cliente es obligatorio.' });
@@ -93,11 +99,10 @@ router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas'),
     created_at: new Date().toISOString(),
   };
   const vendedorCreador = db.usuarios.find((u) => u.id === req.user.id);
-  cliente.ruta_venta = ruta_venta || vendedorCreador?.ruta_venta || null;
-  cliente.dia_visita = dia_visita ? Number(dia_visita) : null;
-  cliente.zona = zona || vendedorCreador?.zona_venta || 'Centro';
-  cliente.categoria_cliente_id = categoria_cliente_id ? Number(categoria_cliente_id) : (vendedorCreador?.categoria_cliente_id || null);
-  cliente.vendedor_id = req.user.id;
+  const vendedorAsignado = req.body?.vendedor_id
+    ? db.usuarios.find((u) => u.id === Number(req.body.vendedor_id))
+    : vendedorCreador;
+  const creados = asignarCliente(db, cliente, vendedorAsignado, req.body || {});
   if (esCoordenaValida(latitud, longitud)) {
     cliente.latitud = Number(latitud);
     cliente.longitud = Number(longitud);
@@ -124,9 +129,9 @@ router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas'),
     });
   }
   db.clientes.push(cliente);
-  audit(db, req, 'Cliente creado', 'Clientes', cliente.nombre);
+  audit(db, req, 'Cliente creado', 'Clientes', `${cliente.nombre} · ${creados.length ? creados.join(', ') : 'asignaciones existentes'}`);
   save();
-  return res.status(201).json({ cliente });
+  return res.status(201).json({ cliente, automatico: creados });
 });
 
 router.patch('/:id/bloqueo', allow('admin', 'dueno', 'cobranzas'), (req, res) => {
@@ -150,7 +155,14 @@ router.patch('/:id/reasignar', allow('admin', 'dueno'), (req, res) => {
   const { vendedor_id, ruta_venta, zona, reasignar_pedidos } = req.body || {};
   const vendedor = vendedor_id ? db.usuarios.find((u) => u.id === Number(vendedor_id)) : null;
   if (vendedor_id && !vendedor) return res.status(400).json({ error: 'Vendedor no encontrado.' });
-  if (vendedor) cliente.vendedor_id = vendedor.id;
+  if (vendedor) {
+    cliente.vendedor_id = vendedor.id;
+    cliente.distribuidor_id = distribuidorDeVendedor(db, vendedor);
+    if (!ruta_venta && vendedor.ruta_venta) cliente.ruta_venta = vendedor.ruta_venta;
+    if (!zona && vendedor.zona_venta) cliente.zona = vendedor.zona_venta;
+    if (!cliente.categoria_cliente_id && vendedor.categoria_cliente_id) cliente.categoria_cliente_id = vendedor.categoria_cliente_id;
+    if (!cliente.dia_visita && vendedor.dias_visita?.length) cliente.dia_visita = vendedor.dias_visita[0];
+  }
   if (ruta_venta) cliente.ruta_venta = ruta_venta;
   if (zona) cliente.zona = zona;
   let pedidos = 0;
@@ -160,12 +172,37 @@ router.patch('/:id/reasignar', allow('admin', 'dueno'), (req, res) => {
       p.vendedor_id = vendedor.id;
       if (p.saldo > 0 && !p.en_mora) p.responsable_cobro_id = vendedor.id;
       if (ruta_venta) p.ruta_venta = ruta_venta;
+      if (cliente.distribuidor_id) p.repartidor_asignado_id = cliente.distribuidor_id;
       pedidos += 1;
     });
   }
   audit(db, req, 'Cliente reasignado', 'Clientes', `${cliente.nombre} → ${vendedor?.nombre || 'sin vendedor'} · ${pedidos} pedidos`);
   save();
   return res.json({ cliente, pedidos_reasignados: pedidos });
+});
+
+// Asignación masiva de clientes a un vendedor: hereda ruta, zona, día,
+// categoría y distribuidor automáticamente desde el vendedor elegido.
+router.post('/asignar-vendedor', allow('admin', 'dueno', 'supervisor', 'ventas'), (req, res) => {
+  const db = load();
+  const { cliente_ids, vendedor_id, ruta_venta, zona, dia_visita } = req.body || {};
+  const vendedor = db.usuarios.find((u) => u.id === Number(vendedor_id));
+  if (!vendedor) return res.status(400).json({ error: 'Selecciona un vendedor válido.' });
+  const ids = Array.isArray(cliente_ids) ? cliente_ids.map(Number) : [];
+  if (!ids.length) return res.status(400).json({ error: 'Selecciona al menos un cliente.' });
+  const clientes = db.clientes.filter((c) => ids.includes(c.id));
+  if (!clientes.length) return res.status(404).json({ error: 'No se encontraron los clientes seleccionados.' });
+  const creados = [];
+  clientes.forEach((cliente) => {
+    creados.push(...asignarCliente(db, cliente, vendedor, { vendedor_id: vendedor.id, ruta_venta, zona, dia_visita }));
+  });
+  audit(db, req, 'Clientes asignados', 'Clientes', `${clientes.length} clientes → ${vendedor.nombre}`);
+  save();
+  return res.json({
+    asignados: clientes.length,
+    distribuidor_id: distribuidorDeVendedor(db, vendedor),
+    automatico: [...new Set(creados)],
+  });
 });
 
 router.post('/importar', allow('admin', 'ventas', 'preventista'), (req, res) => {
@@ -239,7 +276,7 @@ router.post('/importar', allow('admin', 'ventas', 'preventista'), (req, res) => 
   return res.status(201).json({ creados: creados.length, errores, total: filas.length, clientes: creados.map((c) => ({ id: c.id, codigo: c.codigo, nombre: c.nombre })) });
 });
 
-router.put('/:id', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas'), (req, res) => {
+router.put('/:id', requirePermiso('clientes_editar'), allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas'), (req, res) => {
   const db = load();
   const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });

@@ -1,6 +1,6 @@
 {
   "version": 19,
-  "generado_en": "2026-11-22T23:14:19.327Z",
+  "generado_en": "2026-11-22T23:47:10.789Z",
   "usuarios": [
     {
       "id": 1,
@@ -10,7 +10,7 @@
       "cargo": "Gerente general",
       "telefono": "67451234",
       "activo": true,
-      "password": "$2a$10$ERgjbm1eZFuAsYNYJC.Hm.472gCHLiEriH/rgugIlJCkhj/q.QcT2",
+      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -18,7 +18,36 @@
       "descuento_fijo": 0,
       "antiguedad_anios": 2,
       "created_at": "2026-07-25T13:00:00.000Z",
-      "ultimo_acceso": null
+      "ultimo_acceso": null,
+      "permisos": [
+        "dashboard",
+        "ventas",
+        "venta_nueva",
+        "rutas_venta",
+        "clientes",
+        "mi_camion",
+        "cobranzas",
+        "objetivos",
+        "compras",
+        "rentabilidad",
+        "inventario",
+        "distribucion",
+        "reportes",
+        "administracion",
+        "planes",
+        "dueno",
+        "clientes_crear",
+        "clientes_editar",
+        "rutas_crear",
+        "rutas_eliminar",
+        "pedidos_editar",
+        "pedidos_eliminar",
+        "cobranzas_editar",
+        "cobranzas_eliminar",
+        "reportes_editar",
+        "usuarios_gestionar",
+        "configuracion_editar"
+      ]
     },
     {
       "id": 2,
@@ -42,7 +71,7 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$ERgjbm1eZFuAsYNYJC.Hm.472gCHLiEriH/rgugIlJCkhj/q.QcT2",
+      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -50,7 +79,19 @@
       "descuento_fijo": 0,
       "antiguedad_anios": 3,
       "created_at": "2026-07-25T13:00:00.000Z",
-      "ultimo_acceso": null
+      "ultimo_acceso": null,
+      "permisos": [
+        "dashboard",
+        "ventas",
+        "venta_nueva",
+        "rutas_venta",
+        "clientes",
+        "clientes_crear",
+        "clientes_editar",
+        "cobranzas",
+        "reportes",
+        "objetivos"
+      ]
     },
     {
       "id": 3,
@@ -60,7 +101,7 @@
       "cargo": "Jefe de almacén",
       "telefono": "72345678",
       "activo": true,
-      "password": "$2a$10$ERgjbm1eZFuAsYNYJC.Hm.472gCHLiEriH/rgugIlJCkhj/q.QcT2",
+      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -68,7 +109,14 @@
       "descuento_fijo": 0,
       "antiguedad_anios": 4,
       "created_at": "2026-07-25T13:00:00.000Z",
-      "ultimo_acceso": null
+      "ultimo_acceso": null,
+      "permisos": [
+        "dashboard",
+        "inventario",
+        "compras",
+        "reportes",
+        "rutas_venta"
+      ]
     },
     {
       "id": 4,
@@ -80,7 +128,7 @@
       "repartidor_id": 1,
       "vehiculo_id": 2,
       "activo": true,
-      "password": "$2a$10$ERgjbm1eZFuAsYNYJC.Hm.472gCHLiEriH/rgugIlJCkhj/q.QcT2",
+      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 1,
@@ -88,7 +136,15 @@
       "descuento_fijo": 0,
       "antiguedad_anios": 1,
       "created_at": "2026-07-25T13:00:00.000Z",
-      "ultimo_acceso": null
+      "ultimo_acceso": null,
+      "permisos": [
+        "dashboard",
+        "ventas",
+        "rutas_venta",
+        "clientes",
+        "distribucion",
+        "reportes"
+      ]
     },
     {
       "id": 5,
@@ -98,7 +154,7 @@
       "cargo": "Analista de cobranzas",
       "telefono": "74567890",
       "activo": true,
-      "password": "$2a$10$ERgjbm1eZFuAsYNYJC.Hm.472gCHLiEriH/rgugIlJCkhj/q.QcT2",
+      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -106,7 +162,15 @@
       "descuento_fijo": 0,
       "antiguedad_anios": 2,
       "created_at": "2026-07-25T13:00:00.000Z",
-      "ultimo_acceso": null
+      "ultimo_acceso": null,
+      "permisos": [
+        "dashboard",
+        "ventas",
+        "clientes",
+        "cobranzas",
+        "cobranzas_editar",
+        "reportes"
+      ]
     },
     {
       "id": 6,
@@ -129,7 +193,7 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$ERgjbm1eZFuAsYNYJC.Hm.472gCHLiEriH/rgugIlJCkhj/q.QcT2",
+      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -137,7 +201,19 @@
       "descuento_fijo": 0,
       "antiguedad_anios": 3,
       "created_at": "2026-07-25T13:00:00.000Z",
-      "ultimo_acceso": null
+      "ultimo_acceso": null,
+      "permisos": [
+        "dashboard",
+        "ventas",
+        "venta_nueva",
+        "rutas_venta",
+        "clientes",
+        "clientes_crear",
+        "clientes_editar",
+        "cobranzas",
+        "reportes",
+        "objetivos"
+      ]
     },
     {
       "id": 7,
@@ -147,7 +223,7 @@
       "cargo": "Dueño del sistema",
       "telefono": "70000001",
       "activo": true,
-      "password": "$2a$10$ERgjbm1eZFuAsYNYJC.Hm.472gCHLiEriH/rgugIlJCkhj/q.QcT2",
+      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -155,7 +231,36 @@
       "descuento_fijo": 0,
       "antiguedad_anios": 4,
       "created_at": "2026-07-25T13:00:00.000Z",
-      "ultimo_acceso": null
+      "ultimo_acceso": null,
+      "permisos": [
+        "dashboard",
+        "ventas",
+        "venta_nueva",
+        "rutas_venta",
+        "clientes",
+        "mi_camion",
+        "cobranzas",
+        "objetivos",
+        "compras",
+        "rentabilidad",
+        "inventario",
+        "distribucion",
+        "reportes",
+        "administracion",
+        "planes",
+        "dueno",
+        "clientes_crear",
+        "clientes_editar",
+        "rutas_crear",
+        "rutas_eliminar",
+        "pedidos_editar",
+        "pedidos_eliminar",
+        "cobranzas_editar",
+        "cobranzas_eliminar",
+        "reportes_editar",
+        "usuarios_gestionar",
+        "configuracion_editar"
+      ]
     },
     {
       "id": 8,
@@ -170,7 +275,7 @@
       "es_venta_directa": true,
       "almacen_movil_id": 1,
       "activo": true,
-      "password": "$2a$10$ERgjbm1eZFuAsYNYJC.Hm.472gCHLiEriH/rgugIlJCkhj/q.QcT2",
+      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -178,7 +283,17 @@
       "descuento_fijo": 0,
       "antiguedad_anios": 1,
       "created_at": "2026-07-25T13:00:00.000Z",
-      "ultimo_acceso": null
+      "ultimo_acceso": null,
+      "permisos": [
+        "dashboard",
+        "ventas",
+        "venta_nueva",
+        "rutas_venta",
+        "clientes",
+        "clientes_crear",
+        "mi_camion",
+        "cobranzas"
+      ]
     },
     {
       "id": 9,
@@ -188,7 +303,7 @@
       "cargo": "Supervisora de ventas",
       "telefono": "70000003",
       "activo": true,
-      "password": "$2a$10$ERgjbm1eZFuAsYNYJC.Hm.472gCHLiEriH/rgugIlJCkhj/q.QcT2",
+      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -196,7 +311,22 @@
       "descuento_fijo": 0,
       "antiguedad_anios": 2,
       "created_at": "2026-07-25T13:00:00.000Z",
-      "ultimo_acceso": null
+      "ultimo_acceso": null,
+      "permisos": [
+        "dashboard",
+        "ventas",
+        "rutas_venta",
+        "clientes",
+        "clientes_editar",
+        "cobranzas",
+        "objetivos",
+        "compras",
+        "rentabilidad",
+        "distribucion",
+        "reportes",
+        "reportes_editar",
+        "pedidos_editar"
+      ]
     }
   ],
   "almacenes": [
@@ -1081,6 +1211,78 @@
       "precios": [],
       "activa": true,
       "created_at": "2026-07-25T12:00:00.000Z"
+    }
+  ],
+  "zonas": [
+    {
+      "id": 1,
+      "codigo": "ZON-0001",
+      "nombre": "Centro",
+      "descripcion": "Zona comercial Centro",
+      "activa": true,
+      "created_at": "2026-11-22T12:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "codigo": "ZON-0002",
+      "nombre": "Quillacollo",
+      "descripcion": "Zona comercial Quillacollo",
+      "activa": true,
+      "created_at": "2026-11-22T12:00:00.000Z"
+    },
+    {
+      "id": 3,
+      "codigo": "ZON-0003",
+      "nombre": "La Recoleta",
+      "descripcion": "Zona comercial La Recoleta",
+      "activa": true,
+      "created_at": "2026-11-22T12:00:00.000Z"
+    }
+  ],
+  "tipos_cliente": [
+    {
+      "id": 1,
+      "codigo": "TIP-0001",
+      "nombre": "Minorista",
+      "descripcion": "Clientes minoristas",
+      "activo": true,
+      "created_at": "2026-11-22T12:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "codigo": "TIP-0002",
+      "nombre": "Mayorista",
+      "descripcion": "Clientes mayoristas",
+      "activo": true,
+      "created_at": "2026-11-22T12:00:00.000Z"
+    }
+  ],
+  "rutas_venta": [
+    {
+      "id": 1,
+      "codigo": "R1",
+      "nombre": "Ruta R1 · Centro",
+      "zona": "Centro",
+      "zona_id": 1,
+      "dia_visita": 1,
+      "vendedor_id": 2,
+      "distribuidor_id": 1,
+      "activa": true,
+      "created_at": "2026-11-22T12:00:00.000Z",
+      "updated_at": "2026-11-22T12:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "codigo": "R2",
+      "nombre": "Ruta R2 · Quillacollo",
+      "zona": "Quillacollo",
+      "zona_id": 2,
+      "dia_visita": 2,
+      "vendedor_id": 6,
+      "distribuidor_id": 2,
+      "activa": true,
+      "created_at": "2026-11-22T12:00:00.000Z",
+      "updated_at": "2026-11-22T12:00:00.000Z"
     }
   ],
   "almacenes_moviles": [],

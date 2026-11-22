@@ -1,6 +1,6 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, nextCode, audit, round2, num } = require('../utils');
 const { pedidoResumen } = require('../services');
 const { distanciaKm, distanciaAcumulada, centroYDistanza, esCoordenaValida } = require('../geo');
@@ -492,7 +492,7 @@ router.post('/:id/reordenar', allow('distribucion'), (req, res) => {
   return res.json({ ruta: rutaResumen(db, ruta) });
 });
 
-router.delete('/:id', allow(), (req, res) => {
+router.delete('/:id', requirePermiso('rutas_eliminar'), allow(), (req, res) => {
   const db = load();
   const ruta = db.rutas.find((r) => r.id === Number(req.params.id));
   if (!ruta) return res.status(404).json({ error: 'Ruta no encontrada.' });

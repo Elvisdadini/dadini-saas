@@ -1,6 +1,7 @@
 const path = require('path');
 const store = require('./store');
 const { buildSeed, SEED_VERSION } = require('./seed');
+const { asegurarEstructura } = require('./permisos');
 
 let db = null;
 let colaGuardado = Promise.resolve();
@@ -12,8 +13,11 @@ async function init() {
   if (!db || db.version !== SEED_VERSION) {
     db = buildSeed();
     await store.guardar(db);
-    console.log(`[db] Base demo inicializada en ${store.base()}`);
+    console.log(`[db] Base inicializada en ${store.base()}`);
   }
+  // Migración suave: agrega rutas/zonas/tipos y los permisos de usuarios
+  // existentes sin borrar ningún dato operativo.
+  if (asegurarEstructura(db)) await store.guardar(db);
   return db;
 }
 

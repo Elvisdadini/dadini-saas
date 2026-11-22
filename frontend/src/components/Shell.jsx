@@ -18,6 +18,7 @@ const NAV = [
       { to: '/ventas', label: 'Ventas', icon: ShoppingCart, key: 'ventas', badge: 'pendientes' },
 
       { to: '/ventas/agenda', label: 'Mi agenda de visitas', icon: MapPin, key: 'ventas', roles: ['preventista'] },
+      { to: '/ventas/rutas', label: 'Rutas y zonas de venta', icon: MapPin, key: 'rutas_venta' },
       { to: '/ventas/objetivos', label: 'Generar objetivos', icon: Target, key: 'objetivos' },
       { to: '/mi-camion', label: 'Mi camión', icon: Truck, key: 'mi_camion', roles: ['vendedor_camion', 'admin', 'dueno'] },
       { to: '/clientes', label: 'Clientes', icon: Users, key: 'clientes' },
@@ -51,6 +52,7 @@ const NAV = [
       { to: '/dueno', label: 'Panel del dueño', icon: Crown, key: 'dueno' },
       { to: '/administracion', label: 'Administración', icon: Settings, key: 'administracion' },
       { to: '/administracion/personalizacion', label: 'Marca y APK', icon: Palette, key: 'administracion' },
+      { to: '/administracion/permisos', label: 'Roles y permisos', icon: Lock, key: 'administracion' },
       { to: '/planes', label: 'Plan y facturación', icon: CreditCard, key: 'planes' },
     ],
   },
@@ -62,6 +64,7 @@ const PAGE_TITLES = {
   '/ventas/nueva': ['Nueva venta', 'Punto de venta'],
   '/inventario/preparado': ['Preparado de carga', 'Cierre y carga de camión'],
   '/ventas/agenda': ['Mi agenda de visitas', 'Preventa por ruta y día'],
+  '/ventas/rutas': ['Rutas y zonas de venta', 'Días de visita, vendedores y distribuidores'],
   '/ventas/objetivos': ['Generar objetivos', 'Metas mensuales'],
   '/mi-camion': ['Mi camión', 'Stock, solicitudes y devoluciones'],
   '/clientes': ['Clientes', 'Cartera comercial'],
@@ -83,6 +86,7 @@ const PAGE_TITLES = {
   '/dueno': ['Panel del dueño', 'Planes, precios y descuentos'],
   '/administracion': ['Administración', 'Configuración del sistema'],
   '/administracion/personalizacion': ['Marca y APK', 'Identidad visual y nube'],
+  '/administracion/permisos': ['Roles y permisos', 'Modelos de acceso y funciones por usuario'],
   '/planes': ['Plan y facturación', 'Suscripción SaaS'],
 };
 

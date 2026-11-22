@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
 const config = require('./config');
+const { permisosUsuario, tienePermiso } = require('./permisos');
 
 const SECRET = config.jwtSecret;
 const EXPIRES = config.jwtExpires;
@@ -36,6 +37,9 @@ function authRequired(req, res, next) {
       categoria_cliente_id: user.categoria_cliente_id || null,
       es_venta_directa: Boolean(user.es_venta_directa),
       almacen_movil_id: user.almacen_movil_id || null,
+      dias_visita: Array.isArray(user.dias_visita) ? user.dias_visita : [],
+      distribuidor_id: user.repartidor_id || null,
+      permisos: permisosUsuario(user),
     };
     req.db = db;
     return next();
@@ -52,6 +56,17 @@ function allow(...roles) {
   };
 }
 
+// Permiso granular: se evalúa contra los permisos vigentes del usuario en la
+// base (no contra el token), así un cambio de administración aplica al instante.
+function requirePermiso(...codigos) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Sesión requerida.' });
+    if (req.user.rol === 'admin' || req.user.rol === 'dueno') return next();
+    if (codigos.some((codigo) => tienePermiso(req.user, codigo))) return next();
+    return res.status(403).json({ error: 'No tienes permiso para esta acción. Solicita acceso a administración.' });
+  };
+}
+
 function hash(password) {
   return bcrypt.hashSync(password, 10);
 }
@@ -60,4 +75,4 @@ function compare(password, hashed) {
   return bcrypt.compareSync(password, hashed);
 }
 
-module.exports = { sign, verify, authRequired, allow, hash, compare };
+module.exports = { sign, verify, authRequired, allow, requirePermiso, hash, compare };

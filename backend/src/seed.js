@@ -643,6 +643,19 @@ function buildSeed() {
     mensajes_whatsapp: [],
     promociones,
     cliente_categorias: categoriasCliente,
+    zonas: [
+      { id: 1, codigo: 'ZON-0001', nombre: 'Centro', descripcion: 'Zona comercial Centro', activa: true, created_at: atHour(now, 8) },
+      { id: 2, codigo: 'ZON-0002', nombre: 'Quillacollo', descripcion: 'Zona comercial Quillacollo', activa: true, created_at: atHour(now, 8) },
+      { id: 3, codigo: 'ZON-0003', nombre: 'La Recoleta', descripcion: 'Zona comercial La Recoleta', activa: true, created_at: atHour(now, 8) },
+    ],
+    tipos_cliente: [
+      { id: 1, codigo: 'TIP-0001', nombre: 'Minorista', descripcion: 'Clientes minoristas', activo: true, created_at: atHour(now, 8) },
+      { id: 2, codigo: 'TIP-0002', nombre: 'Mayorista', descripcion: 'Clientes mayoristas', activo: true, created_at: atHour(now, 8) },
+    ],
+    rutas_venta: [
+      { id: 1, codigo: 'R1', nombre: 'Ruta R1 · Centro', zona: 'Centro', zona_id: 1, dia_visita: 1, vendedor_id: 2, distribuidor_id: 1, activa: true, created_at: atHour(now, 8), updated_at: atHour(now, 8) },
+      { id: 2, codigo: 'R2', nombre: 'Ruta R2 · Quillacollo', zona: 'Quillacollo', zona_id: 2, dia_visita: 2, vendedor_id: 6, distribuidor_id: 2, activa: true, created_at: atHour(now, 8), updated_at: atHour(now, 8) },
+    ],
     almacenes_moviles: almacenesMoviles,
     solicitudes_carga: [],
     devoluciones_movil: [],

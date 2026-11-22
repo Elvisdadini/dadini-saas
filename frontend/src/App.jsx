@@ -32,6 +32,8 @@ import RutaDetalle from './pages/RutaDetalle';
 import Reportes from './pages/Reportes';
 import Administracion from './pages/Administracion';
 import Planes from './pages/Planes';
+import RutasVenta from './pages/RutasVenta';
+import Permisos from './pages/Permisos';
 
 function Splash() {
   return (
@@ -71,6 +73,7 @@ export default function App() {
           <Route path="ventas/preparado" element={<Navigate to="/inventario/preparado" replace />} />
           <Route path="inventario/preparado" element={<Guard module="inventario"><PreparadoCarga /></Guard>} />
           <Route path="ventas/agenda" element={<Guard module="ventas"><AgendaPreventa /></Guard>} />
+          <Route path="ventas/rutas" element={<Guard module="rutas_venta"><RutasVenta /></Guard>} />
           <Route path="ventas/objetivos" element={<Guard module="objetivos"><Objetivos /></Guard>} />
           <Route path="ventas/:id" element={<Guard module="ventas"><PedidoDetalle /></Guard>} />
           <Route path="mi-camion" element={<Guard module="mi_camion"><MiCamion /></Guard>} />
@@ -94,6 +97,7 @@ export default function App() {
           <Route path="dueno" element={<Guard module="dueno"><Dueno /></Guard>} />
           <Route path="administracion" element={<Guard module="administracion"><Administracion /></Guard>} />
           <Route path="administracion/personalizacion" element={<Guard module="administracion"><Personalizacion /></Guard>} />
+          <Route path="administracion/permisos" element={<Guard module="administracion"><Permisos /></Guard>} />
           <Route path="planes" element={<Guard module="planes"><Planes /></Guard>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

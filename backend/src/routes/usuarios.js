@@ -2,6 +2,7 @@ const express = require('express');
 const { load, save } = require('../db');
 const { authRequired, allow, hash } = require('../auth');
 const { nextId, audit, matches, num } = require('../utils');
+const { MODULOS, ACCIONES, PLANTILLAS, permisosPorRol, permisosPorPlantilla, normalizarPermisos } = require('../permisos');
 
 const router = express.Router();
 router.use(authRequired, allow());
@@ -21,13 +22,16 @@ router.get('/', (req, res) => {
   return res.json({
     usuarios: usuarios.sort((a, b) => a.nombre.localeCompare(b.nombre)),
     roles: ROLES,
+    plantillas: PLANTILLAS,
+    modulos: MODULOS,
+    acciones: ACCIONES,
     resumen: { total: db.usuarios.length, activos: db.usuarios.filter((u) => u.activo).length, admins: db.usuarios.filter((u) => u.rol === 'admin').length },
   });
 });
 
 router.post('/', (req, res) => {
   const db = load();
-  const { nombre, email, rol, cargo, telefono, password, repartidor_id, vehiculo_id, ruta_venta, dias_visita, zona_venta, categoria_cliente_id, es_venta_directa, almacen_movil_id, salario_base, comision_venta_pct, comision_distribucion_pct, bono_fijo, descuento_fijo, antiguedad_anios } = req.body || {};
+  const { nombre, email, rol, cargo, telefono, password, repartidor_id, vehiculo_id, ruta_venta, dias_visita, zona_venta, categoria_cliente_id, es_venta_directa, almacen_movil_id, salario_base, comision_venta_pct, comision_distribucion_pct, bono_fijo, descuento_fijo, antiguedad_anios, permisos, plantilla } = req.body || {};
   if (!nombre || !email || !rol) return res.status(400).json({ error: 'Nombre, correo y rol son obligatorios.' });
   if (!ROLES.includes(rol)) return res.status(400).json({ error: 'Rol inválido.' });
   if (db.usuarios.some((u) => u.email.toLowerCase() === String(email).toLowerCase())) return res.status(400).json({ error: 'Ya existe un usuario con ese correo.' });
@@ -58,6 +62,8 @@ router.post('/', (req, res) => {
     password: hash(password || 'Dadini2026!'),
     created_at: new Date().toISOString(),
     ultimo_acceso: null,
+    plantilla_permisos: plantilla || null,
+    permisos: normalizarPermisos(permisos) || permisosPorPlantilla(plantilla) || permisosPorRol(rol),
   };
   db.usuarios.push(user);
   audit(db, req, 'Usuario creado', 'Usuarios', `${user.nombre} · ${user.rol}`);
@@ -89,8 +95,15 @@ router.put('/:id', (req, res) => {
   ['salario_base', 'comision_venta_pct', 'comision_distribucion_pct', 'bono_fijo', 'descuento_fijo', 'antiguedad_anios'].forEach((campo) => {
     if (req.body?.[campo] !== undefined) user[campo] = num(req.body[campo]);
   });
+  if (req.body?.plantilla !== undefined) {
+    user.plantilla_permisos = req.body.plantilla || null;
+    if (req.body.permisos === undefined) user.permisos = permisosPorPlantilla(req.body.plantilla) || permisosPorRol(user.rol);
+  }
+  const permisosNormalizados = normalizarPermisos(req.body?.permisos);
+  if (permisosNormalizados) user.permisos = permisosNormalizados;
+  if (user.rol === 'admin' || user.rol === 'dueno') user.permisos = permisosPorRol(user.rol);
   if (activo !== undefined) user.activo = Boolean(activo);
-  audit(db, req, 'Usuario actualizado', 'Usuarios', user.nombre);
+  audit(db, req, 'Usuario actualizado', 'Usuarios', `${user.nombre} · ${(user.permisos || []).length} permisos`);
   save();
   const { password, ...safe } = user;
   return res.json({ usuario: safe });
@@ -120,6 +133,30 @@ router.post('/:id/password', (req, res) => {
   audit(db, req, 'Contraseña restablecida', 'Usuarios', `Se restableció el acceso de ${user.nombre}`);
   save();
   return res.json({ ok: true, temporal: nueva });
+});
+
+// Activación rápida de una función para un usuario. El cambio se aplica a su
+// próximo inicio de sesión (o al recargar /auth/me).
+router.patch('/:id/permisos', (req, res) => {
+  const db = load();
+  const user = db.usuarios.find((u) => u.id === Number(req.params.id));
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
+  if (user.rol === 'admin' || user.rol === 'dueno') return res.status(400).json({ error: 'Los administradores tienen todos los permisos.' });
+  let permisos = Array.isArray(req.body?.permisos) ? normalizarPermisos(req.body.permisos) : null;
+  if (!permisos) {
+    permisos = Array.isArray(user.permisos) ? [...user.permisos] : permisosPorRol(user.rol);
+    const codigo = req.body?.codigo;
+    if (!codigo) return res.status(400).json({ error: 'Indica la función a activar.' });
+    const activo = req.body?.activo !== false;
+    if (activo && !permisos.includes(codigo)) permisos.push(codigo);
+    if (!activo) permisos = permisos.filter((p) => p !== codigo);
+  }
+  user.permisos = permisos;
+  user.plantilla_permisos = 'personalizado';
+  audit(db, req, 'Permisos actualizados', 'Usuarios', `${user.nombre} · ${permisos.length} funciones activas`);
+  save();
+  const { password, ...safe } = user;
+  return res.json({ usuario: safe, permisos });
 });
 
 router.delete('/:id', (req, res) => {

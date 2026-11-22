@@ -328,6 +328,14 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - **APK publicada:** `DADINI-Preventa-20.0.0.apk` (v20.0.0) se sirve desde `/uploads/apk/` y se registra automáticamente si no hay una cargada. Desde **Marca y APK** se puede descargar o compartir por WhatsApp.
 - Para regenerar una base limpia: `npm --prefix backend run preparar:produccion` (usa `--demo` en `npm run seed` si se necesita nuevamente la base de demostración).
 
+### Rutas, zonas y permisos
+
+- **Ventas → Rutas y zonas de venta** (`/ventas/rutas`): crea rutas con zona, día de visita y vendedor; el distribuidor se hereda automáticamente del repartidor asignado a ese usuario al crear su cuenta.
+- **Clientes** (`/clientes`): al registrar un cliente se crean/asignan automáticamente ruta, zona, tipo de cliente, categoría y distribuidor según lo ya registrado. Incluye asignación masiva de clientes a vendedores.
+- **Administración → Roles y permisos** (`/administracion/permisos`): seis modelos listos (Vendedor, Distribuidor, Encargado de almacén, Supervisor, Ventas directa y Cobranzas) y activación de funciones una por uno por usuario.
+- Los permisos se guardan en cada usuario y se entregan en `/api/auth/me`, por lo que aparecen o desaparecen al cerrar sesión y volver a ingresar. Administración y dueño tienen siempre todas las funciones.
+- Acciones sensibles protegidas: editar/cancelar pedidos requiere `pedidos_editar`; crear/editar clientes requiere `clientes_crear`/`clientes_editar`; eliminar rutas requiere `rutas_eliminar`.
+
 ### Entorno migrado
 - Proyecto Supabase: **DADINI Producción** (plan Free, región `us-west-2`), tabla `saas_snapshots` creada con RLS y grant a `service_role`.
 - Snapshot verificado: `empresa_id = dadini-principal`, payload con la empresa DADINI y todos los módulos.

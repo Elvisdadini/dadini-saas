@@ -48,6 +48,9 @@ export const PERMISOS = {
 export function puede(user, modulo) {
   if (!user) return false;
   if (user.rol === 'admin' || user.rol === 'dueno') return true;
+  // Los permisos guardados en el usuario son la fuente de verdad; el mapa por
+  // rol se conserva solo para cuentas creadas antes de esta versión.
+  if (Array.isArray(user.permisos)) return user.permisos.includes(modulo);
   return (PERMISOS[modulo] || []).includes(user.rol);
 }
 
@@ -103,9 +106,12 @@ export function AuthProvider({ children }) {
     setToken(data.token);
     setUser(data.user);
     const perfil = await api.get('/auth/me');
+    setUser(perfil.user);
     setEmpresa(perfil.empresa);
     setPlan(perfil.plan);
-    return data.user;
+    setBranding(perfil.branding || {});
+    setApk(perfil.apk || null);
+    return perfil.user;
   }, []);
 
   const value = useMemo(
