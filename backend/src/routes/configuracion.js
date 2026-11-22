@@ -7,6 +7,7 @@ const { load, save } = require('../db');
 const { authRequired, allow } = require('../auth');
 const { audit, num, round2 } = require('../utils');
 const { normalizarConfig, config: configCredito } = require('../credito');
+const { asegurarApkPorDefecto } = require('../apk');
 
 const directorioApk = path.join(config.uploadDir, 'apk');
 fs.mkdirSync(directorioApk, { recursive: true });
@@ -28,6 +29,7 @@ router.use(authRequired);
 
 router.get('/', (req, res) => {
   const db = load();
+  asegurarApkPorDefecto(db, req);
   const plan = db.configuracion.plan;
   const uso = {
     usuarios: db.usuarios.filter((u) => u.activo).length,
@@ -93,6 +95,7 @@ router.post('/apk', allow('admin', 'dueno'), subirApk.single('apk'), (req, res) 
   if (!req.file) return res.status(400).json({ error: 'Selecciona un archivo .apk.' });
   const db = load();
   const urlBase = `${req.protocol}://${req.get('host')}`;
+  db.configuracion.apk_desactivada = false;
   db.configuracion.apk = {
     nombre: req.file.originalname,
     archivo: req.file.filename,
@@ -116,6 +119,7 @@ router.delete('/apk', allow('admin', 'dueno'), (req, res) => {
     if (fs.existsSync(ruta)) fs.unlinkSync(ruta);
   }
   db.configuracion.apk = null;
+  db.configuracion.apk_desactivada = true;
   audit(db, req, 'APK eliminada', 'Sistema', apk?.nombre || 'APK');
   save();
   return res.json({ ok: true });

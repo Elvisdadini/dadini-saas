@@ -11,7 +11,7 @@ const config = {
   jwtSecret: process.env.JWT_SECRET || 'dadini-saas-2026-secreto-local',
   jwtExpires: process.env.JWT_EXPIRES || '12h',
   dataDir: process.env.DADINI_DATA_DIR || path.join(__dirname, '..', 'data'),
-  uploadDir: process.env.DADINI_UPLOAD_DIR || path.join(__dirname, '..', 'uploads'),
+  uploadDir: process.env.DADINI_UPLOAD_DIR || path.join(__dirname, '..', 'assets'),
   supabase: {
     url: process.env.SUPABASE_URL || '',
     serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',

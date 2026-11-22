@@ -242,7 +242,7 @@ export default function Administracion() {
                     <div className="split mt-8"><span className="small muted">Pedidos del mes</span><strong>{uso.pedidos_mes}</strong></div>
                   </div>
                   <div className="notice notice-info"><ShieldCheck size={15} /> Los cambios se aplican de inmediato a toda la operación y quedan registrados en la auditoría.</div>
-                  <div className="notice notice-warn"><Database size={15} /> Entorno demo con persistencia local. La base se regenera desde el módulo backend.</div>
+                  <div className="notice notice-info"><Database size={15} /> Entorno de producción: los datos se respaldan en Supabase y cada cambio queda registrado en la auditoría.</div>
                 </div>
               </div>
             )}

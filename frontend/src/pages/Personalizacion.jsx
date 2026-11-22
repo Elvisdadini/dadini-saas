@@ -84,7 +84,8 @@ export default function Personalizacion() {
 
   const compartirApk = () => {
     if (!apk?.url) return;
-    const texto = `Hola, descarga la app DADINI v${apk.version}: ${apk.url}${apk.notas ? `\n${apk.notas}` : ''}`;
+    const url = apk.url.startsWith('http') ? apk.url : `${window.location.origin}${apk.url}`;
+    const texto = `Hola, descarga la app DADINI v${apk.version}: ${url}${apk.notas ? `\n${apk.notas}` : ''}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer');
   };
 

@@ -1,11 +1,15 @@
-const { init, reset, base, motor, cerrarStore } = require('./db');
+const { init, reset, save, flush, base, motor, cerrarStore } = require('./db');
+const { vaciarOperacion } = require('./operacion');
 
 (async () => {
+  const modoDemo = process.argv.includes('--demo');
   await init();
   const db = await reset();
-  console.log(`Base demo regenerada en ${base()} (motor: ${motor()})`);
-  console.log(`Usuarios: ${db.usuarios.length} · Productos: ${db.productos.length} · Pedidos: ${db.pedidos.length} · Rutas: ${db.rutas.length}`);
-  console.log('Acceso: admin@dadini.bo / Dadini2026!');
+  if (!modoDemo) { vaciarOperacion(db); save(); }
+  await flush();
+  console.log(`Base ${modoDemo ? 'demo' : 'de producción'} regenerada en ${base()} (motor: ${motor()})`);
+  console.log(`Usuarios activos: ${db.usuarios.filter((u) => u.activo).length} · Productos: ${db.productos.length} · Pedidos: ${db.pedidos.length} · Clientes: ${db.clientes.length}`);
+  console.log('Acceso: usa tu cuenta corporativa asignada por administración');
   await cerrarStore();
   process.exit(0);
 })().catch((error) => {

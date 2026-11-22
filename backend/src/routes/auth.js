@@ -2,6 +2,7 @@ const express = require('express');
 const { load, save } = require('../db');
 const { sign, compare, hash, authRequired } = require('../auth');
 const { audit } = require('../utils');
+const { asegurarApkPorDefecto } = require('../apk');
 
 const router = express.Router();
 
@@ -23,6 +24,7 @@ router.post('/login', (req, res) => {
 });
 
 router.get('/me', authRequired, (req, res) => {
+  asegurarApkPorDefecto(req.db, req);
   return res.json({
     user: req.user,
     empresa: req.db.configuracion.empresa,
