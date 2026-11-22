@@ -321,6 +321,13 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Variables de entorno configuradas: `NODE_ENV`, `JWT_SECRET`, `CORS_ORIGIN`, `DADINI_DATA_DIR`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 - En Render el motor local es JSON (no hay PostgreSQL local) y la réplica Supabase mantiene los datos fuera del contenedor.
 
+### Estado operativo final
+
+- **Acceso corporativo:** la pantalla de login ya no muestra cuentas de demostración ni credenciales precargadas; los usuarios siguen activos en el sistema pero no aparecen en el inicio.
+- **Datos en cero:** ventas, cobranzas, distribución, clientes y datos derivados se reiniciaron para empezar con operación real. Usuarios, productos, stock, almacenes, proveedores y configuración se conservan.
+- **APK publicada:** `DADINI-Preventa-20.0.0.apk` (v20.0.0) se sirve desde `/uploads/apk/` y se registra automáticamente si no hay una cargada. Desde **Marca y APK** se puede descargar o compartir por WhatsApp.
+- Para regenerar una base limpia: `npm --prefix backend run preparar:produccion` (usa `--demo` en `npm run seed` si se necesita nuevamente la base de demostración).
+
 ### Entorno migrado
 - Proyecto Supabase: **DADINI Producción** (plan Free, región `us-west-2`), tabla `saas_snapshots` creada con RLS y grant a `service_role`.
 - Snapshot verificado: `empresa_id = dadini-principal`, payload con la empresa DADINI y todos los módulos.
