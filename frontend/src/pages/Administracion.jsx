@@ -80,7 +80,8 @@ export default function Administracion() {
 
   const abrirUsuario = (u = null) => {
     setEditing(u);
-    setForm(u ? { nombre: u.nombre, email: u.email, rol: u.rol, cargo: u.cargo, telefono: u.telefono, password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo, plantilla: u.plantilla_permisos || '', permisos: u.permisos || [] } : USUARIO_VACIO);
+    const modeloVendedor = (catalogos.plantillas || []).find((p) => p.id === 'vendedor');
+    setForm(u ? { nombre: u.nombre, email: u.email, rol: u.rol, cargo: u.cargo, telefono: u.telefono, password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo, plantilla: u.plantilla_permisos || '', permisos: u.permisos || [] } : { ...USUARIO_VACIO, rol: 'preventista', plantilla: 'vendedor', permisos: [...(modeloVendedor?.permisos || [])] });
     setModal(true);
   };
 
@@ -89,6 +90,12 @@ export default function Administracion() {
     if (!plantilla) return;
     setForm((f) => ({ ...f, plantilla: id, rol: plantilla.rol, permisos: [...plantilla.permisos] }));
     toast(`Modelo ${plantilla.nombre} aplicado · ${plantilla.permisos.length} funciones activas`);
+  };
+
+  // Cascada: al elegir un rol se aplica automáticamente su modelo de permisos.
+  const cambiarRol = (rol) => {
+    const plantilla = (catalogos.plantillas || []).find((p) => p.rol === rol);
+    setForm((f) => ({ ...f, rol, plantilla: plantilla?.id || '', permisos: plantilla ? [...plantilla.permisos] : f.permisos }));
   };
 
   const alternarPermiso = (codigo) => {
@@ -312,7 +319,7 @@ export default function Administracion() {
             <div className="field"><label>Teléfono</label><input className="input" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} /></div>
           </div>
           <div className="field-row">
-            <div className="field"><label>Rol de acceso</label><select className="select" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}>{Object.entries(ROL_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+            <div className="field"><label>Rol de acceso</label><select className="select" value={form.rol} onChange={(e) => cambiarRol(e.target.value)}>{Object.entries(ROL_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select><span className="hint">Al elegir el rol se aplica en cascada su modelo de permisos.</span></div>
             <div className="field"><label>Cargo</label><input className="input" value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} /></div>
             {(form.rol === 'ventas' || form.rol === 'preventista') && (
               <>
