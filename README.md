@@ -311,6 +311,16 @@ Al crear un cliente, el sistema muestra una tarjeta de confirmación con el bot�
 
 Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, servir detrás de HTTPS y programar respaldos de G:.
 
+### Producción desplegada
+
+- **URL pública:** https://dadini-saas.onrender.com
+- Repositorio: https://github.com/Elvisdadini/dadini-saas
+- Render Web Service (plan Free, región Oregon) sirve frontend compilado + API Express en el mismo proceso.
+- Build Command: `npm install && npm --prefix backend install && npm --prefix frontend install --include=dev && npm --prefix frontend run build`
+- Start Command: `npm start`
+- Variables de entorno configuradas: `NODE_ENV`, `JWT_SECRET`, `CORS_ORIGIN`, `DADINI_DATA_DIR`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+- En Render el motor local es JSON (no hay PostgreSQL local) y la réplica Supabase mantiene los datos fuera del contenedor.
+
 ### Entorno migrado
 - Proyecto Supabase: **DADINI Producción** (plan Free, región `us-west-2`), tabla `saas_snapshots` creada con RLS y grant a `service_role`.
 - Snapshot verificado: `empresa_id = dadini-principal`, payload con la empresa DADINI y todos los módulos.
