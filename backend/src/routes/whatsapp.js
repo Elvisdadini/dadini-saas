@@ -1,0 +1,93 @@
+const express = require('express');
+const { load, save } = require('../db');
+const { authRequired, allow } = require('../auth');
+const { nextId, audit, round2 } = require('../utils');
+
+const router = express.Router();
+router.use(authRequired);
+
+function soloDigitos(valor) {
+  return String(valor || '').replace(/\D/g, '');
+}
+
+function construirMensaje(db, tipo, pedido, cliente, extra) {
+  const nombre = cliente?.nombre || 'cliente';
+  const codigo = pedido?.codigo || extra?.referencia || 'DADINI';
+  const total = round2(pedido?.total || extra?.monto || 0);
+  if (tipo === 'pedido') {
+    return `Hola ${nombre}, su pedido ${codigo} por Bs ${total.toFixed(2)} fue confirmado. Entrega programada: ${pedido?.fecha_entrega_programada || 'por definir'}. ¡Gracias por comprar DADINI!`;
+  }
+  if (tipo === 'entrega') {
+    const detalle = extra?.productos_devueltos?.length
+      ? ` Se descontaron ${extra.productos_devueltos.map((d) => `${d.cantidad} ${d.nombre}`).join(', ')}.`
+      : '';
+    return `Hola ${nombre}, su pedido ${codigo} fue entregado. Comprobante ${codigo}-ENT por Bs ${total.toFixed(2)}.${detalle} Entrega registrada con geolocalización. DADINI.`;
+  }
+  if (tipo === 'cobranza') {
+    const monto = round2(extra?.monto || 0);
+    const saldo = round2(pedido?.saldo || 0);
+    return `Hola ${nombre}, registramos su pago de Bs ${monto.toFixed(2)} para el pedido ${codigo}. Saldo pendiente: Bs ${saldo.toFixed(2)}. Recibo ${extra?.recibo || 'DADINI'}. Gracias.`;
+  }
+  return `Hola ${nombre}, novedades sobre su pedido ${codigo}. DADINI.`;
+}
+
+router.get('/', (req, res) => {
+  const db = load();
+  const { tipo, cliente_id, pedido_id, limit } = req.query;
+  let mensajes = [...db.mensajes_whatsapp];
+  if (tipo && tipo !== 'todos') mensajes = mensajes.filter((m) => m.tipo === tipo);
+  if (cliente_id) mensajes = mensajes.filter((m) => m.cliente_id === Number(cliente_id));
+  if (pedido_id) mensajes = mensajes.filter((m) => m.pedido_id === Number(pedido_id));
+  mensajes.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+  return res.json({
+    mensajes: mensajes.slice(0, Number(limit) || 200).map((m) => {
+      const cliente = db.clientes.find((c) => c.id === m.cliente_id);
+      const usuario = db.usuarios.find((u) => u.id === m.usuario_id);
+      return { ...m, cliente_nombre: cliente?.nombre || '—', usuario_nombre: usuario?.nombre || 'Sistema' };
+    }),
+    total: mensajes.length,
+  });
+});
+
+router.post('/', allow('ventas', 'preventista', 'distribucion', 'cobranzas'), (req, res) => {
+  const db = load();
+  const body = req.body || {};
+  const tipo = ['pedido', 'entrega', 'cobranza', 'otro'].includes(body.tipo) ? body.tipo : 'otro';
+  const pedido = body.pedido_id ? db.pedidos.find((p) => p.id === Number(body.pedido_id)) : null;
+  const cliente = body.cliente_id ? db.clientes.find((c) => c.id === Number(body.cliente_id)) : (pedido ? db.clientes.find((c) => c.id === pedido.cliente_id) : null);
+  const telefono = soloDigitos(body.telefono || cliente?.telefono || '59100000000');
+  const mensaje = body.mensaje || construirMensaje(db, tipo, pedido, cliente, body);
+  const ahora = new Date().toISOString();
+  const registro = {
+    id: nextId(db.mensajes_whatsapp),
+    tipo,
+    cliente_id: cliente?.id || null,
+    pedido_id: pedido?.id || null,
+    telefono,
+    mensaje,
+    referencia: body.referencia || null,
+    monto: round2(body.monto || pedido?.total || 0),
+    estado: body.estado || 'generado',
+    latitud: body.latitud ?? null,
+    longitud: body.longitud ?? null,
+    usuario_id: req.user.id,
+    fecha: ahora,
+    created_at: ahora,
+  };
+  db.mensajes_whatsapp.unshift(registro);
+  audit(db, req, 'Mensaje WhatsApp generado', 'Comunicaciones', `${tipo} · ${cliente?.nombre || 'cliente'} · ${pedido?.codigo || ''}`);
+  save();
+  const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
+  return res.status(201).json({ mensaje: { ...registro, cliente_nombre: cliente?.nombre || '—' }, url });
+});
+
+router.patch('/:id/estado', (req, res) => {
+  const db = load();
+  const registro = db.mensajes_whatsapp.find((m) => m.id === Number(req.params.id));
+  if (!registro) return res.status(404).json({ error: 'Mensaje no encontrado.' });
+  if (['generado', 'enviado', 'fallido'].includes(req.body?.estado)) registro.estado = req.body.estado;
+  save();
+  return res.json({ mensaje: registro });
+});
+
+module.exports = router;

@@ -1,0 +1,109 @@
+const express = require('express');
+const { load, save } = require('../db');
+const { authRequired, allow } = require('../auth');
+const { nextId, nextCode, audit, num } = require('../utils');
+const { evaluar } = require('../promociones');
+
+const router = express.Router();
+router.use(authRequired);
+
+function resumen(promo) {
+  const tipos = { volumen: 'Descuento por volumen', bonificacion: 'Bonificación', '2x1': '2x1 / NxM', mixto: 'Promoción mixta' };
+  return { ...promo, tipo_label: tipos[promo.tipo] || promo.tipo };
+}
+
+router.get('/', (req, res) => {
+  const db = load();
+  const { tipo, estado, search } = req.query;
+  let promos = db.promociones.map(resumen);
+  if (tipo && tipo !== 'todas') promos = promos.filter((p) => p.tipo === tipo);
+  if (estado === 'activas') promos = promos.filter((p) => p.activa);
+  if (estado === 'inactivas') promos = promos.filter((p) => !p.activa);
+  if (search) promos = promos.filter((p) => `${p.codigo} ${p.nombre}`.toLowerCase().includes(String(search).toLowerCase()));
+  return res.json({
+    promociones: promos.sort((a, b) => num(b.prioridad) - num(a.prioridad)),
+    resumen: {
+      total: db.promociones.length,
+      activas: db.promociones.filter((p) => p.activa).length,
+      por_tipo: ['volumen', 'bonificacion', '2x1', 'mixto'].map((t) => ({ tipo: t, total: db.promociones.filter((p) => p.tipo === t).length })),
+    },
+  });
+});
+
+router.post('/evaluar', (req, res) => {
+  const db = load();
+  const { items, almacen_id, fecha, categoria_cliente_id, cliente_id } = req.body || {};
+  const cliente = cliente_id ? db.clientes.find((c) => c.id === Number(cliente_id)) : null;
+  const categoria = categoria_cliente_id || cliente?.categoria_cliente_id || null;
+  const resultado = evaluar(db, items, Number(almacen_id) || db.almacenes[0]?.id || 1, fecha || new Date().toISOString().slice(0, 10), categoria);
+  return res.json(resultado);
+});
+
+function normalizar(body) {
+  return {
+    nombre: String(body.nombre || '').trim(),
+    tipo: ['volumen', 'bonificacion', '2x1', 'mixto'].includes(body.tipo) ? body.tipo : 'volumen',
+    descripcion: body.descripcion || '',
+    productos_ids: (body.productos_ids || []).map(Number),
+    categorias: body.categorias || [],
+    categorias_clientes: Array.isArray(body.categorias_clientes) ? body.categorias_clientes.map(Number) : [],
+    reglas: body.reglas || [],
+    dos_por_uno: body.dos_por_uno || null,
+    bonificacion: body.bonificacion || null,
+    mixto: body.mixto || null,
+    fecha_inicio: body.fecha_inicio || new Date().toISOString().slice(0, 10),
+    fecha_fin: body.fecha_fin || null,
+    activa: body.activa !== false,
+    prioridad: num(body.prioridad, 5),
+  };
+}
+
+router.post('/', allow('admin', 'ventas', 'almacen'), (req, res) => {
+  const db = load();
+  const datos = normalizar(req.body || {});
+  if (!datos.nombre) return res.status(400).json({ error: 'El nombre de la promoción es obligatorio.' });
+  const ahora = new Date().toISOString();
+  const promo = {
+    id: nextId(db.promociones),
+    codigo: nextCode(db.promociones, 'codigo', 'PROM', 1),
+    ...datos,
+    created_at: ahora,
+    updated_at: ahora,
+  };
+  db.promociones.push(promo);
+  audit(db, req, 'Promoción creada', 'Inventario', `${promo.codigo} · ${promo.nombre}`);
+  save();
+  return res.status(201).json({ promocion: resumen(promo) });
+});
+
+router.put('/:id', allow('admin', 'ventas', 'almacen'), (req, res) => {
+  const db = load();
+  const promo = db.promociones.find((p) => p.id === Number(req.params.id));
+  if (!promo) return res.status(404).json({ error: 'Promoción no encontrada.' });
+  Object.assign(promo, normalizar(req.body || {}), { updated_at: new Date().toISOString() });
+  audit(db, req, 'Promoción actualizada', 'Inventario', promo.nombre);
+  save();
+  return res.json({ promocion: resumen(promo) });
+});
+
+router.patch('/:id/estado', allow('admin', 'ventas', 'almacen'), (req, res) => {
+  const db = load();
+  const promo = db.promociones.find((p) => p.id === Number(req.params.id));
+  if (!promo) return res.status(404).json({ error: 'Promoción no encontrada.' });
+  promo.activa = Boolean(req.body?.activa);
+  promo.updated_at = new Date().toISOString();
+  save();
+  return res.json({ promocion: resumen(promo) });
+});
+
+router.delete('/:id', allow('admin', 'almacen'), (req, res) => {
+  const db = load();
+  const promo = db.promociones.find((p) => p.id === Number(req.params.id));
+  if (!promo) return res.status(404).json({ error: 'Promoción no encontrada.' });
+  db.promociones = db.promociones.filter((p) => p.id !== promo.id);
+  audit(db, req, 'Promoción eliminada', 'Inventario', promo.nombre);
+  save();
+  return res.json({ ok: true });
+});
+
+module.exports = router;

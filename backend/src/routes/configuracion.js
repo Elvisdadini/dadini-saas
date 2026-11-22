@@ -1,0 +1,124 @@
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+const config = require('../config');
+const { load, save } = require('../db');
+const { authRequired, allow } = require('../auth');
+const { audit, num, round2 } = require('../utils');
+const { normalizarConfig, config: configCredito } = require('../credito');
+
+const directorioApk = path.join(config.uploadDir, 'apk');
+fs.mkdirSync(directorioApk, { recursive: true });
+const almacenamientoApk = multer.diskStorage({
+  destination: directorioApk,
+  filename: (req, archivo, callback) => callback(null, `dadini-${Date.now()}${path.extname(archivo.originalname).toLowerCase()}`),
+});
+const subirApk = multer({
+  storage: almacenamientoApk,
+  limits: { fileSize: 200 * 1024 * 1024 },
+  fileFilter: (req, archivo, callback) => {
+    if (path.extname(archivo.originalname).toLowerCase() !== '.apk') return callback(new Error('Solo se permiten archivos .apk'));
+    return callback(null, true);
+  },
+});
+
+const router = express.Router();
+router.use(authRequired);
+
+router.get('/', (req, res) => {
+  const db = load();
+  const plan = db.configuracion.plan;
+  const uso = {
+    usuarios: db.usuarios.filter((u) => u.activo).length,
+    almacenes: db.almacenes.filter((a) => a.activo).length,
+    productos: db.productos.filter((p) => p.activo).length,
+    pedidos_mes: db.pedidos.filter((p) => p.created_at.slice(0, 7) === new Date().toISOString().slice(0, 7)).length,
+  };
+  return res.json({
+    configuracion: db.configuracion,
+    credito: configCredito(db),
+    uso,
+    plan: {
+      ...plan,
+      uso_usuarios: uso.usuarios,
+      uso_almacenes: uso.almacenes,
+      porcentaje_usuarios: plan.usuarios_incluidos ? Math.round((uso.usuarios / plan.usuarios_incluidos) * 100) : 0,
+      porcentaje_almacenes: plan.almacenes_incluidos ? Math.round((uso.almacenes / plan.almacenes_incluidos) * 100) : 0,
+    },
+  });
+});
+
+router.put('/', allow(), (req, res) => {
+  const db = load();
+  const { empresa, plan, credito, planes, descuentos_globales, cobranza, branding } = req.body || {};
+  if (empresa) {
+    const campos = ['nombre', 'slogan', 'nit', 'direccion', 'telefono', 'email', 'ciudad', 'pais', 'moneda', 'horario'];
+    campos.forEach((c) => { if (empresa[c] !== undefined) db.configuracion.empresa[c] = empresa[c]; });
+    ['tarifa_envio', 'stock_minimo', 'dias_credito'].forEach((c) => { if (empresa[c] !== undefined) db.configuracion.empresa[c] = num(empresa[c]); });
+  }
+  if (plan) {
+    ['nombre', 'precio', 'ciclo', 'vence', 'estado'].forEach((c) => { if (plan[c] !== undefined) db.configuracion.plan[c] = plan[c]; });
+    ['usuarios_incluidos', 'almacenes_incluidos'].forEach((c) => { if (plan[c] !== undefined) db.configuracion.plan[c] = num(plan[c]); });
+  }
+  if (credito) {
+    db.configuracion.credito = { ...configCredito(db), ...normalizarConfig(credito) };
+  }
+  if (planes) db.configuracion.planes = planes;
+  if (descuentos_globales) db.configuracion.descuentos_globales = descuentos_globales;
+  if (cobranza) db.configuracion.cobranza = { ...(db.configuracion.cobranza || {}), ...cobranza };
+  if (branding) {
+    db.configuracion.branding = {
+      ...(db.configuracion.branding || {}),
+      ...branding,
+      radio: num(branding.radio, 14),
+    };
+  }
+  audit(db, req, 'Configuración actualizada', 'Sistema', 'Se actualizaron parámetros de empresa, crédito, planes y cobranza');
+  save();
+  return res.json({ configuracion: db.configuracion });
+});
+
+router.get('/auditoria', allow(), (req, res) => {
+  const db = load();
+  const { search, accion, limit } = req.query;
+  let registros = [...db.auditoria];
+  if (search) registros = registros.filter((r) => `${r.usuario} ${r.accion} ${r.entidad} ${r.detalle}`.toLowerCase().includes(String(search).toLowerCase()));
+  if (accion && accion !== 'todas') registros = registros.filter((r) => r.accion === accion);
+  const acciones = [...new Set(db.auditoria.map((r) => r.accion))].sort();
+  return res.json({ registros: registros.slice(0, Number(limit) || 100), acciones });
+});
+
+router.post('/apk', allow('admin', 'dueno'), subirApk.single('apk'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Selecciona un archivo .apk.' });
+  const db = load();
+  const urlBase = `${req.protocol}://${req.get('host')}`;
+  db.configuracion.apk = {
+    nombre: req.file.originalname,
+    archivo: req.file.filename,
+    url: `${urlBase}/uploads/apk/${req.file.filename}`,
+    tamano_bytes: req.file.size,
+    version: req.body.version || '1.0.0',
+    notas: req.body.notas || '',
+    subido_por: req.user.id,
+    subido_en: new Date().toISOString(),
+  };
+  audit(db, req, 'APK actualizada', 'Sistema', `${req.file.originalname} (${req.file.size} bytes)`);
+  save();
+  return res.status(201).json({ apk: db.configuracion.apk });
+});
+
+router.delete('/apk', allow('admin', 'dueno'), (req, res) => {
+  const db = load();
+  const apk = db.configuracion.apk;
+  if (apk?.archivo) {
+    const ruta = path.join(directorioApk, apk.archivo);
+    if (fs.existsSync(ruta)) fs.unlinkSync(ruta);
+  }
+  db.configuracion.apk = null;
+  audit(db, req, 'APK eliminada', 'Sistema', apk?.nombre || 'APK');
+  save();
+  return res.json({ ok: true });
+});
+
+module.exports = router;

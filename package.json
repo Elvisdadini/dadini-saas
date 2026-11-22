@@ -1,0 +1,15 @@
+{
+  "name": "dadini-saas",
+  "version": "6.2.0",
+  "private": true,
+  "description": "DADINI SaaS: ventas, distribución, cobranzas, compras, gastos y rentabilidad",
+  "scripts": {
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install",
+    "build": "npm --prefix frontend run build",
+    "start": "node backend/src/server.js",
+    "dev": "node --watch backend/src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,21 @@
+const express = require('express');
+const { load, save } = require('../db');
+const { authRequired, allow } = require('../auth');
+const sync = require('../supabase-sync');
+
+const router = express.Router();
+router.use(authRequired);
+
+router.get('/estado', (req, res) => {
+  const db = load();
+  res.json({ ...sync.estado(), registro: db.sincronizacion || null });
+});
+
+router.post('/sincronizar', allow('admin', 'dueno'), async (req, res) => {
+  const db = load();
+  const resultado = await sync.sincronizar(db, 'manual');
+  save();
+  res.json(resultado);
+});
+
+module.exports = router;
