@@ -336,6 +336,13 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Los permisos se guardan en cada usuario y se entregan en `/api/auth/me`, por lo que aparecen o desaparecen al cerrar sesión y volver a ingresar. Administración y dueño tienen siempre todas las funciones.
 - Acciones sensibles protegidas: editar/cancelar pedidos requiere `pedidos_editar`; crear/editar clientes requiere `clientes_crear`/`clientes_editar`; eliminar rutas requiere `rutas_eliminar`.
 
+### Continuidad y respaldos
+
+- **Ping automático:** `.github/workflows/keep-alive.yml` consulta `/api/health` cada 10 minutos para que Render Free no duerma y la APK abra rápido.
+- **Restauración automática:** al iniciar, si la base local está vacía (por un redeploy de Render), se recupera la última instantánea de Supabase. Se puede desactivar con `DADINI_RESTORE=false`.
+- **Restauración manual:** `POST /api/sincronizacion/restaurar` (admin/dueño) trae la instantánea; envía `{ "forzar": true }` para sobrescribir datos locales.
+- Supabase sigue recibiendo snapshots cada 15 segundos; los datos también se pueden sincronizar desde **Marca y APK**.
+
 ### Acceso y licencia
 
 - **Sin módulo de plan ni facturación:** el sistema es libre para DADINI SaaS, con todos los módulos operativos y sin límites de usuarios.

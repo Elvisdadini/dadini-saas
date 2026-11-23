@@ -55,6 +55,48 @@ async function sincronizar(db, motivo = 'manual') {
   }
 }
 
+// Recupera la última instantánea guardada en Supabase. Por defecto solo
+// restaura cuando la base local está vacía (caso típico de un redeploy de
+// Render, que recrea el contenedor desde el JSON versionado).
+async function restaurar(db, opciones = {}) {
+  const supabase = obtenerCliente();
+  if (!supabase) return { ok: false, error: 'Supabase no está configurado.' };
+  const empresaId = db.sincronizacion?.empresa_id || 'dadini-principal';
+  const { data, error } = await supabase
+    .from(config.supabase.table)
+    .select('payload,version,updated_at')
+    .eq('empresa_id', empresaId)
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!data?.payload?.datos) return { ok: false, sin_datos: true, error: 'No hay instantánea guardada.' };
+
+  const entidades = data.payload.datos;
+  const operativas = ['pedidos', 'clientes', 'pagos', 'rutas', 'visitas'];
+  const hayRemoto = operativas.some((clave) => Array.isArray(entidades[clave]) && entidades[clave].length);
+  const hayLocal = operativas.some((clave) => Array.isArray(db[clave]) && db[clave].length);
+  if (!opciones.forzar && hayLocal) {
+    return { ok: true, restaurado: false, motivo: 'La base local ya tiene datos; se conserva.' };
+  }
+  if (!hayRemoto && !opciones.forzar) {
+    return { ok: true, restaurado: false, motivo: 'La instantánea remota está vacía.' };
+  }
+
+  Object.assign(db, entidades);
+  db.sincronizacion = {
+    ...(db.sincronizacion || {}),
+    empresa_id: empresaId,
+    estado: 'sincronizado',
+    ultimo_envio: data.updated_at || null,
+    ultimo_error: null,
+  };
+  return {
+    ok: true,
+    restaurado: true,
+    actualizado_en: data.updated_at,
+    entidades: Object.keys(entidades).length,
+  };
+}
+
 function iniciarSincronizacionPeriodica(obtenerDb, guardarDb) {
   if (!estaConfigurado() || temporizador) return;
   temporizador = setInterval(async () => {
@@ -85,4 +127,4 @@ alter table ${config.supabase.table} enable row level security;`,
   };
 }
 
-module.exports = { estaConfigurado, sincronizar, iniciarSincronizacionPeriodica, estado };
+module.exports = { estaConfigurado, sincronizar, restaurar, iniciarSincronizacionPeriodica, estado };

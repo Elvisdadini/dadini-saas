@@ -2,6 +2,7 @@ const path = require('path');
 const store = require('./store');
 const { buildSeed, SEED_VERSION } = require('./seed');
 const { asegurarEstructura } = require('./permisos');
+const sync = require('./supabase-sync');
 
 let db = null;
 let colaGuardado = Promise.resolve();
@@ -15,9 +16,26 @@ async function init() {
     await store.guardar(db);
     console.log(`[db] Base inicializada en ${store.base()}`);
   }
+  // Si el contenedor se recreó (nuevo deploy de Render), recuperamos la última
+  // instantánea de Supabase antes de dejar operar la app.
+  let restaurado = false;
+  if (process.env.DADINI_RESTORE !== 'false') {
+    try {
+      const resultado = await sync.restaurar(db);
+      if (resultado.ok && resultado.restaurado) {
+        restaurado = true;
+        console.log(`[db] Base restaurada desde Supabase (${resultado.actualizado_en})`);
+      } else if (!resultado.ok && resultado.error) {
+        console.warn('[db] Restauración desde Supabase omitida:', resultado.error);
+      }
+    } catch (error) {
+      console.warn('[db] No se pudo restaurar desde Supabase:', error.message);
+    }
+  }
+
   // Migración suave: agrega rutas/zonas/tipos y los permisos de usuarios
   // existentes sin borrar ningún dato operativo.
-  if (asegurarEstructura(db)) await store.guardar(db);
+  if (asegurarEstructura(db) || restaurado) await store.guardar(db);
   return db;
 }
 

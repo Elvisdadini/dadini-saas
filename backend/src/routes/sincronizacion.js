@@ -18,4 +18,13 @@ router.post('/sincronizar', allow('admin', 'dueno'), async (req, res) => {
   res.json(resultado);
 });
 
+// Recupera manualmente la última instantánea desde Supabase (útil tras un
+// reinicio o para traer datos de otro dispositivo).
+router.post('/restaurar', allow('admin', 'dueno'), async (req, res) => {
+  const db = load();
+  const resultado = await sync.restaurar(db, { forzar: req.body?.forzar === true });
+  if (resultado.ok && resultado.restaurado) save();
+  res.json(resultado);
+});
+
 module.exports = router;
