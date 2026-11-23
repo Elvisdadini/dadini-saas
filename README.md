@@ -336,6 +336,13 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Los permisos se guardan en cada usuario y se entregan en `/api/auth/me`, por lo que aparecen o desaparecen al cerrar sesión y volver a ingresar. Administración y dueño tienen siempre todas las funciones.
 - Acciones sensibles protegidas: editar/cancelar pedidos requiere `pedidos_editar`; crear/editar clientes requiere `clientes_crear`/`clientes_editar`; eliminar rutas requiere `rutas_eliminar`.
 
+### Punto de venta y QR de pago
+
+- **Venta desde mostrador u oficina:** catálogo visual por imagen del producto, botón **Escanear producto** (código de barras, SKU o nombre) con la cámara del teléfono y registro rápido al carrito.
+- **Comprobante por WhatsApp:** se ingresa el número al crear la venta, se guarda en el pedido y en el cliente, y al finalizar aparece un modal con **Enviar comprobante por WhatsApp** (detalle de productos y total).
+- **Pago con QR:** al elegir `QR simple` se muestra el QR vigente para el cliente.
+- **QR de pago en Administración → QR de pago:** imagen, nombre, titular y fecha de vencimiento. Se generan notificaciones y avisos automáticos **2 semanas antes** del vencimiento (o si ya venció) para solicitar el cambio.
+
 ### Conteo de inventario
 
 - **Inventario → Conteo de inventario:** conteos semanales o mensuales del inventario general (o por almacén).

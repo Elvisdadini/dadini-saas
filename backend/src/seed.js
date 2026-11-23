@@ -660,6 +660,7 @@ function buildSeed() {
       created_at: atHour(now, 8),
     })),
     conteos_inventario: [],
+    qrs_pago: [],
     zonas: [
       { id: 1, codigo: 'ZON-0001', nombre: 'Centro', descripcion: 'Zona comercial Centro', activa: true, created_at: atHour(now, 8) },
       { id: 2, codigo: 'ZON-0002', nombre: 'Quillacollo', descripcion: 'Zona comercial Quillacollo', activa: true, created_at: atHour(now, 8) },

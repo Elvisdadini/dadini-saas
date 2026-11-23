@@ -1,6 +1,6 @@
 {
   "version": 19,
-  "generado_en": "2026-11-23T19:47:11.307Z",
+  "generado_en": "2026-11-23T20:26:09.510Z",
   "usuarios": [
     {
       "id": 1,
@@ -10,7 +10,7 @@
       "cargo": "Gerente general",
       "telefono": "67451234",
       "activo": true,
-      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
+      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -71,7 +71,7 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
+      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -102,7 +102,7 @@
       "cargo": "Jefe de almacén",
       "telefono": "72345678",
       "activo": true,
-      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
+      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -130,7 +130,7 @@
       "repartidor_id": 1,
       "vehiculo_id": 2,
       "activo": true,
-      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
+      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 1,
@@ -157,7 +157,7 @@
       "cargo": "Analista de cobranzas",
       "telefono": "74567890",
       "activo": true,
-      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
+      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -197,7 +197,7 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
+      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -228,7 +228,7 @@
       "cargo": "Dueño del sistema",
       "telefono": "70000001",
       "activo": true,
-      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
+      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -280,7 +280,7 @@
       "es_venta_directa": true,
       "almacen_movil_id": 1,
       "activo": true,
-      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
+      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -309,7 +309,7 @@
       "cargo": "Supervisora de ventas",
       "telefono": "70000003",
       "activo": true,
-      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
+      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -1309,6 +1309,7 @@
     }
   ],
   "conteos_inventario": [],
+  "qrs_pago": [],
   "zonas": [
     {
       "id": 1,

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowLeft, BadgePercent, Banknote, Building2, CalendarClock, Crosshair, CreditCard, MapPin, Minus, Plus, Search, ShoppingCart,
+  AlertTriangle, ArrowLeft, BadgePercent, Banknote, Building2, CalendarClock, Camera, Crosshair, CreditCard, Images, MapPin, MessageCircle, Minus, Plus, QrCode, Search, ShoppingCart,
   Smartphone, Trash2, Truck, UserRound, Wallet,
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import Mapa from '../components/Mapa';
+import BotonWhatsapp from '../components/BotonWhatsapp';
+import EscanerCodigos from '../components/EscanerCodigos';
 import { esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
-import { Badge, EmptyState, Money, PageHeader, SkeletonRows, useToast } from '../ui';
+import { Badge, EmptyState, Modal, Money, PageHeader, SkeletonRows, useToast } from '../ui';
 
 const CANALES = [
   { value: 'mostrador', label: 'Mostrador' },
@@ -45,8 +47,16 @@ export default function VentaNueva() {
   const [presentacionVenta, setPresentacionVenta] = useState('unidad');
   const [ubicacion, setUbicacion] = useState(null);
   const [ubicando, setUbicando] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [modoImagenes, setModoImagenes] = useState(true);
+  const [qrs, setQrs] = useState([]);
+  const [qrAlerta, setQrAlerta] = useState([]);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [ventaExitosa, setVentaExitosa] = useState(null);
+  const [telComprobante, setTelComprobante] = useState('');
   const [form, setForm] = useState({
     cliente_id: '',
+    whatsapp_cliente: '',
     canal: 'mostrador',
     forma_pago: 'efectivo',
     dias_credito: 15,
@@ -158,6 +168,28 @@ export default function VentaNueva() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(cart), form.almacen_id, form.cliente_id, almacenMovil]);
 
+  useEffect(() => {
+    if (form.forma_pago !== 'qr') return;
+    api.get('/qr-pagos/activos')
+      .then((r) => { setQrs(r.qrs || []); setQrAlerta(r.alertas || []); })
+      .catch(() => {});
+  }, [form.forma_pago]);
+
+  const alLeerProducto = (codigo) => {
+    const termino = String(codigo || '').trim().toLowerCase();
+    const producto = productos.find((p) =>
+      String(p.sku || '').toLowerCase() === termino || String(p.nombre || '').toLowerCase() === termino)
+      || productos.find((p) =>
+        String(p.sku || '').toLowerCase().includes(termino) || String(p.nombre || '').toLowerCase().includes(termino));
+    setScanOpen(false);
+    if (!producto) {
+      setSearch(codigo);
+      return toast(`No se encontró "${codigo}". Ajusta la búsqueda manual.`, 'error');
+    }
+    agregar(producto);
+    toast(`${producto.nombre} agregado al carrito`, 'success');
+  };
+
   const agregar = (p) => {
     const disponible = stockEn(p);
     const paso = unidadesPorPresentacion(p);
@@ -204,6 +236,7 @@ export default function VentaNueva() {
     try {
       const data = await api.post('/pedidos', {
         cliente_id: Number(form.cliente_id),
+        whatsapp_cliente: form.whatsapp_cliente,
         almacen_id: Number(form.almacen_id),
         almacen_movil_id: almacenMovil?.id || null,
         vendedor_id: form.vendedor_id || undefined,
@@ -221,6 +254,9 @@ export default function VentaNueva() {
         items: lineas.map((l) => ({ producto_id: l.producto.id, cantidad: l.cantidad })),
       });
       toast(`Venta ${data.pedido.codigo} registrada correctamente`);
+      setVentaExitosa(data.pedido);
+      setTelComprobante(data.pedido.whatsapp_cliente || cliente?.whatsapp || cliente?.telefono || '');
+      setCart({});
       if (params.get('from') === 'mapa') {
         try {
           await api.post('/visitas', {
@@ -240,13 +276,17 @@ export default function VentaNueva() {
         navigate('/ventas/agenda');
         return;
       }
-      navigate(`/ventas/${data.pedido.id}`);
+      // Se muestra el modal de comprobante; no se navega automáticamente.
     } catch (error) {
       toast(error.message, 'error');
     } finally {
       setSaving(false);
     }
   };
+
+  const mensajeComprobante = ventaExitosa
+    ? `Hola ${cliente?.nombre || 'cliente'}, su comprobante de compra DADINI ${ventaExitosa.codigo}:\n${(ventaExitosa.items || []).map((i) => `• ${i.cantidad} x ${i.nombre}`).join('\n')}\nTOTAL: Bs ${Number(ventaExitosa.total || 0).toFixed(2)}\nGracias por comprar DADINI.`
+    : '';
 
   if (loading) {
     return <><PageHeader title="Nueva venta" subtitle="Cargando catálogo y clientes…" /><div className="panel"><SkeletonRows rows={8} /></div></>;
@@ -264,8 +304,10 @@ export default function VentaNueva() {
       <div className="pos-layout">
         <div className="panel">
           <div className="panel-head">
-            <div><h3>Catálogo</h3><p>{filtrados.length} productos disponibles · venta por {presentacionVenta}</p></div>
+            <div><h3>Catálogo</h3><p>{filtrados.length} productos disponibles · venta por {presentacionVenta} · toca la imagen del producto o escanea su código</p></div>
             <div className="inline">
+              <button className="btn btn-green btn-sm" onClick={() => setScanOpen(true)}><Camera size={13} /> Escanear producto</button>
+              <button className={`btn btn-sm ${modoImagenes ? 'btn-primary' : 'btn-soft'}`} onClick={() => setModoImagenes((v) => !v)}><Images size={13} /> Imágenes</button>
               <div className="pill-group">
                 {['unidad', 'caja', 'paquete'].map((v) => <button key={v} className={`chip ${presentacionVenta === v ? 'active' : ''}`} onClick={() => setPresentacionVenta(v)}>{v}</button>)}
               </div>
@@ -288,7 +330,7 @@ export default function VentaNueva() {
             </div>
 
             {filtrados.length === 0 ? <EmptyState icon={ShoppingCart} title="Sin productos" message="No hay productos que coincidan con la búsqueda." /> : (
-              <div className="pos-products">
+              <div className={`pos-products ${modoImagenes ? 'imagenes' : ''}`}>
                 {filtrados.map((p) => {
                   const disponible = stockEn(p);
                   return (
@@ -334,6 +376,12 @@ export default function VentaNueva() {
                 </div>
               </div>
             )}
+
+            <div className="field mb-12">
+              <label>WhatsApp para enviar el comprobante</label>
+              <input className="input" value={form.whatsapp_cliente} onChange={(e) => setForm({ ...form, whatsapp_cliente: e.target.value })} placeholder="5917XXXXXXX" />
+              <span className="hint">Se guarda en el cliente y permite enviar el detalle de la compra al finalizar.</span>
+            </div>
 
             <div className="cart-items">
               {lineas.length === 0 && <div className="cart-empty"><ShoppingCart size={22} style={{ display: 'block', margin: '0 auto 6px' }} />Toca un producto para agregarlo al carrito.</div>}
@@ -392,6 +440,21 @@ export default function VentaNueva() {
                 })}
               </div>
             </div>
+
+            {form.forma_pago === 'qr' && (
+              <div className="notice notice-info mb-12">
+                <QrCode size={15} />
+                <div>
+                  {qrs.length ? (
+                    <>
+                      QR disponible: <strong>{qrs[0].nombre}</strong>{qrs[0].titular ? ` · ${qrs[0].titular}` : ''}. Vence el {qrs[0].fecha_vencimiento}.
+                      <div style={{ marginTop: 6 }}><button className="btn btn-soft btn-sm" onClick={() => setQrOpen(true)}><QrCode size={13} /> Mostrar QR al cliente</button></div>
+                    </>
+                  ) : 'No hay un QR de pago configurado. Pide a administración que lo agregue.'}
+                  {qrAlerta.length > 0 && <div className="notice notice-warn mt-8">QR por vencer o vencido: {qrAlerta.map((a) => `${a.nombre} (${a.estado})`).join(', ')}. Solicita el cambio.</div>}
+                </div>
+              </div>
+            )}
 
             <div className="field-row mb-12">
               <div className="field"><label>Descuento (Bs)</label><input type="number" min="0" step="0.5" className="input" value={form.descuento} onChange={(e) => setForm({ ...form, descuento: e.target.value })} /></div>
@@ -484,6 +547,50 @@ export default function VentaNueva() {
           </div>
         </div>
       </div>
+
+      <EscanerCodigos open={scanOpen} onClose={() => setScanOpen(false)} onLeer={alLeerProducto} />
+
+      <Modal open={qrOpen} onClose={() => setQrOpen(false)} title="QR de pago" subtitle="Muestra este QR al cliente para recibir el pago" size="sm">
+        <div className="form-stack">
+          {qrs.length === 0 && <div className="notice notice-warn">No hay QR activo configurado.</div>}
+          {qrs.map((qr) => (
+            <div key={qr.id} style={{ textAlign: 'center' }}>
+              <h3>{qr.nombre}</h3>
+              {qr.titular && <p className="small muted">A nombre de {qr.titular}</p>}
+              <img src={qr.imagen} alt={`QR ${qr.nombre}`} style={{ maxWidth: 260, width: '100%', borderRadius: 10, border: '1px solid var(--line)' }} />
+              <p className="small muted">Vigente hasta {qr.fecha_vencimiento}{qr.dias_restantes !== null ? ` · ${qr.dias_restantes} días restantes` : ''}</p>
+              <Badge tone={qr.por_vencer ? 'amber' : 'green'}>{qr.estado}</Badge>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(ventaExitosa)} onClose={() => setVentaExitosa(null)} title={`Venta ${ventaExitosa?.codigo || ''} registrada`} subtitle="Envía el comprobante por WhatsApp o abre el pedido" size="md"
+        footer={<>
+          <button className="btn btn-ghost" onClick={() => { setVentaExitosa(null); setCart({}); }}>Nueva venta</button>
+          <button className="btn btn-outline" onClick={() => navigate(`/ventas/${ventaExitosa.id}`)}>Ver pedido</button>
+        </>}
+      >
+        <div className="form-stack">
+          <div className="summary-box">
+            <div className="split"><span className="small muted">Total de la compra</span><strong><Money value={ventaExitosa?.total} /></strong></div>
+            <div className="split mt-8"><span className="small muted">Forma de pago</span><strong>{ventaExitosa?.forma_pago}</strong></div>
+          </div>
+          <div className="field"><label>Número de WhatsApp del cliente</label>
+            <input className="input" value={telComprobante} onChange={(e) => setTelComprobante(e.target.value)} placeholder="5917XXXXXXX" />
+            <span className="hint">Puedes corregirlo antes de enviar el comprobante.</span>
+          </div>
+          <BotonWhatsapp
+            tipo="pedido"
+            clienteId={ventaExitosa?.cliente_id}
+            pedidoId={ventaExitosa?.id}
+            telefono={telComprobante}
+            mensaje={mensajeComprobante}
+            label="Enviar comprobante por WhatsApp"
+            disabled={!telComprobante.trim()}
+          />
+        </div>
+      </Modal>
     </>
   );
 }

@@ -15,7 +15,10 @@ function construirMensaje(db, tipo, pedido, cliente, extra) {
   const codigo = pedido?.codigo || extra?.referencia || 'DADINI';
   const total = round2(pedido?.total || extra?.monto || 0);
   if (tipo === 'pedido') {
-    return `Hola ${nombre}, su pedido ${codigo} por Bs ${total.toFixed(2)} fue confirmado. Entrega programada: ${pedido?.fecha_entrega_programada || 'por definir'}. ¡Gracias por comprar DADINI!`;
+    const detalle = Array.isArray(extra?.items) && extra.items.length
+      ? ` Productos: ${extra.items.map((i) => `${i.cantidad} x ${i.nombre}`).join(', ')}.`
+      : '';
+    return `Hola ${nombre}, su pedido ${codigo} por Bs ${total.toFixed(2)} fue confirmado.${detalle} Entrega programada: ${pedido?.fecha_entrega_programada || 'por definir'}. ¡Gracias por comprar DADINI!`;
   }
   if (tipo === 'entrega') {
     const detalle = extra?.productos_devueltos?.length

@@ -3,6 +3,7 @@ const store = require('./store');
 const { buildSeed, SEED_VERSION } = require('./seed');
 const { asegurarEstructura } = require('./permisos');
 const sync = require('./supabase-sync');
+const { verificarVencimientos } = require('./qr-alertas');
 
 let db = null;
 let colaGuardado = Promise.resolve();
@@ -33,9 +34,13 @@ async function init() {
     }
   }
 
+  // Avisos de QRs por vencer o vencidos (2 semanas antes).
+  const notificacionesAntes = (db.notificaciones || []).length;
+  verificarVencimientos(db);
+
   // Migración suave: agrega rutas/zonas/tipos y los permisos de usuarios
   // existentes sin borrar ningún dato operativo.
-  if (asegurarEstructura(db) || restaurado) await store.guardar(db);
+  if (asegurarEstructura(db) || restaurado || (db.notificaciones || []).length !== notificacionesAntes) await store.guardar(db);
   return db;
 }
 

@@ -78,7 +78,7 @@ router.get('/:id', (req, res) => {
 
 router.post('/', allow('ventas', 'preventista', 'vendedor_camion'), (req, res) => {
   const db = load();
-  const { cliente_id, items, canal, forma_pago, almacen_id, descuento, envio, notas, entrega_direccion, vendedor_id, dias_credito: diasSolicitados, latitud, longitud, precision, almacen_movil_id } = req.body || {};
+  const { cliente_id, items, canal, forma_pago, almacen_id, descuento, envio, notas, entrega_direccion, vendedor_id, dias_credito: diasSolicitados, latitud, longitud, precision, almacen_movil_id, whatsapp_cliente } = req.body || {};
   const cliente = db.clientes.find((c) => c.id === Number(cliente_id));
   if (!cliente) return res.status(400).json({ error: 'Selecciona un cliente válido.' });
   if (cliente.bloqueado_por_deuda || !cliente.activo) return res.status(403).json({ error: `Cliente bloqueado: ${cliente.motivo_bloqueo || 'cuenta pendiente con la empresa'}. Regulariza la deuda para venderle.` });
@@ -164,6 +164,7 @@ router.post('/', allow('ventas', 'preventista', 'vendedor_camion'), (req, res) =
     id: nextId(db.pedidos),
     codigo: nextCode(db.pedidos, 'codigo', 'VTA', 1001),
     cliente_id: cliente.id,
+    whatsapp_cliente: String(whatsapp_cliente || '').replace(/\D/g, '') || cliente.whatsapp || cliente.telefono || null,
     vendedor_id: vendedor_id ? Number(vendedor_id) : req.user.id,
     canal,
     estado: 'pendiente',
@@ -219,6 +220,10 @@ router.post('/', allow('ventas', 'preventista', 'vendedor_camion'), (req, res) =
       ruta.paradas.push({ pedido_id: pedido.id, orden: ruta.paradas.length + 1, estado: 'pendiente', hora_estimada: '09:00', notas: '' });
       pedido.ruta_id = ruta.id;
     }
+  }
+  if (whatsapp_cliente) {
+    const telefono = String(whatsapp_cliente).replace(/\D/g, '');
+    if (telefono) cliente.whatsapp = telefono;
   }
   db.pedidos.push(pedido);
 

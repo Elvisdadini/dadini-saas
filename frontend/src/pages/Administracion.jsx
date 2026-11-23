@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Building2, Clock, KeyRound, Lock, Palette, Pencil, Plus, RefreshCcw, Search, Settings,
+  Building2, Clock, KeyRound, Lock, Palette, Pencil, Plus, QrCode, RefreshCcw, Search, Settings,
   ShieldCheck, UserPlus, Users, Database, ScrollText,
 } from 'lucide-react';
 import { api, qs } from '../api';
@@ -39,6 +39,12 @@ export default function Administracion() {
   const [reset, setReset] = useState(null);
   const [bloqueo, setBloqueo] = useState(null);
   const [motivoBloqueo, setMotivoBloqueo] = useState('');
+  const [qrs, setQrs] = useState([]);
+  const [qrAlertas, setQrAlertas] = useState([]);
+  const [qrForm, setQrForm] = useState({ nombre: '', imagen: '', fecha_vencimiento: '', titular: '', notas: '' });
+  const [qrEditando, setQrEditando] = useState(null);
+  const [qrBusy, setQrBusy] = useState(false);
+  const [qrModal, setQrModal] = useState(false);
   const [catalogos, setCatalogos] = useState({ modulos: [], acciones: [], plantillas: [] });
 
   const cargarUsuarios = async () => {
@@ -73,10 +79,43 @@ export default function Administracion() {
     } catch (error) { toast(error.message, 'error'); }
   };
 
+  const cargarQrs = async () => {
+    try {
+      const r = await api.get('/qr-pagos');
+      setQrs(r.qrs || []);
+      setQrAlertas(r.alertas || []);
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const subirImagenQr = (evento) => {
+    const archivo = evento.target.files?.[0];
+    if (!archivo) return;
+    const lector = new FileReader();
+    lector.onload = () => setQrForm((q) => ({ ...q, imagen: String(lector.result) }));
+    lector.readAsDataURL(archivo);
+  };
+
+  const guardarQr = async () => {
+    if (!qrForm.nombre.trim() || !qrForm.fecha_vencimiento) return toast('Nombre y fecha de vencimiento son obligatorios.', 'error');
+    if (!qrEditando && !qrForm.imagen) return toast('Sube la imagen del QR.', 'error');
+    setQrBusy(true);
+    try {
+      const payload = { ...qrForm, activo: true };
+      if (qrEditando) await api.put(`/qr-pagos/${qrEditando.id}`, payload);
+      else await api.post('/qr-pagos', payload);
+      toast(qrEditando ? 'QR actualizado' : 'QR de pago agregado');
+      setQrModal(false);
+      setQrEditando(null);
+      setQrForm({ nombre: '', imagen: '', fecha_vencimiento: '', titular: '', notas: '' });
+      await cargarQrs();
+    } catch (error) { toast(error.message, 'error'); } finally { setQrBusy(false); }
+  };
+
   useEffect(() => {
     if (tab === 'usuarios') cargarUsuarios();
     if (tab === 'configuracion') cargarConfig();
     if (tab === 'auditoria') cargarAuditoria();
+    if (tab === 'qrs') cargarQrs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, search, rol, auditSearch, auditAccion]);
 
@@ -191,7 +230,7 @@ export default function Administracion() {
       </div>
 
       <div className="panel">
-        <Tabs tabs={[{ value: 'usuarios', label: 'Usuarios y roles', count: usuarios.length }, { value: 'configuracion', label: 'Configuración' }, { value: 'auditoria', label: 'Auditoría' }]} active={tab} onChange={setTab} />
+        <Tabs tabs={[{ value: 'usuarios', label: 'Usuarios y roles', count: usuarios.length }, { value: 'configuracion', label: 'Configuración' }, { value: 'qrs', label: 'QR de pago', count: qrs.length }, { value: 'auditoria', label: 'Auditoría' }]} active={tab} onChange={setTab} />
 
         {tab === 'usuarios' && (
           <>
@@ -291,6 +330,34 @@ export default function Administracion() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {tab === 'qrs' && (
+          <div className="panel mb-16">
+            <div className="panel-head">
+              <div><h3>QR de pago de la empresa</h3><p>Imagen, nombre, titular y vencimiento. Se avisa automáticamente 2 semanas antes.</p></div>
+              <button className="btn btn-primary btn-sm" onClick={() => { setQrEditando(null); setQrForm({ nombre: '', imagen: '', fecha_vencimiento: '', titular: '', notas: '' }); setQrModal(true); }}><Plus size={13} /> Agregar QR</button>
+            </div>
+            <div className="panel-body">
+              {qrAlertas.length > 0 && <div className="notice notice-warn mb-12"><QrCode size={15} /> QRs por vencer o vencidos: {qrAlertas.map((a) => `${a.nombre} (${a.estado}${a.dias_restantes !== null ? `, ${a.dias_restantes} días` : ''})`).join(', ')}. Solicita el cambio y sube el nuevo QR.</div>}
+              {qrs.length === 0 ? <EmptyState icon={QrCode} title="Sin QR configurado" message="Sube la imagen del QR que deben usar los clientes para pagar." /> : (
+                <div className="grid grid-3" style={{ gap: 12 }}>
+                  {qrs.map((qr) => (
+                    <div className="card card-pad" key={qr.id} style={{ textAlign: 'center' }}>
+                      <img src={qr.imagen} alt={`QR ${qr.nombre}`} style={{ width: 130, height: 130, objectFit: 'contain', borderRadius: 8, border: '1px solid var(--line)' }} />
+                      <strong style={{ display: 'block', marginTop: 8 }}>{qr.nombre}</strong>
+                      <span className="small muted">{qr.titular || 'Sin titular'} · Vence {qr.fecha_vencimiento}</span>
+                      <div className="inline mt-8" style={{ justifyContent: 'center' }}>
+                        <Badge tone={qr.por_vencer ? 'amber' : qr.vencido ? 'red' : qr.activo !== false ? 'green' : 'gray'}>{qr.estado}</Badge>
+                        <button className="btn btn-soft btn-sm" onClick={() => { setQrEditando(qr); setQrForm({ nombre: qr.nombre, imagen: qr.imagen, fecha_vencimiento: qr.fecha_vencimiento, titular: qr.titular || '', notas: qr.notas || '' }); setQrModal(true); }}>Editar</button>
+                        <button className="btn btn-ghost btn-sm" onClick={async () => { await api.patch(`/qr-pagos/${qr.id}/estado`, { activo: qr.activo === false }); await cargarQrs(); }}>{qr.activo === false ? 'Activar' : 'Desactivar'}</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -409,6 +476,20 @@ export default function Administracion() {
           )}
           {!editing && <div className="field"><label>Contraseña inicial</label><input className="input" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /><span className="hint">Mínimo 8 caracteres. El usuario puede cambiarla luego.</span></div>}
           <div className="notice notice-info"><ShieldCheck size={15} /> Los permisos limitan funciones sensibles: nadie que no sea supervisión o administración puede borrar pedidos, cobranzas ni alterar los reportes mensuales.</div>
+        </div>
+      </Modal>
+
+      <Modal open={qrModal} onClose={() => { setQrModal(false); setQrEditando(null); }} title={qrEditando ? 'Editar QR de pago' : 'Agregar QR de pago'} subtitle="Se mostrará en el punto de venta cuando se elija pago con QR." size="md"
+        footer={<><button className="btn btn-ghost" onClick={() => { setQrModal(false); setQrEditando(null); }}>Cancelar</button><button className="btn btn-primary" onClick={guardarQr} disabled={qrBusy}>{qrBusy ? 'Guardando…' : 'Guardar QR'}</button></>}>
+        <div className="form-stack">
+          <div className="inline">
+            {qrForm.imagen ? <img src={qrForm.imagen} alt="Vista previa QR" style={{ width: 96, height: 96, objectFit: 'contain', borderRadius: 8, border: '1px solid var(--line)' }} /> : <div className="logo-empty"><QrCode size={22} /></div>}
+            <div><label className="btn btn-soft btn-sm"><QrCode size={13} /> Subir imagen QR<input type="file" accept="image/*" hidden onChange={subirImagenQr} /></label><span className="hint">PNG o JPG del QR de la empresa.</span></div>
+          </div>
+          <div className="field"><label>Nombre del QR</label><input className="input" value={qrForm.nombre} onChange={(e) => setQrForm({ ...qrForm, nombre: e.target.value })} placeholder="Ej. QR principal Bancos" /></div>
+          <div className="field"><label>A nombre de</label><input className="input" value={qrForm.titular} onChange={(e) => setQrForm({ ...qrForm, titular: e.target.value })} placeholder="Titular de la cuenta" /></div>
+          <div className="field"><label>Fecha de vencimiento <span className="req">*</span></label><input type="date" className="input" value={qrForm.fecha_vencimiento} onChange={(e) => setQrForm({ ...qrForm, fecha_vencimiento: e.target.value })} /><span className="hint">Se solicitará el cambio 2 semanas antes.</span></div>
+          <div className="field"><label>Notas</label><textarea className="textarea" value={qrForm.notas} onChange={(e) => setQrForm({ ...qrForm, notas: e.target.value })} /></div>
         </div>
       </Modal>
 
