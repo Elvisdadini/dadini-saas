@@ -76,7 +76,7 @@ router.get('/:id', (req, res) => {
   return res.json({ pedido: pedidoResumen(db, pedido, true), configuracion: db.configuracion.empresa });
 });
 
-router.post('/', allow('ventas', 'preventista', 'vendedor_camion'), (req, res) => {
+router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 'vendedor_camion'), (req, res) => {
   const db = load();
   const { cliente_id, items, canal, forma_pago, almacen_id, descuento, envio, notas, entrega_direccion, vendedor_id, dias_credito: diasSolicitados, latitud, longitud, precision, almacen_movil_id, whatsapp_cliente } = req.body || {};
   const cliente = db.clientes.find((c) => c.id === Number(cliente_id));
@@ -346,7 +346,7 @@ router.patch('/:id/estado', allow('ventas', 'preventista', 'distribucion'), (req
   return res.json({ pedido: pedidoResumen(db, pedido, true) });
 });
 
-router.post('/:id/pagos', allow('ventas', 'preventista', 'cobranzas'), (req, res) => {
+router.post('/:id/pagos', requirePermiso('cobranzas.registrar', 'ventas.registrar_cobranza'), allow('ventas', 'preventista', 'cobranzas'), (req, res) => {
   const db = load();
   const pedido = db.pedidos.find((p) => p.id === Number(req.params.id));
   if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado.' });

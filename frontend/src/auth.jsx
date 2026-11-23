@@ -38,6 +38,7 @@ export const PERMISOS = {
   rentabilidad: ['admin', 'dueno', 'supervisor'],
   cobranzas: ['admin', 'ventas', 'preventista', 'cobranzas'],
   inventario: ['admin', 'almacen'],
+  catalogo: ['admin', 'dueno', 'almacen', 'supervisor', 'ventas', 'preventista', 'vendedor_camion', 'cobranzas', 'distribucion'],
   distribucion: ['admin', 'distribucion', 'ventas', 'preventista'],
   reportes: ['admin', 'dueno', 'supervisor', 'preventista'],
   administracion: ['admin', 'dueno'],

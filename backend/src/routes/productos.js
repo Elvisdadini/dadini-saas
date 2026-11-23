@@ -1,6 +1,6 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, audit, num, round2, matches } = require('../utils');
 const { productoResumen, stockEn, stockDe } = require('../services');
 
@@ -67,7 +67,7 @@ router.get('/movimientos', (req, res) => {
   return res.json({ movimientos: movimientos.slice(0, Number(limit) || 200) });
 });
 
-router.post('/', allow('almacen'), (req, res) => {
+router.post('/', requirePermiso('inventario.crear'), allow('almacen'), (req, res) => {
   const db = load();
   const { nombre, categoria, categoria_id, marca, marca_id, precio, costo, emoji, color, unidad, unidades_por_caja, unidades_por_paquete, presentacion, vender_por, stock_minimo, stock_inicial, sku, categorias_clientes, peso_kg, imagen_url } = req.body || {};
   const categoriaCatalogo = categoria_id ? (db.producto_categorias || []).find((c) => c.id === Number(categoria_id)) : null;
@@ -187,7 +187,7 @@ function filaStock(producto, filas) {
   return fila ? (fila.stock_inicial ?? fila.stockInicial ?? fila.stock ?? fila.Stock ?? 0) : 0;
 }
 
-router.put('/:id', allow('almacen'), (req, res) => {
+router.put('/:id', requirePermiso('inventario.editar'), allow('almacen'), (req, res) => {
   const db = load();
   const producto = db.productos.find((p) => p.id === Number(req.params.id));
   if (!producto) return res.status(404).json({ error: 'Producto no encontrado.' });
@@ -220,7 +220,7 @@ router.put('/:id', allow('almacen'), (req, res) => {
   return res.json({ producto: productoResumen(db, producto) });
 });
 
-router.delete('/:id', allow(), (req, res) => {
+router.delete('/:id', requirePermiso('inventario.eliminar'), allow(), (req, res) => {
   const db = load();
   const producto = db.productos.find((p) => p.id === Number(req.params.id));
   if (!producto) return res.status(404).json({ error: 'Producto no encontrado.' });

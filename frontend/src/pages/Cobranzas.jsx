@@ -30,6 +30,9 @@ export default function Cobranzas() {
   const [detalle, setDetalle] = useState(null);
   const [avanceAbierto, setAvanceAbierto] = useState(false);
   const [cobranzaMapa, setCobranzaMapa] = useState(null);
+  const [misCobros, setMisCobros] = useState(null);
+  const [misOpen, setMisOpen] = useState(false);
+  const [comprobante, setComprobante] = useState(null);
   const [cobranzaMapaForm, setCobranzaMapaForm] = useState({ motivo: 'sin_dinero', notas: '', latitud: '', longitud: '' });
 
   const cargar = async () => {
@@ -167,6 +170,7 @@ export default function Cobranzas() {
               <BarChart3 size={14} /> {avanceAbierto ? 'Ocultar avance de ruta' : 'Avance de ruta'}
             </button>
             <button className="btn btn-outline" onClick={cargar}><Receipt size={14} /> Actualizar cartera</button>
+            <button className="btn btn-soft" onClick={async () => { try { const r = await api.get('/cobranzas/mis-cobros'); setMisCobros(r); setMisOpen(true); } catch (e) { toast(e.message, 'error'); } }}><Wallet size={14} /> Mis cobranzas</button>
           </>
         )}
       />
@@ -438,6 +442,39 @@ export default function Cobranzas() {
             </div>
           )}
           {selected && !ultimoComprobante && <BotonWhatsapp tipo="cobranza" clienteId={selected.cliente_id} pedidoId={selected.id} telefono={selected.cliente_whatsapp || selected.cliente_telefono} latitud={ubicacion?.latitud || selected.cliente_latitud} longitud={ubicacion?.longitud || selected.cliente_longitud} monto={Number(pay.monto) || selected.total_a_cobrar || selected.saldo} label="Enviar detalle de pago" />}
+        </div>
+      </Modal>
+
+      <Modal open={misOpen} onClose={() => setMisOpen(false)} title="Mis cobranzas" subtitle="Cobra realizadas por ti · toca el nombre del cliente para ver el comprobante enviado" size="xl">
+        <div className="form-stack">
+          <div className="summary-box"><div className="split"><span className="small muted">Total cobrado</span><strong><Money value={misCobros?.resumen?.monto} /></strong></div><div className="split mt-8"><span className="small muted">Cobros</span><strong>{misCobros?.resumen?.cobros || 0}</strong></div></div>
+          {!(misCobros?.pagos || []).length ? <EmptyState icon={Receipt} title="Sin cobranzas" message="Aún no registraste cobros." /> : (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead><tr><th>Cliente</th><th>Pedido</th><th className="num">Monto</th><th>Método</th><th>Comprobante</th><th>Fecha</th></tr></thead>
+                <tbody>
+                  {misCobros.pagos.map((p) => (
+                    <tr key={p.id}>
+                      <td><button className="link-btn" onClick={() => setComprobante(p)}>{p.cliente_nombre}</button><span className="cell-sub">{p.cliente_zona}</span></td>
+                      <td>{p.pedido_codigo}</td>
+                      <td className="num"><Money value={p.monto} /></td>
+                      <td>{p.metodo}</td>
+                      <td>{p.comprobante}</td>
+                      <td><Fecha value={p.fecha} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(comprobante)} onClose={() => setComprobante(null)} title={`Comprobante · ${comprobante?.comprobante || ''}`} subtitle={comprobante?.cliente_nombre || ''} size="md"
+        footer={<><button className="btn btn-ghost" onClick={() => setComprobante(null)}>Cerrar</button>{comprobante?.url_comprobante && <button className="btn btn-green" onClick={() => window.open(comprobante.url_comprobante, '_blank', 'noopener,noreferrer')}>Abrir WhatsApp</button>}</>}>
+        <div className="form-stack">
+          <div className="summary-box"><div className="split"><span className="small muted">Pedido</span><strong>{comprobante?.pedido_codigo}</strong></div><div className="split mt-8"><span className="small muted">Monto</span><strong><Money value={comprobante?.monto} /></strong></div><div className="split mt-8"><span className="small muted">WhatsApp</span><strong>{comprobante?.cliente_whatsapp || '—'}</strong></div></div>
+          <div className="notice notice-info">{comprobante?.mensaje_enviado || 'No hay mensaje registrado para este cobro.'}</div>
         </div>
       </Modal>
     </>

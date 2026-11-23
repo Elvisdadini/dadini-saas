@@ -12,6 +12,7 @@ const MODULOS = [
   { codigo: 'compras', etiqueta: 'Compras y gastos', grupo: 'Gestión', descripcion: 'Solicitudes, órdenes, proveedores, gastos y sueldos' },
   { codigo: 'rentabilidad', etiqueta: 'Rentabilidad', grupo: 'Gestión', descripcion: 'Consultar márgenes y costos' },
   { codigo: 'inventario', etiqueta: 'Inventario', grupo: 'Catálogo', descripcion: 'Productos, stock, promociones y almacenes móviles' },
+  { codigo: 'catalogo', etiqueta: 'Catálogo', grupo: 'Catálogo', descripcion: 'Generar y compartir catálogos PDF' },
   { codigo: 'distribucion', etiqueta: 'Distribución', grupo: 'Logística', descripcion: 'Programar rutas y controlar entregas' },
   { codigo: 'reportes', etiqueta: 'Reportes', grupo: 'Análisis', descripcion: 'Consultar reportes mensuales y exportar' },
   { codigo: 'administracion', etiqueta: 'Administración', grupo: 'Sistema', descripcion: 'Usuarios, roles, permisos y auditoría' },
@@ -32,40 +33,97 @@ const ACCIONES = [
   { codigo: 'configuracion_editar', etiqueta: 'Editar configuración', grupo: 'Sistema', descripcion: 'Cambiar empresa, marca, APK e integraciones' },
 ];
 
-const TODOS = [...MODULOS, ...ACCIONES].map((p) => p.codigo);
+const { CATALOGO, CRUD, CODIGOS_DETALLADOS, expandir } = require('./permisos-detallados');
+
+const TODOS = [...new Set([...[...MODULOS, ...ACCIONES].map((p) => p.codigo), ...CODIGOS_DETALLADOS])];
 
 // Modelos listos para seleccionar al crear un usuario. Cada modelo otorga
 // solamente las funciones que corresponden a ese puesto.
 const PLANTILLAS = [
   {
     id: 'vendedor', nombre: 'Vendedor', rol: 'preventista', color: 'blue',
-    descripcion: 'Preventa por ruta y zona. Puede crear clientes y ventas, pero no editar pedidos ni cobranzas.',
-    permisos: ['dashboard', 'ventas', 'venta_nueva', 'rutas_venta', 'clientes', 'clientes_crear', 'clientes_editar', 'cobranzas', 'reportes', 'objetivos'],
+    descripcion: 'Preventa por ruta y zona. Crea clientes y pedidos; no edita ni elimina pedidos ni cobranzas.',
+    permisos: [
+      'dashboard',
+      ...expandir('ventas', ['ver', 'crear'], ['ventas.registrar_pedidos', 'ventas.registrar_cobranza']),
+      ...expandir('clientes', ['ver', 'crear', 'editar']),
+      ...expandir('rutas_venta', ['ver']),
+      ...expandir('objetivos', ['ver'], ['objetivos.ver_mios']),
+      ...expandir('cobranzas', ['ver', 'crear'], ['cobranzas.registrar', 'cobranzas.mis_comprobantes']),
+      ...expandir('catalogo', ['ver'], ['catalogo.ver', 'catalogo.compartir_whatsapp']),
+      ...expandir('reportes', ['ver'], ['reportes.consultar_exportar', 'reportes.ver_diarios_ventas', 'reportes.ver_diarios_clientes']),
+    ],
   },
   {
     id: 'distribuidor', nombre: 'Distribuidor', rol: 'distribucion', color: 'purple',
-    descripcion: 'Recibe las rutas de sus vendedores y gestiona entregas. No puede borrar pedidos ni cobranzas.',
-    permisos: ['dashboard', 'ventas', 'rutas_venta', 'clientes', 'distribucion', 'reportes'],
+    descripcion: 'Recibe rutas y gestiona entregas. No puede borrar pedidos ni cobranzas.',
+    permisos: [
+      'dashboard',
+      ...expandir('ventas', ['ver']),
+      ...expandir('clientes', ['ver']),
+      ...expandir('rutas_venta', ['ver']),
+      ...expandir('distribucion', ['ver', 'crear', 'editar'], ['distribucion.registrar_entregas']),
+      ...expandir('catalogo', ['ver'], ['catalogo.ver']),
+      ...expandir('reportes', ['ver'], ['reportes.ver_diarios_entregas']),
+    ],
   },
   {
     id: 'almacen', nombre: 'Encargado de almacén', rol: 'almacen', color: 'green',
-    descripcion: 'Controla stock, preparado de carga y compras. Sin acceso a cobranzas ni a eliminación de pedidos.',
-    permisos: ['dashboard', 'inventario', 'compras', 'reportes', 'rutas_venta'],
+    descripcion: 'Controla stock, conteo, preparado de carga y compras. Sin acceso a cobranzas.',
+    permisos: [
+      'dashboard',
+      ...expandir('inventario', ['ver', 'crear', 'editar']),
+      ...expandir('conteo_inventario', ['ver', 'crear', 'editar']),
+      ...expandir('preparado_carga', ['ver', 'crear', 'editar']),
+      ...expandir('almacenes_moviles', ['ver', 'crear', 'editar']),
+      ...expandir('catalogo', ['ver', 'crear', 'editar'], ['catalogo.ver', 'catalogo.generar_pdf', 'catalogo.compartir_whatsapp']),
+      ...expandir('gastos', ['ver', 'crear', 'editar']),
+      ...expandir('proveedores', ['ver', 'crear', 'editar']),
+      ...expandir('solicitudes_compra', ['ver', 'crear', 'editar']),
+      ...expandir('ordenes_pago', ['ver', 'crear', 'editar']),
+      ...expandir('reportes', ['ver']),
+    ],
   },
   {
     id: 'supervisor', nombre: 'Supervisor', rol: 'supervisor', color: 'amber',
-    descripcion: 'Supervisa ventas, objetivos y rentabilidad. Puede corregir pedidos, pero no eliminarlos.',
-    permisos: ['dashboard', 'ventas', 'rutas_venta', 'clientes', 'clientes_editar', 'cobranzas', 'objetivos', 'compras', 'rentabilidad', 'distribucion', 'reportes', 'reportes_editar', 'pedidos_editar'],
+    descripcion: 'Supervisa ventas, objetivos, rentabilidad y reportes. Puede corregir, pero no eliminar.',
+    permisos: [
+      'dashboard',
+      ...expandir('ventas', ['ver', 'editar']),
+      ...expandir('clientes', ['ver', 'editar']),
+      ...expandir('rutas_venta', ['ver', 'editar']),
+      ...expandir('objetivos', ['ver', 'crear', 'editar']),
+      ...expandir('cobranzas', ['ver']),
+      ...expandir('distribucion', ['ver']),
+      ...expandir('rentabilidad', ['ver']),
+      ...expandir('devoluciones', ['ver'], ['devoluciones.reportes_mios']),
+      ...expandir('catalogo', ['ver'], ['catalogo.ver']),
+      ...expandir('reportes', ['ver', 'editar'], ['reportes.consultar_exportar', 'reportes.ver_diarios_ventas', 'reportes.ver_diarios_entregas', 'reportes.ver_diarios_clientes', 'reportes.ver_diarios_objetivos', 'reportes.editar', 'reportes.ajustar_parametros']),
+    ],
   },
   {
     id: 'venta_directa', nombre: 'Ventas directa', rol: 'vendedor_camion', color: 'amber',
-    descripcion: 'Venta desde el camión y almacén móvil. Crea clientes y ventas, sin editar pedidos ni cobranzas.',
-    permisos: ['dashboard', 'ventas', 'venta_nueva', 'rutas_venta', 'clientes', 'clientes_crear', 'mi_camion', 'cobranzas'],
+    descripcion: 'Venta desde el camión y almacén móvil. Crea clientes y ventas; no edita cobranzas.',
+    permisos: [
+      'dashboard',
+      ...expandir('ventas', ['ver', 'crear'], ['ventas.registrar_pedidos']),
+      ...expandir('clientes', ['ver', 'crear']),
+      ...expandir('mi_camion', ['ver', 'crear'], ['mi_camion.realizar_ventas']),
+      ...expandir('catalogo', ['ver'], ['catalogo.ver', 'catalogo.compartir_whatsapp']),
+      ...expandir('cobranzas', ['ver']),
+    ],
   },
   {
     id: 'cobranzas', nombre: 'Cobranzas', rol: 'cobranzas', color: 'amber',
-    descripcion: 'Gestiona cuentas por cobrar. No puede borrar pedidos, pagos ni modificar reportes.',
-    permisos: ['dashboard', 'ventas', 'clientes', 'cobranzas', 'cobranzas_editar', 'reportes'],
+    descripcion: 'Gestiona cuentas por cobrar y comprobantes. No puede borrar pagos ni modificar reportes.',
+    permisos: [
+      'dashboard',
+      ...expandir('ventas', ['ver']),
+      ...expandir('clientes', ['ver']),
+      ...expandir('cobranzas', ['ver', 'crear', 'editar'], ['cobranzas.registrar', 'cobranzas.mis_comprobantes']),
+      ...expandir('catalogo', ['ver'], ['catalogo.ver']),
+      ...expandir('reportes', ['ver'], ['reportes.consultar_exportar']),
+    ],
   },
 ];
 
@@ -92,8 +150,26 @@ function permisosUsuario(usuario) {
   return permisosPorRol(usuario.rol);
 }
 
+const LEGACY = {
+  clientes_crear: 'clientes.crear', clientes_editar: 'clientes.editar',
+  rutas_crear: 'rutas_venta.crear', rutas_eliminar: 'rutas_venta.eliminar',
+  pedidos_editar: 'ventas.editar', pedidos_eliminar: 'ventas.eliminar',
+  cobranzas_editar: 'cobranzas.editar', cobranzas_eliminar: 'cobranzas.eliminar',
+  reportes_editar: 'reportes.editar', usuarios_gestionar: 'usuarios.gestionar',
+  configuracion_editar: 'configuracion.editar', venta_nueva: 'ventas.crear',
+};
+
 function tienePermiso(usuario, codigo) {
-  return permisosUsuario(usuario).includes(codigo);
+  const permisos = permisosUsuario(usuario);
+  if (permisos.includes(codigo)) return true;
+  if (LEGACY[codigo] && permisos.includes(LEGACY[codigo])) return true;
+  // Compatibilidad: un permiso de módulo antiguo (ej. "ventas") otorga todas
+  // sus funciones detalladas (ventas.ver, ventas.crear, etc.).
+  if (codigo && codigo.includes('.')) {
+    const base = codigo.split('.')[0];
+    if (permisos.includes(base)) return true;
+  }
+  return false;
 }
 
 // Agrega las colecciones nuevas y los permisos de los usuarios ya creados.
@@ -143,6 +219,6 @@ function asegurarEstructura(db) {
 }
 
 module.exports = {
-  MODULOS, ACCIONES, TODOS, PLANTILLAS,
+  MODULOS, ACCIONES, TODOS, PLANTILLAS, CATALOGO, CRUD, CODIGOS_DETALLADOS, expandir,
   permisosPorRol, permisosPorPlantilla, normalizarPermisos, permisosUsuario, tienePermiso, asegurarEstructura,
 };

@@ -41,6 +41,7 @@ const NAV = [
   { group: 'Catálogo', items: [
     { to: '/inventario', label: 'Inventario', icon: Package, key: 'inventario' },
     { to: '/inventario/conteo', label: 'Conteo de inventario', icon: ClipboardList, key: 'inventario' },
+    { to: '/catalogo', label: 'Generar catálogo', icon: FileText, key: 'catalogo' },
     { to: '/inventario/preparado', label: 'Preparado de carga', icon: PackageCheck, key: 'inventario' },
     { to: '/inventario/promociones', label: 'Promociones', icon: BadgePercent, key: 'inventario' },
     { to: '/inventario/almacenes-moviles', label: 'Almacenes móviles', icon: Truck, key: 'inventario' },
@@ -80,6 +81,7 @@ const PAGE_TITLES = {
   '/reportes/rentabilidad': ['Rentabilidad', 'Dashboard financiero'],
   '/inventario': ['Inventario', 'Productos y almacenes'],
   '/inventario/conteo': ['Conteo de inventario', 'Conteo físico, responsables y congelamiento'],
+  '/catalogo': ['Generar catálogo', 'PDF carta para compartir por WhatsApp'],
   '/inventario/promociones': ['Promociones', 'Reglas de venta'],
   '/inventario/almacenes-moviles': ['Almacenes móviles', 'Carga para venta directa'],
   '/inventario/devoluciones': ['Devoluciones', 'Verificación y reingreso'],

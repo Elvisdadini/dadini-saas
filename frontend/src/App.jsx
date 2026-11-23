@@ -31,6 +31,7 @@ const PedidoDetalle = lazy(() => import('./pages/PedidoDetalle'));
 const Clientes = lazy(() => import('./pages/Clientes'));
 const Cobranzas = lazy(() => import('./pages/Cobranzas'));
 const Inventario = lazy(() => import('./pages/Inventario'));
+const Catalogo = lazy(() => import('./pages/Catalogo'));
 const ConteoInventario = lazy(() => import('./pages/ConteoInventario'));
 const Distribucion = lazy(() => import('./pages/Distribucion'));
 const RutaDetalle = lazy(() => import('./pages/RutaDetalle'));
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="clientes/categorias" element={<Guard module="clientes"><CategoriasClientes /></Guard>} />
             <Route path="cobranzas" element={<Guard module="cobranzas"><Cobranzas /></Guard>} />
             <Route path="inventario" element={<Guard module="inventario"><Inventario /></Guard>} />
+            <Route path="catalogo" element={<Guard module="catalogo"><Catalogo /></Guard>} />
             <Route path="inventario/conteo" element={<Guard module="inventario"><ConteoInventario /></Guard>} />
             <Route path="inventario/promociones" element={<Guard module="inventario"><Promociones /></Guard>} />
             <Route path="inventario/almacenes-moviles" element={<Guard module="inventario"><AlmacenesMoviles /></Guard>} />

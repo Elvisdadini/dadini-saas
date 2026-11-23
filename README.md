@@ -336,6 +336,14 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Los permisos se guardan en cada usuario y se entregan en `/api/auth/me`, por lo que aparecen o desaparecen al cerrar sesión y volver a ingresar. Administración y dueño tienen siempre todas las funciones.
 - Acciones sensibles protegidas: editar/cancelar pedidos requiere `pedidos_editar`; crear/editar clientes requiere `clientes_crear`/`clientes_editar`; eliminar rutas requiere `rutas_eliminar`.
 
+### Permisos detallados y catálogo PDF
+
+- **Administración → Roles y permisos:** 7 grupos (Operación, Logística, Gestión, Catálogo, Inventario, Análisis y Sistema) con **Ver / Crear / Editar / Eliminar** por módulo y sub-funciones específicas (registrar pedidos, cobranzas, entregas, objetivos propios, comprobantes enviados, reportes diarios, etc.).
+- Marcado en cascada por módulo y por grupo; 6 modelos de acceso aplicables a cada usuario.
+- Compatibilidad con permisos anteriores: un permiso de módulo sigue otorgando sus funciones detalladas.
+- **Cobranzas → Mis cobranzas:** lista de cobros realizados por el usuario; el nombre del cliente abre el comprobante enviado por WhatsApp.
+- **Catálogo → Generar catálogo:** PDF tamaño **carta**, ligero (imágenes JPEG comprimidas), **16 productos por hoja con imágenes** o 35 sin imágenes. Opciones independientes: con/sin imágenes, con/sin nombres, con/sin precios y con/sin detalles (peso, unidades por caja, presentación). Se guarda en Supabase Storage y se puede visualizar, descargar o compartir por WhatsApp.
+
 ### Imágenes de productos
 
 - Las fotos **no se guardan en base64 dentro del JSON** (500 imágenes generarían ~66 MB y harían lenta cada sincronización).

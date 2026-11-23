@@ -90,4 +90,31 @@ router.get('/historial', (req, res) => {
   return res.json({ pagos, total: round2(pagos.reduce((s, p) => s + p.monto, 0)), rango: { desde, hasta } });
 });
 
+// Lista de cobranzas realizadas por el usuario en sesión, con el comprobante
+// enviado al cliente (el nombre del cliente abre dicho comprobante).
+router.get('/mis-cobros', (req, res) => {
+  const db = load();
+  const pagos = db.pagos
+    .filter((p) => p.usuario_id === req.user.id)
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+    .map((p) => {
+      const cliente = db.clientes.find((c) => c.id === p.cliente_id);
+      const pedido = db.pedidos.find((x) => x.id === p.pedido_id);
+      const mensaje = [...(db.mensajes_whatsapp || [])]
+        .filter((m) => m.tipo === 'cobranza' && m.pedido_id === p.pedido_id && m.usuario_id === req.user.id)
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+      return {
+        ...p,
+        cliente_nombre: cliente?.nombre || '—',
+        cliente_zona: cliente?.zona || '',
+        cliente_whatsapp: cliente?.whatsapp || cliente?.telefono || '',
+        pedido_codigo: pedido?.codigo || '—',
+        comprobante: p.numero_comprobante || p.codigo,
+        mensaje_enviado: mensaje?.mensaje || null,
+        url_comprobante: mensaje?.url || null,
+      };
+    });
+  return res.json({ pagos, resumen: { cobros: pagos.length, monto: round2(pagos.reduce((s, p) => s + p.monto, 0)) } });
+});
+
 module.exports = router;

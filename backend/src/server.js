@@ -43,6 +43,7 @@ app.use('/api/producto-catalogo', require('./routes/producto-catalogo'));
 app.use('/api/conteos-inventario', require('./routes/conteos-inventario'));
 app.use('/api/qr-pagos', require('./routes/qrs-pago'));
 app.use('/api/productos-imagenes', require('./routes/productos-imagenes'));
+app.use('/api/catalogo-pdf', require('./routes/catalogo-pdf'));
 app.use('/api/almacenes', require('./routes/almacenes'));
 app.use('/api/clientes', require('./routes/clientes'));
 app.use('/api/pedidos', require('./routes/pedidos'));
