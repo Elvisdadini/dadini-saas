@@ -3,6 +3,7 @@ dist/
 backend/uploads/
 backend/.env
 android/**/signing/
+android/**/.build/
 *.keystore
 *.log
 .DS_Store
