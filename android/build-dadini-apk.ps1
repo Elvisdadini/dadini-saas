@@ -13,8 +13,8 @@
 # ============================================================
 param(
   [string]$OutputPath = '',
-  [string]$VersionName = '21.0.0',
-  [int]$VersionCode = 1
+  [string]$VersionName = '21.0.1',
+  [int]$VersionCode = 2
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,7 +26,7 @@ $classesDir = Join-Path $buildDir 'classes'
 $dexDir = Join-Path $buildDir 'dex'
 
 if (-not $OutputPath) {
-  $OutputPath = Join-Path $PSScriptRoot '..\backend\assets\apk\DADINI-SaaS-21.0.0.apk'
+  $OutputPath = Join-Path $PSScriptRoot '..\backend\assets\apk\DADINI-SaaS-21.0.1.apk'
 }
 $OutputPath = [System.IO.Path]::GetFullPath($OutputPath)
 
@@ -198,4 +198,5 @@ Write-Host "Tamaño:    $sizeMb MB"
 Write-Host "SHA-256:   $hash"
 Write-Host "`nFirma guardada en: $keystore" -ForegroundColor DarkGray
 Write-Host "Guarda ese keystore para poder publicar actualizaciones del APK." -ForegroundColor DarkGray
+
 

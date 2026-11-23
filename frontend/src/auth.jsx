@@ -41,7 +41,6 @@ export const PERMISOS = {
   distribucion: ['admin', 'distribucion', 'ventas', 'preventista'],
   reportes: ['admin', 'dueno', 'supervisor', 'preventista'],
   administracion: ['admin', 'dueno'],
-  planes: ['admin', 'dueno'],
   dueno: ['dueno'],
 };
 
@@ -101,8 +100,8 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('dadini:unauthorized', onUnauthorized);
   }, [refresh]);
 
-  const login = useCallback(async (email, password) => {
-    const data = await api.post('/auth/login', { email, password });
+  const login = useCallback(async (identificador, password, pin) => {
+    const data = await api.post('/auth/login', { usuario: identificador, password, pin });
     setToken(data.token);
     setUser(data.user);
     const perfil = await api.get('/auth/me');

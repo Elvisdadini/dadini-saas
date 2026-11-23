@@ -1,6 +1,6 @@
 {
   "version": 19,
-  "generado_en": "2026-11-22T23:47:10.789Z",
+  "generado_en": "2026-11-23T01:05:27.711Z",
   "usuarios": [
     {
       "id": 1,
@@ -10,7 +10,7 @@
       "cargo": "Gerente general",
       "telefono": "67451234",
       "activo": true,
-      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
+      "password": "$2a$10$UpyT4SXiqUPtFDKmNZjgcu3FHtrYzCH9RMVDViaMGdvm7CmKWPM52",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -34,7 +34,6 @@
         "distribucion",
         "reportes",
         "administracion",
-        "planes",
         "dueno",
         "clientes_crear",
         "clientes_editar",
@@ -47,7 +46,8 @@
         "reportes_editar",
         "usuarios_gestionar",
         "configuracion_editar"
-      ]
+      ],
+      "usuario": "admin"
     },
     {
       "id": 2,
@@ -71,7 +71,7 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
+      "password": "$2a$10$UpyT4SXiqUPtFDKmNZjgcu3FHtrYzCH9RMVDViaMGdvm7CmKWPM52",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -91,7 +91,8 @@
         "cobranzas",
         "reportes",
         "objetivos"
-      ]
+      ],
+      "usuario": "ventas"
     },
     {
       "id": 3,
@@ -101,7 +102,7 @@
       "cargo": "Jefe de almacén",
       "telefono": "72345678",
       "activo": true,
-      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
+      "password": "$2a$10$UpyT4SXiqUPtFDKmNZjgcu3FHtrYzCH9RMVDViaMGdvm7CmKWPM52",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -116,7 +117,8 @@
         "compras",
         "reportes",
         "rutas_venta"
-      ]
+      ],
+      "usuario": "almacen"
     },
     {
       "id": 4,
@@ -128,7 +130,7 @@
       "repartidor_id": 1,
       "vehiculo_id": 2,
       "activo": true,
-      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
+      "password": "$2a$10$UpyT4SXiqUPtFDKmNZjgcu3FHtrYzCH9RMVDViaMGdvm7CmKWPM52",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 1,
@@ -144,7 +146,8 @@
         "clientes",
         "distribucion",
         "reportes"
-      ]
+      ],
+      "usuario": "rutas"
     },
     {
       "id": 5,
@@ -154,7 +157,7 @@
       "cargo": "Analista de cobranzas",
       "telefono": "74567890",
       "activo": true,
-      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
+      "password": "$2a$10$UpyT4SXiqUPtFDKmNZjgcu3FHtrYzCH9RMVDViaMGdvm7CmKWPM52",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -170,7 +173,8 @@
         "cobranzas",
         "cobranzas_editar",
         "reportes"
-      ]
+      ],
+      "usuario": "cobranzas"
     },
     {
       "id": 6,
@@ -193,7 +197,7 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
+      "password": "$2a$10$UpyT4SXiqUPtFDKmNZjgcu3FHtrYzCH9RMVDViaMGdvm7CmKWPM52",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -213,7 +217,8 @@
         "cobranzas",
         "reportes",
         "objetivos"
-      ]
+      ],
+      "usuario": "diego"
     },
     {
       "id": 7,
@@ -223,7 +228,7 @@
       "cargo": "Dueño del sistema",
       "telefono": "70000001",
       "activo": true,
-      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
+      "password": "$2a$10$UpyT4SXiqUPtFDKmNZjgcu3FHtrYzCH9RMVDViaMGdvm7CmKWPM52",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -247,7 +252,6 @@
         "distribucion",
         "reportes",
         "administracion",
-        "planes",
         "dueno",
         "clientes_crear",
         "clientes_editar",
@@ -260,7 +264,8 @@
         "reportes_editar",
         "usuarios_gestionar",
         "configuracion_editar"
-      ]
+      ],
+      "usuario": "dueno"
     },
     {
       "id": 8,
@@ -275,7 +280,7 @@
       "es_venta_directa": true,
       "almacen_movil_id": 1,
       "activo": true,
-      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
+      "password": "$2a$10$UpyT4SXiqUPtFDKmNZjgcu3FHtrYzCH9RMVDViaMGdvm7CmKWPM52",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -293,7 +298,8 @@
         "clientes_crear",
         "mi_camion",
         "cobranzas"
-      ]
+      ],
+      "usuario": "camion"
     },
     {
       "id": 9,
@@ -303,7 +309,7 @@
       "cargo": "Supervisora de ventas",
       "telefono": "70000003",
       "activo": true,
-      "password": "$2a$10$jlPsoJzSOH9lQUxo/VALkuxvnq8Dr9uWdy.4zooXSFeLtG6OahMlu",
+      "password": "$2a$10$UpyT4SXiqUPtFDKmNZjgcu3FHtrYzCH9RMVDViaMGdvm7CmKWPM52",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -326,7 +332,8 @@
         "reportes",
         "reportes_editar",
         "pedidos_editar"
-      ]
+      ],
+      "usuario": "supervisor"
     }
   ],
   "almacenes": [

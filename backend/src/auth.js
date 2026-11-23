@@ -29,7 +29,8 @@ function authRequired(req, res, next) {
     const user = db.usuarios.find((u) => u.id === payload.id && u.activo);
     if (!user) return res.status(401).json({ error: 'La cuenta ya no está activa.' });
     req.user = {
-      id: user.id, nombre: user.nombre, email: user.email, rol: user.rol, cargo: user.cargo,
+      id: user.id, nombre: user.nombre, email: user.email, usuario: user.usuario || null,
+      tiene_pin: Boolean(user.pin), rol: user.rol, cargo: user.cargo,
       repartidor_id: user.repartidor_id || null,
       vehiculo_id: user.vehiculo_id || null,
       ruta_venta: user.ruta_venta || null,

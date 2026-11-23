@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  BadgePercent, Bell, BarChart3, Building2, ChevronDown, ClipboardList, CreditCard, Crown, LayoutDashboard, LogOut, Menu, Palette, Receipt, Tag, Target, TrendingUp, Undo2,
+  BadgePercent, Bell, BarChart3, Building2, ChevronDown, ClipboardList, Crown, LayoutDashboard, LogOut, Menu, Palette, Receipt, Tag, Target, TrendingUp, Undo2,
   MapPin, Package, PackageCheck, Search, Settings, ShoppingCart, Truck, Users, Wallet, X, UserRound, Lock,
   FileText, ArrowUpRight, CheckCircle2, AlertTriangle,
 } from 'lucide-react';
@@ -53,7 +53,6 @@ const NAV = [
       { to: '/administracion', label: 'Administración', icon: Settings, key: 'administracion' },
       { to: '/administracion/personalizacion', label: 'Marca y APK', icon: Palette, key: 'administracion' },
       { to: '/administracion/permisos', label: 'Roles y permisos', icon: Lock, key: 'administracion' },
-      { to: '/planes', label: 'Plan y facturación', icon: CreditCard, key: 'planes' },
     ],
   },
 ];
@@ -87,7 +86,6 @@ const PAGE_TITLES = {
   '/administracion': ['Administración', 'Configuración del sistema'],
   '/administracion/personalizacion': ['Marca y APK', 'Identidad visual y nube'],
   '/administracion/permisos': ['Roles y permisos', 'Modelos de acceso y funciones por usuario'],
-  '/planes': ['Plan y facturación', 'Suscripción SaaS'],
 };
 
 export default function Shell({ children }) {
@@ -174,13 +172,13 @@ export default function Shell({ children }) {
         <div className="sidebar-footer">
           <div className="plan-mini">
             <div className="plan-row">
-              <strong>Plan {plan?.nombre || 'Business'}</strong>
-              <span>{plan?.precio ? `Bs ${plan.precio}/mes` : 'Activo'}</span>
+              <strong>DADINI SaaS · Acceso libre</strong>
+              <span>Todos los módulos</span>
             </div>
-            <div className="plan-bar"><i style={{ width: `${Math.min(100, plan?.porcentaje_usuarios || 60)}%` }} /></div>
+            <div className="plan-bar"><i style={{ width: '100%' }} /></div>
             <div className="plan-row">
-              <span>6 de {plan?.usuarios_incluidos || 10} usuarios</span>
-              <span>{plan?.estado === 'activo' ? 'Activo' : plan?.estado || 'Activo'}</span>
+              <span>Uso interno sin límite</span>
+              <span>Sin facturación</span>
             </div>
           </div>
           <div className="sidebar-user">

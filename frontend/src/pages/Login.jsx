@@ -1,17 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck, Truck, Wallet } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, Lock, ShieldCheck, Truck, UserRound, Wallet } from 'lucide-react';
 import { useAuth } from '../auth';
+
+const CLAVE_USUARIO = 'dadini_usuario';
 
 export default function LoginPage() {
   const { user, login, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState('');
+  const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
   const [show, setShow] = useState(false);
+  const [usarPin, setUsarPin] = useState(false);
+  const [recordar, setRecordar] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const guardado = localStorage.getItem(CLAVE_USUARIO);
+    if (guardado) { setIdentificador(guardado); setRecordar(true); }
+  }, []);
 
   useEffect(() => {
     if (!authLoading && user) navigate('/', { replace: true });
@@ -19,9 +29,13 @@ export default function LoginPage() {
 
   const entrar = async () => {
     setError('');
+    if (!identificador.trim()) return setError('Ingresa tu usuario.');
     setLoading(true);
     try {
-      await login(email, password);
+      if (usarPin) await login(identificador.trim(), undefined, pin.trim());
+      else await login(identificador.trim(), password, undefined);
+      if (recordar) localStorage.setItem(CLAVE_USUARIO, identificador.trim());
+      else localStorage.removeItem(CLAVE_USUARIO);
       const from = location.state?.from;
       navigate(from && from !== '/login' ? from : '/', { replace: true });
     } catch (err) {
@@ -29,6 +43,14 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const cambiarUsuario = () => {
+    localStorage.removeItem(CLAVE_USUARIO);
+    setRecordar(false);
+    setIdentificador('');
+    setPassword('');
+    setPin('');
   };
 
   return (
@@ -68,24 +90,36 @@ export default function LoginPage() {
         <div className="login-form">
           <span className="eyebrow">Acceso al panel</span>
           <h2>Bienvenido de nuevo</h2>
-          <p>Ingresa con tu cuenta para controlar la operación de DADINI.</p>
+          <p>Ingresa con tu usuario y contraseña, o solo con tu PIN.</p>
 
           {error && <div className="notice notice-danger" style={{ marginBottom: 14 }}><Lock size={15} /> {error}</div>}
 
           <form onSubmit={(e) => { e.preventDefault(); entrar(); }}>
-            <div className="field">
-              <label>Correo electrónico</label>
-              <div style={{ position: 'relative' }}>
-                <Mail size={15} style={{ position: 'absolute', left: 11, top: 11, color: 'var(--muted-2)' }} />
-                <input className="input" style={{ paddingLeft: 34 }} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@dadini.bo" autoComplete="username" />
+            {recordar && identificador ? (
+              <div className="notice notice-info" style={{ marginBottom: 14 }}>
+                <UserRound size={15} />
+                <span>Usuario recordado: <strong>{identificador}</strong></span>
+                <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={cambiarUsuario}>Cambiar</button>
               </div>
-            </div>
+            ) : (
+              <div className="field">
+                <label>Usuario</label>
+                <div style={{ position: 'relative' }}>
+                  <UserRound size={15} style={{ position: 'absolute', left: 11, top: 11, color: 'var(--muted-2)' }} />
+                  <input className="input" style={{ paddingLeft: 34 }} value={identificador} onChange={(e) => setIdentificador(e.target.value)} placeholder="Ej. admin" autoComplete="username" />
+                </div>
+              </div>
+            )}
             <div className="field">
-              <label>Contraseña</label>
+              <label>{usarPin ? 'PIN' : 'Contraseña'}</label>
               <div className="login-pass">
-                <input className="input" type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+                <input className="input" type={show ? 'text' : 'password'} value={usarPin ? pin : password} onChange={(e) => usarPin ? setPin(e.target.value) : setPassword(e.target.value)} placeholder={usarPin ? '••••' : '••••••••'} autoComplete="current-password" />
                 <button type="button" className="icon-btn" onClick={() => setShow((v) => !v)} aria-label="Mostrar contraseña">{show ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
+            </div>
+            <div className="login-options">
+              <label className="check"><input type="checkbox" checked={recordar} onChange={(e) => setRecordar(e.target.checked)} /> Mantener usuario en este dispositivo</label>
+              <label className="check"><input type="checkbox" checked={usarPin} onChange={(e) => setUsarPin(e.target.checked)} /> Ingresar con PIN</label>
             </div>
             <button type="submit" className="btn btn-primary btn-lg btn-block" style={{ marginTop: 6 }} disabled={loading}>
               {loading ? <><Loader2 size={17} className="spin" /> Ingresando…</> : <>Ingresar al panel <ArrowRight size={16} /></>}

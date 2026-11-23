@@ -643,6 +643,7 @@ h4 { font-size: 14px; font-weight: 700; }
 .demo-btn .avatar { width: 23px; height: 23px; font-size: 8px !important; }
 .demo-btn span { display: block; }
 .demo-btn small { display: block; font-size: 8.8px; color: var(--muted); font-weight: 400; }
+.login-options { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; }
 .login-legal { margin-top: 20px; font-size: 10px; color: var(--muted-2); line-height: 1.5; }
 
 /* ---------- Modal / toast / misc ---------- */

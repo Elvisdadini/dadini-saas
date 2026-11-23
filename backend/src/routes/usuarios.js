@@ -9,6 +9,17 @@ router.use(authRequired, allow());
 
 const ROLES = ['admin', 'dueno', 'supervisor', 'ventas', 'preventista', 'vendedor_camion', 'almacen', 'distribucion', 'cobranzas'];
 
+function generarUsuario(db, nombre) {
+  const base = String(nombre || '').trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'usuario';
+  let candidato = base;
+  let i = 1;
+  while (db.usuarios.some((u) => String(u.usuario || '').toLowerCase() === candidato.toLowerCase())) {
+    candidato = `${base}${i}`;
+    i += 1;
+  }
+  return candidato;
+}
+
 router.get('/', (req, res) => {
   const db = load();
   const { search, rol } = req.query;
@@ -31,14 +42,19 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const db = load();
-  const { nombre, email, rol, cargo, telefono, password, repartidor_id, vehiculo_id, ruta_venta, dias_visita, zona_venta, categoria_cliente_id, es_venta_directa, almacen_movil_id, salario_base, comision_venta_pct, comision_distribucion_pct, bono_fijo, descuento_fijo, antiguedad_anios, permisos, plantilla } = req.body || {};
-  if (!nombre || !email || !rol) return res.status(400).json({ error: 'Nombre, correo y rol son obligatorios.' });
+  const { nombre, email, usuario, rol, cargo, telefono, password, pin, repartidor_id, vehiculo_id, ruta_venta, dias_visita, zona_venta, categoria_cliente_id, es_venta_directa, almacen_movil_id, salario_base, comision_venta_pct, comision_distribucion_pct, bono_fijo, descuento_fijo, antiguedad_anios, permisos, plantilla } = req.body || {};
+  if (!nombre || !rol) return res.status(400).json({ error: 'Nombre y rol son obligatorios.' });
   if (!ROLES.includes(rol)) return res.status(400).json({ error: 'Rol inválido.' });
-  if (db.usuarios.some((u) => u.email.toLowerCase() === String(email).toLowerCase())) return res.status(400).json({ error: 'Ya existe un usuario con ese correo.' });
+  const nombreUsuario = String(usuario || '').trim() || generarUsuario(db, nombre);
+  if (db.usuarios.some((u) => String(u.usuario || '').toLowerCase() === nombreUsuario.toLowerCase())) return res.status(400).json({ error: 'Ya existe un usuario con ese nombre de acceso.' });
+  const correo = String(email || '').trim().toLowerCase() || `${nombreUsuario}@dadini.bo`;
+  if (db.usuarios.some((u) => u.email.toLowerCase() === correo)) return res.status(400).json({ error: 'Ya existe un usuario con ese correo.' });
+  if (pin && !/^\d{4,8}$/.test(String(pin))) return res.status(400).json({ error: 'El PIN debe tener entre 4 y 8 dígitos.' });
   const user = {
     id: nextId(db.usuarios),
     nombre,
-    email: String(email).toLowerCase().trim(),
+    email: correo,
+    usuario: nombreUsuario,
     rol,
     cargo: cargo || '',
     telefono: telefono || '',
@@ -60,6 +76,7 @@ router.post('/', (req, res) => {
     bloqueado_en: null,
     activo: true,
     password: hash(password || 'Dadini2026!'),
+    pin: pin ? hash(String(pin)) : null,
     created_at: new Date().toISOString(),
     ultimo_acceso: null,
     plantilla_permisos: plantilla || null,
@@ -76,14 +93,20 @@ router.put('/:id', (req, res) => {
   const db = load();
   const user = db.usuarios.find((u) => u.id === Number(req.params.id));
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
-  const { nombre, email, rol, cargo, telefono, activo } = req.body || {};
+  const { nombre, email, usuario, rol, cargo, telefono, activo, pin } = req.body || {};
   if (rol && !ROLES.includes(rol)) return res.status(400).json({ error: 'Rol inválido.' });
   if (email && db.usuarios.some((u) => u.id !== user.id && u.email.toLowerCase() === String(email).toLowerCase())) {
     return res.status(400).json({ error: 'Ese correo ya está en uso.' });
   }
+  if (usuario && db.usuarios.some((u) => u.id !== user.id && String(u.usuario || '').toLowerCase() === String(usuario).trim().toLowerCase())) {
+    return res.status(400).json({ error: 'Ese nombre de acceso ya está en uso.' });
+  }
+  if (pin && !/^\d{4,8}$/.test(String(pin))) return res.status(400).json({ error: 'El PIN debe tener entre 4 y 8 dígitos.' });
   if (activo === false && user.id === req.user.id) return res.status(400).json({ error: 'No puedes desactivar tu propia cuenta.' });
   if (rol && user.id === req.user.id && rol !== 'admin') return res.status(400).json({ error: 'No puedes quitarte el rol de administrador.' });
   ['nombre', 'email', 'rol', 'cargo', 'telefono'].forEach((c) => { if (req.body?.[c] !== undefined) user[c] = req.body[c]; });
+  if (usuario !== undefined) user.usuario = String(usuario).trim() || user.usuario;
+  if (pin !== undefined) user.pin = pin ? hash(String(pin)) : null;
   if (req.body?.repartidor_id !== undefined) user.repartidor_id = req.body.repartidor_id ? Number(req.body.repartidor_id) : null;
   if (req.body?.vehiculo_id !== undefined) user.vehiculo_id = req.body.vehiculo_id ? Number(req.body.vehiculo_id) : null;
   if (req.body?.ruta_venta !== undefined) user.ruta_venta = req.body.ruta_venta || null;

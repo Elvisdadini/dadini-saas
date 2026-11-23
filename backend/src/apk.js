@@ -3,9 +3,9 @@ const path = require('path');
 const config = require('./config');
 const { save } = require('./db');
 
-const ARCHIVO_POR_DEFECTO = 'DADINI-SaaS-21.0.0.apk';
-const VERSION_POR_DEFECTO = '21.0.0';
-const APK_ANTERIOR = 'DADINI-Preventa-20.0.0.apk';
+const ARCHIVO_POR_DEFECTO = 'DADINI-SaaS-21.0.1.apk';
+const VERSION_POR_DEFECTO = '21.0.1';
+const APK_ANTERIORES = ['DADINI-Preventa-20.0.0.apk', 'DADINI-SaaS-21.0.0.apk'];
 
 function directorioApk() {
   const directorio = path.join(config.uploadDir, 'apk');
@@ -26,7 +26,7 @@ function urlPublica(req, archivo) {
 function asegurarApkPorDefecto(db, req) {
   // La APK anterior queda intacta en disco; solo se cambia la referencia
   // publicada para que el sistema ofrezca la nueva versión.
-  if (db.configuracion.apk?.archivo === APK_ANTERIOR && db.configuracion.apk_desactivada !== true) {
+  if (APK_ANTERIORES.includes(db.configuracion.apk?.archivo) && db.configuracion.apk_desactivada !== true) {
     db.configuracion.apk = null;
   }
   if (req && protocolo(req) === 'https' && db.configuracion.apk?.url?.startsWith('http://')) {

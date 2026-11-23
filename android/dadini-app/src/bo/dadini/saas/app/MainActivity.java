@@ -76,7 +76,9 @@ public class MainActivity extends Activity {
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setUserAgentString(settings.getUserAgentString() + " DadiniSaasApp/21.0.0");
+        settings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+        settings.setRenderPriority(WebSettings.RenderPriority.HIGH);
+        settings.setUserAgentString(settings.getUserAgentString() + " DadiniSaasApp/21.0.1");
 
         CookieManager.getInstance().setAcceptCookie(true);
         if (Build.VERSION.SDK_INT >= 21) {
@@ -92,7 +94,7 @@ public class MainActivity extends Activity {
         ImageView logo = new ImageView(this);
         logo.setImageResource(logoResource());
         logo.setAdjustViewBounds(true);
-        loadingView.addView(logo, new LinearLayout.LayoutParams(320, 280));
+        loadingView.addView(logo, new LinearLayout.LayoutParams(190, 166));
 
         ProgressBar progressBar = new ProgressBar(this);
         progressBar.setIndeterminate(true);
@@ -101,7 +103,7 @@ public class MainActivity extends Activity {
         loadingView.addView(progressBar, barParams);
 
         TextView loadingText = new TextView(this);
-        loadingText.setText("Cargando DADINI SaaS...");
+        loadingText.setText("Cargando DADINI SaaS...\nPrimera carga: puede tardar cerca de 1 minuto.");
         loadingText.setTextColor(Color.WHITE);
         loadingText.setTextSize(13);
         loadingText.setGravity(Gravity.CENTER);

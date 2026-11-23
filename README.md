@@ -336,9 +336,16 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Los permisos se guardan en cada usuario y se entregan en `/api/auth/me`, por lo que aparecen o desaparecen al cerrar sesión y volver a ingresar. Administración y dueño tienen siempre todas las funciones.
 - Acciones sensibles protegidas: editar/cancelar pedidos requiere `pedidos_editar`; crear/editar clientes requiere `clientes_crear`/`clientes_editar`; eliminar rutas requiere `rutas_eliminar`.
 
+### Acceso y licencia
+
+- **Sin módulo de plan ni facturación:** el sistema es libre para DADINI SaaS, con todos los módulos operativos y sin límites de usuarios.
+- **Login por usuario:** se ingresa con un nombre de usuario (ej. `admin`), no con correo. El correo sigue aceptándose por compatibilidad.
+- **Usuarios nuevos:** se crean con usuario propio y PIN opcional de 4 a 8 dígitos; si no se escribe usuario, se genera automáticamente desde el nombre.
+- **Mantener usuario:** opción en el login para recordar el usuario en el dispositivo; en el próximo acceso solo se pide contraseña o PIN.
+
 ### APK DADINI SaaS v21
 
-- **APK nueva:** `DADINI-SaaS-21.0.0.apk`, independiente de la APK de preventa anterior (que se conserva intacta).
+- **APK actual:** `DADINI-SaaS-21.0.1.apk` (carga optimizada), independiente de la APK de preventa anterior (que se conserva intacta).
 - Muestra el SaaS publicado dentro de un WebView seguro: misma interfaz, módulos, roles y permisos.
 - Incluye el logo DADINI sin marca de agua como ícono y en la pantalla de inicio; el mismo logo aparece en miniatura en la web.
 - Código de la app y script de compilación en `android/`; llave de firma en `android/dadini-app/signing/` (no versionada).

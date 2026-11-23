@@ -15,7 +15,6 @@ const MODULOS = [
   { codigo: 'distribucion', etiqueta: 'Distribución', grupo: 'Logística', descripcion: 'Programar rutas y controlar entregas' },
   { codigo: 'reportes', etiqueta: 'Reportes', grupo: 'Análisis', descripcion: 'Consultar reportes mensuales y exportar' },
   { codigo: 'administracion', etiqueta: 'Administración', grupo: 'Sistema', descripcion: 'Usuarios, roles, permisos y auditoría' },
-  { codigo: 'planes', etiqueta: 'Plan y facturación', grupo: 'Sistema', descripcion: 'Consultar el plan contratado' },
   { codigo: 'dueno', etiqueta: 'Panel del dueño', grupo: 'Sistema', descripcion: 'Indicadores ejecutivos de la empresa' },
 ];
 
@@ -106,6 +105,17 @@ function asegurarEstructura(db) {
   if (!db.configuracion) { db.configuracion = {}; cambio = true; }
   (db.usuarios || []).forEach((u) => {
     if (!Array.isArray(u.permisos)) { u.permisos = permisosPorRol(u.rol); cambio = true; }
+    if (!u.usuario) {
+      const base = String(u.email || u.nombre || 'usuario').split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'usuario';
+      let candidato = base;
+      let i = 1;
+      while (db.usuarios.some((otro) => otro !== u && String(otro.usuario || '').toLowerCase() === candidato.toLowerCase())) {
+        candidato = `${base}${i}`;
+        i += 1;
+      }
+      u.usuario = candidato;
+      cambio = true;
+    }
   });
   return cambio;
 }
