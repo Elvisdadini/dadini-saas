@@ -50,7 +50,7 @@ router.post('/guardar', requirePermiso('catalogo.generar_pdf', 'catalogo.crear')
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const storage = cliente().storage;
     const { data, error } = await storage.from(BUCKET).list('', { limit: 30, sortBy: { column: 'created_at', order: 'desc' } });
