@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, Boxes, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck, Truck, Wallet } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck, Truck, Wallet } from 'lucide-react';
 import { useAuth } from '../auth';
 
 export default function LoginPage() {
@@ -35,7 +35,7 @@ export default function LoginPage() {
     <div className="login-page">
       <section className="login-showcase">
         <div className="login-brand">
-          <span className="brand-mark"><Boxes size={21} /></span>
+          <img className="brand-logo" src="/logo-dadini-icon.png" alt="DADINI" />
           <div>
             <strong>DADINI</strong>
             <span>Gestión SaaS · Bolivia</span>

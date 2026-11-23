@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="dadini_brand">#FF6500</color>
+    <color name="dadini_azul">#3B82C4</color>
+    <color name="dadini_splash">#061C33</color>
+    <color name="dadini_status">#061C33</color>
+    <color name="dadini_nav">#FFFFFF</color>
+</resources>

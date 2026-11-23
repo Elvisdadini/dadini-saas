@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Dadini" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/dadini_splash</item>
+        <item name="android:statusBarColor">@color/dadini_status</item>
+        <item name="android:navigationBarColor">@color/dadini_nav</item>
+        <item name="android:colorAccent">@color/dadini_brand</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

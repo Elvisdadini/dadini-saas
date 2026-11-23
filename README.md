@@ -336,6 +336,14 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Los permisos se guardan en cada usuario y se entregan en `/api/auth/me`, por lo que aparecen o desaparecen al cerrar sesión y volver a ingresar. Administración y dueño tienen siempre todas las funciones.
 - Acciones sensibles protegidas: editar/cancelar pedidos requiere `pedidos_editar`; crear/editar clientes requiere `clientes_crear`/`clientes_editar`; eliminar rutas requiere `rutas_eliminar`.
 
+### APK DADINI SaaS v21
+
+- **APK nueva:** `DADINI-SaaS-21.0.0.apk`, independiente de la APK de preventa anterior (que se conserva intacta).
+- Muestra el SaaS publicado dentro de un WebView seguro: misma interfaz, módulos, roles y permisos.
+- Incluye el logo DADINI sin marca de agua como ícono y en la pantalla de inicio; el mismo logo aparece en miniatura en la web.
+- Código de la app y script de compilación en `android/`; llave de firma en `android/dadini-app/signing/` (no versionada).
+- Se publica automáticamente como APK por defecto y está disponible en **Marca y APK** para descargar o compartir por WhatsApp.
+
 ### Entorno migrado
 - Proyecto Supabase: **DADINI Producción** (plan Free, región `us-west-2`), tabla `saas_snapshots` creada con RLS y grant a `service_role`.
 - Snapshot verificado: `empresa_id = dadini-principal`, payload con la empresa DADINI y todos los módulos.

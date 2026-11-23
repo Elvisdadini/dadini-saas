@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   BadgePercent, Bell, BarChart3, Building2, ChevronDown, ClipboardList, CreditCard, Crown, LayoutDashboard, LogOut, Menu, Palette, Receipt, Tag, Target, TrendingUp, Undo2,
   MapPin, Package, PackageCheck, Search, Settings, ShoppingCart, Truck, Users, Wallet, X, UserRound, Lock,
-  Boxes, FileText, ArrowUpRight, CheckCircle2, AlertTriangle,
+  FileText, ArrowUpRight, CheckCircle2, AlertTriangle,
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth, puede, ROL_LABEL } from '../auth';
@@ -146,7 +146,7 @@ export default function Shell({ children }) {
       <BrandStyle />
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <span className="brand-mark"><Boxes size={21} /></span>
+          <img className="brand-logo" src="/logo-dadini-icon.png" alt="DADINI" />
           <div className="brand-copy">
             <strong>DADINI</strong>
             <span>Gestión SaaS</span>

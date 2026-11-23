@@ -138,6 +138,10 @@ export default function Personalizacion() {
         <div className="panel">
           <div className="panel-head"><div><h3>Aplicación móvil (APK)</h3><p>Sube la APK y compártela por WhatsApp desde el panel</p></div><Smartphone size={16} /></div>
           <div className="panel-body form-stack">
+            <div className="split" style={{ alignItems: 'center', gap: 12 }}>
+              <img src="/logo-dadini.png" alt="Logo DADINI" style={{ width: 104, height: 92, objectFit: 'contain', background: '#fff', borderRadius: 8 }} />
+              <span className="small muted">Logo oficial sin marca de agua: incluido en la web y en la APK (ícono y pantalla de inicio).</span>
+            </div>
             {apk ? (
               <div className="summary-box">
                 <div className="split"><span className="small muted">Archivo</span><strong>{apk.nombre}</strong></div>

@@ -2,5 +2,7 @@ node_modules/
 dist/
 backend/uploads/
 backend/.env
+android/**/signing/
+*.keystore
 *.log
 .DS_Store
