@@ -162,6 +162,12 @@ router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 
     return res.status(400).json({ error: 'Se requieren coordenadas válidas (latitud y longitud).' });
   }
   const tipo = TIPOS.includes(body.tipo) ? body.tipo : 'visita';
+  if (body.cliente_id) {
+    const cliente = db.clientes.find((c) => c.id === Number(body.cliente_id));
+    if (cliente && !cliente.activo && tipo !== 'cobranza') {
+      return res.status(403).json({ error: `Cliente bloqueado: ${cliente.motivo_bloqueo || 'sin motivo registrado'}. Solo se permiten visitas de cobranza.` });
+    }
+  }
   const ahora = new Date().toISOString();
   const visita = {
     id: nextId(db.visitas),

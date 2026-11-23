@@ -26,7 +26,9 @@ function construirMensaje(db, tipo, pedido, cliente, extra) {
   if (tipo === 'cobranza') {
     const monto = round2(extra?.monto || 0);
     const saldo = round2(pedido?.saldo || 0);
-    return `Hola ${nombre}, registramos su pago de Bs ${monto.toFixed(2)} para el pedido ${codigo}. Saldo pendiente: Bs ${saldo.toFixed(2)}. Recibo ${extra?.recibo || 'DADINI'}. Gracias.`;
+    const comprobante = extra?.recibo || extra?.numero_comprobante || 'DADINI';
+    const tipoComprobante = extra?.tipo_comprobante ? `${extra.tipo_comprobante} ` : '';
+    return `Hola ${nombre}, registramos su pago de Bs ${monto.toFixed(2)} para el pedido ${codigo}. Saldo pendiente: Bs ${saldo.toFixed(2)}. ${tipoComprobante}Nro. de comprobante: ${comprobante}. Gracias.`;
   }
   return `Hola ${nombre}, novedades sobre su pedido ${codigo}. DADINI.`;
 }
@@ -49,13 +51,13 @@ router.get('/', (req, res) => {
   });
 });
 
-router.post('/', allow('ventas', 'preventista', 'distribucion', 'cobranzas'), (req, res) => {
+router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'), (req, res) => {
   const db = load();
   const body = req.body || {};
   const tipo = ['pedido', 'entrega', 'cobranza', 'otro'].includes(body.tipo) ? body.tipo : 'otro';
   const pedido = body.pedido_id ? db.pedidos.find((p) => p.id === Number(body.pedido_id)) : null;
   const cliente = body.cliente_id ? db.clientes.find((c) => c.id === Number(body.cliente_id)) : (pedido ? db.clientes.find((c) => c.id === pedido.cliente_id) : null);
-  const telefono = soloDigitos(body.telefono || cliente?.telefono || '59100000000');
+  const telefono = soloDigitos(body.telefono || cliente?.whatsapp || cliente?.telefono || '59100000000');
   const mensaje = body.mensaje || construirMensaje(db, tipo, pedido, cliente, body);
   const ahora = new Date().toISOString();
   const registro = {

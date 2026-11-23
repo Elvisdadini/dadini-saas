@@ -21,7 +21,8 @@ export default function Cobranzas() {
   const [soloVencidas, setSoloVencidas] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [pay, setPay] = useState({ monto: '', metodo: 'efectivo', nota: '' });
+  const [pay, setPay] = useState({ monto: '', metodo: 'efectivo', nota: '', numero_comprobante: '', tipo_comprobante: 'recibo' });
+  const [ultimoComprobante, setUltimoComprobante] = useState(null);
   const [busy, setBusy] = useState(false);
   const [ubicacion, setUbicacion] = useState(null);
   const [ubicando, setUbicando] = useState(false);
@@ -76,7 +77,8 @@ export default function Cobranzas() {
   const abrirCobro = (p) => {
     setSelected(p);
     setUbicacion(null);
-    setPay({ monto: (p.total_a_cobrar || p.saldo).toFixed(2), metodo: 'efectivo', nota: '' });
+    setPay({ monto: (p.total_a_cobrar || p.saldo).toFixed(2), metodo: 'efectivo', nota: '', numero_comprobante: '', tipo_comprobante: 'recibo' });
+    setUltimoComprobante(null);
     setPayOpen(true);
   };
 
@@ -129,16 +131,18 @@ export default function Cobranzas() {
     if (!selected) return;
     setBusy(true);
     try {
-      await api.post(`/pedidos/${selected.id}/pagos`, {
+      const respuesta = await api.post(`/pedidos/${selected.id}/pagos`, {
         monto: Number(pay.monto),
         metodo: pay.metodo,
         nota: pay.nota,
+        numero_comprobante: pay.numero_comprobante,
+        tipo_comprobante: pay.tipo_comprobante,
         latitud: ubicacion?.latitud,
         longitud: ubicacion?.longitud,
         precision: ubicacion?.precision,
       });
-      toast(`Cobro registrado para ${selected.codigo}`);
-      setPayOpen(false);
+      setUltimoComprobante({ pago: respuesta.pago, pedido: respuesta.pedido || selected });
+      toast(`Cobro registrado para ${selected.codigo}. Envía el comprobante al WhatsApp del cliente.`);
       cargar();
       cargarVisitas();
     } catch (error) {
@@ -401,6 +405,10 @@ export default function Cobranzas() {
           <div className="field"><label>Monto a cobrar (Bs) <span className="req">*</span></label><input className="input" type="number" min="0.01" step="0.01" value={pay.monto} onChange={(e) => setPay({ ...pay, monto: e.target.value })} /></div>
           <div className="field"><label>Método de pago</label><select className="select" value={pay.metodo} onChange={(e) => setPay({ ...pay, metodo: e.target.value })}><option value="efectivo">Efectivo</option><option value="qr">QR simple</option><option value="transferencia">Transferencia</option></select></div>
           <div className="field"><label>Nota / referencia</label><input className="input" value={pay.nota} onChange={(e) => setPay({ ...pay, nota: e.target.value })} placeholder="Nro. de transferencia, observación…" /></div>
+          <div className="field-row">
+            <div className="field"><label>Tipo de comprobante</label><select className="select" value={pay.tipo_comprobante} onChange={(e) => setPay({ ...pay, tipo_comprobante: e.target.value })}><option value="recibo">Recibo</option><option value="factura">Factura</option><option value="boleta">Boleta</option><option value="transferencia">Transferencia</option></select></div>
+            <div className="field"><label>Nro. de comprobante / factura</label><input className="input" value={pay.numero_comprobante} onChange={(e) => setPay({ ...pay, numero_comprobante: e.target.value })} placeholder="Ej. REC-0042" /></div>
+          </div>
           <div className="geo-editor">
             <div className="geo-editor-head">
               <div><strong><Navigation size={13} /> Visita de cobranza</strong><span className="hint">Registra tu ubicación para la trazabilidad en campo.</span></div>
@@ -412,7 +420,24 @@ export default function Cobranzas() {
               : <p className="small muted">Sin ubicación: el cobro se registrará igual, pero sin geolocalización.</p>}
           </div>
           <div className="notice notice-info"><CalendarClock size={15} /> El saldo del cliente y los intereses se actualizan automáticamente al registrar el cobro.</div>
-          {selected && <BotonWhatsapp tipo="cobranza" clienteId={selected.cliente_id} pedidoId={selected.id} telefono={selected.cliente_telefono} latitud={ubicacion?.latitud || selected.cliente_latitud} longitud={ubicacion?.longitud || selected.cliente_longitud} monto={Number(pay.monto) || selected.total_a_cobrar || selected.saldo} label="Enviar detalle de pago" />}
+          {ultimoComprobante && (
+            <div className="notice notice-info">
+              Comprobante <strong>{ultimoComprobante.pago?.numero_comprobante || ultimoComprobante.pago?.codigo}</strong> registrado. Envíalo al WhatsApp registrado en el cliente.
+              <div style={{ marginTop: 8 }}>
+                <BotonWhatsapp
+                  tipo="cobranza"
+                  clienteId={ultimoComprobante.pedido?.cliente_id || selected?.cliente_id}
+                  pedidoId={ultimoComprobante.pedido?.id || selected?.id}
+                  telefono={ultimoComprobante.pedido?.cliente_whatsapp || selected?.cliente_whatsapp || undefined}
+                  monto={ultimoComprobante.pago?.monto}
+                  numeroComprobante={ultimoComprobante.pago?.numero_comprobante}
+                  tipoComprobante={ultimoComprobante.pago?.tipo_comprobante}
+                  label="Enviar comprobante al WhatsApp"
+                />
+              </div>
+            </div>
+          )}
+          {selected && !ultimoComprobante && <BotonWhatsapp tipo="cobranza" clienteId={selected.cliente_id} pedidoId={selected.id} telefono={selected.cliente_whatsapp || selected.cliente_telefono} latitud={ubicacion?.latitud || selected.cliente_latitud} longitud={ubicacion?.longitud || selected.cliente_longitud} monto={Number(pay.monto) || selected.total_a_cobrar || selected.saldo} label="Enviar detalle de pago" />}
         </div>
       </Modal>
     </>

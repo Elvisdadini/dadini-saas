@@ -99,8 +99,29 @@ function tienePermiso(usuario, codigo) {
 // Agrega las colecciones nuevas y los permisos de los usuarios ya creados.
 function asegurarEstructura(db) {
   let cambio = false;
-  ['zonas', 'tipos_cliente', 'rutas_venta'].forEach((clave) => {
+  ['zonas', 'tipos_cliente', 'rutas_venta', 'producto_categorias', 'producto_marcas'].forEach((clave) => {
     if (!Array.isArray(db[clave])) { db[clave] = []; cambio = true; }
+  });
+  const ahora = new Date().toISOString();
+  if (!db.producto_categorias.length) {
+    const nombres = [...new Set((db.productos || []).map((p) => p.categoria).filter(Boolean))];
+    nombres.forEach((nombre, i) => {
+      db.producto_categorias.push({ id: i + 1, codigo: `PCAT-${String(i + 1).padStart(4, '0')}`, nombre, descripcion: `Categoría de producto ${nombre}`, activa: true, created_at: ahora });
+    });
+    cambio = true;
+  }
+  if (!db.producto_marcas.length) {
+    ['DADINI', 'Kekito', 'Animalocos'].forEach((nombre, i) => {
+      db.producto_marcas.push({ id: i + 1, codigo: `PMAR-${String(i + 1).padStart(4, '0')}`, nombre, descripcion: `Marca ${nombre}`, activa: true, created_at: ahora });
+    });
+    cambio = true;
+  }
+  (db.productos || []).forEach((p) => {
+    if (!p.categoria_id && p.categoria) {
+      const cat = db.producto_categorias.find((c) => String(c.nombre).toLowerCase() === String(p.categoria).toLowerCase());
+      if (cat) { p.categoria_id = cat.id; cambio = true; }
+    }
+    if (p.marca === undefined) { p.marca = null; cambio = true; }
   });
   if (!db.configuracion) { db.configuracion = {}; cambio = true; }
   (db.usuarios || []).forEach((u) => {

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { descargarPlantilla, leerExcel } from '../excel';
 import {
   ArrowLeftRight, ArrowDownToLine, ArrowUpFromLine, BadgePercent, Boxes, Building2, ClipboardList,
-  FileSpreadsheet, Package, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, Truck, Undo2, Upload, Warehouse,
+  FileSpreadsheet, Package, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, Trash2, Truck, Undo2, Upload, Warehouse,
 } from 'lucide-react';
 import { api, qs } from '../api';
 import { useAuth } from '../auth';
@@ -11,7 +11,7 @@ import {
   Badge, EmptyState, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, Tabs, useToast,
 } from '../ui';
 
-const PRODUCTO_VACIO = { nombre: '', categoria: 'Galletas', precio: '', costo: '', unidad: 'unidad', unidades_por_caja: 24, unidades_por_paquete: 12, presentacion: 'unidad', vender_por: ['unidad', 'caja', 'paquete'], categorias_clientes: [], peso_kg: 0.25, stock_minimo: 10, stock_inicial: 0, emoji: '📦', color: '#FF6500', activo: true };
+const PRODUCTO_VACIO = { nombre: '', categoria: '', categoria_id: '', marca: '', marca_id: '', precio: '', costo: '', unidad: 'unidad', unidades_por_caja: 24, unidades_por_paquete: 12, presentacion: 'unidad', vender_por: ['unidad', 'caja', 'paquete'], categorias_clientes: [], peso_kg: 0.25, stock_minimo: 10, stock_inicial: 0, emoji: '📦', color: '#FF6500', activo: true };
 const ALMACEN_VACIO = { nombre: '', direccion: '', zona: '', ciudad: 'Cochabamba', encargado: '', telefono: '' };
 
 export default function Inventario() {
@@ -22,6 +22,9 @@ export default function Inventario() {
   const [almacenes, setAlmacenes] = useState([]);
   const [resumen, setResumen] = useState({});
   const [categorias, setCategorias] = useState([]);
+  const [catalogo, setCatalogo] = useState({ categorias: [], marcas: [] });
+  const [catNueva, setCatNueva] = useState('');
+  const [marcaNueva, setMarcaNueva] = useState('');
   const [categoriasClientes, setCategoriasClientes] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,13 +54,15 @@ export default function Inventario() {
   const cargar = async () => {
     setLoading(true);
     try {
-      const [p, a, catCli] = await Promise.all([
+      const [p, a, catCli, catProds] = await Promise.all([
         api.get(`/productos${qs({ search, categoria, bajo_stock: bajo ? 'true' : '' })}`),
         api.get('/almacenes'),
         api.get('/categorias'),
+        api.get('/producto-catalogo'),
       ]);
       setProductos(p.productos);
       setCategorias(p.categorias);
+      setCatalogo(catProds);
       setResumen(p.resumen);
       setAlmacenes(a.almacenes);
       setCategoriasClientes(catCli.categorias || []);
@@ -74,7 +79,7 @@ export default function Inventario() {
 
   const abrirProducto = (p = null) => {
     setEditing(p);
-    setForm(p ? { nombre: p.nombre, categoria: p.categoria, precio: p.precio, costo: p.costo, unidad: p.unidad, unidades_por_caja: p.unidades_por_caja || (p.unidad === 'caja' ? 1 : 24), categorias_clientes: p.categorias_clientes || [], peso_kg: p.peso_kg || 0.25, unidades_por_paquete: p.unidades_por_paquete || 12, presentacion: p.presentacion || p.unidad || 'unidad', vender_por: p.vender_por || ['unidad', 'caja', 'paquete'], stock_minimo: p.stock_minimo, stock_inicial: 0, emoji: p.emoji, color: p.color, activo: p.activo } : PRODUCTO_VACIO);
+    setForm(p ? { nombre: p.nombre, categoria: p.categoria, categoria_id: p.categoria_id || '', marca: p.marca || '', marca_id: p.marca_id || '', precio: p.precio, costo: p.costo, unidad: p.unidad, unidades_por_caja: p.unidades_por_caja || (p.unidad === 'caja' ? 1 : 24), categorias_clientes: p.categorias_clientes || [], peso_kg: p.peso_kg || 0.25, unidades_por_paquete: p.unidades_por_paquete || 12, presentacion: p.presentacion || p.unidad || 'unidad', vender_por: p.vender_por || ['unidad', 'caja', 'paquete'], stock_minimo: p.stock_minimo, stock_inicial: 0, emoji: p.emoji, color: p.color, activo: p.activo } : PRODUCTO_VACIO);
     setProductModal(true);
   };
 
@@ -88,6 +93,26 @@ export default function Inventario() {
       setProductModal(false);
       cargar();
     } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
+
+  const crearCatalogo = async (tipo) => {
+    const nombre = (tipo === 'categorias' ? catNueva : marcaNueva).trim();
+    if (!nombre) return toast('Escribe un nombre.', 'error');
+    try {
+      await api.post(`/producto-catalogo/${tipo}`, { nombre });
+      toast(tipo === 'categorias' ? 'Categoría creada' : 'Marca creada');
+      if (tipo === 'categorias') setCatNueva(''); else setMarcaNueva('');
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const eliminarCatalogo = async (tipo, item) => {
+    if (!window.confirm(`¿Eliminar ${item.nombre}?`)) return;
+    try {
+      await api.del(`/producto-catalogo/${tipo}/${item.id}`);
+      toast('Registro eliminado');
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); }
   };
 
   const abrirAjuste = (p) => {
@@ -198,7 +223,7 @@ export default function Inventario() {
       </div>
 
       <div className="panel">
-        <Tabs tabs={[{ value: 'productos', label: 'Productos', count: productos.length }, { value: 'movimientos', label: 'Movimientos' }, { value: 'almacenes', label: 'Almacenes', count: almacenes.length }]} active={tab} onChange={setTab} />
+        <Tabs tabs={[{ value: 'productos', label: 'Productos', count: productos.length }, { value: 'catalogo', label: 'Categorías y marcas', count: (catalogo.categorias || []).length + (catalogo.marcas || []).length }, { value: 'movimientos', label: 'Movimientos' }, { value: 'almacenes', label: 'Almacenes', count: almacenes.length }]} active={tab} onChange={setTab} />
 
         {tab === 'productos' && (
           <>
@@ -244,6 +269,45 @@ export default function Inventario() {
               </div>
             )}
           </>
+        )}
+
+        {tab === 'catalogo' && (
+          <div className="grid grid-2" style={{ gap: 16 }}>
+            <div className="panel">
+              <div className="panel-head"><div><h3>Categorías de productos</h3><p>Se usan para clasificar y filtrar el inventario.</p></div><Badge tone="blue">{(catalogo.categorias || []).length}</Badge></div>
+              <div className="panel-body">
+                <div className="filters">
+                  <input className="input" value={catNueva} onChange={(e) => setCatNueva(e.target.value)} placeholder="Ej. Bebidas" />
+                  <button className="btn btn-primary btn-sm" onClick={() => crearCatalogo('categorias')}><Plus size={13} /> Agregar</button>
+                </div>
+                <table className="data-table mt-12">
+                  <thead><tr><th>Código</th><th>Categoría</th><th>Productos</th><th /></tr></thead>
+                  <tbody>
+                    {(catalogo.categorias || []).map((c) => (
+                      <tr key={c.id}><td className="cell-strong">{c.codigo}</td><td>{c.nombre}</td><td className="num">{c.productos}</td><td className="actions"><button className="icon-btn" onClick={() => eliminarCatalogo('categorias', c)}><Trash2 size={14} /></button></td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="panel">
+              <div className="panel-head"><div><h3>Marcas de productos</h3><p>Cada producto puede llevar una marca registrada.</p></div><Badge tone="orange">{(catalogo.marcas || []).length}</Badge></div>
+              <div className="panel-body">
+                <div className="filters">
+                  <input className="input" value={marcaNueva} onChange={(e) => setMarcaNueva(e.target.value)} placeholder="Ej. DADINI" />
+                  <button className="btn btn-primary btn-sm" onClick={() => crearCatalogo('marcas')}><Plus size={13} /> Agregar</button>
+                </div>
+                <table className="data-table mt-12">
+                  <thead><tr><th>Código</th><th>Marca</th><th>Productos</th><th /></tr></thead>
+                  <tbody>
+                    {(catalogo.marcas || []).map((m) => (
+                      <tr key={m.id}><td className="cell-strong">{m.codigo}</td><td>{m.nombre}</td><td className="num">{m.productos}</td><td className="actions"><button className="icon-btn" onClick={() => eliminarCatalogo('marcas', m)}><Trash2 size={14} /></button></td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         )}
 
         {tab === 'movimientos' && (
@@ -312,7 +376,8 @@ export default function Inventario() {
         <div className="form-stack">
           <div className="field"><label>Nombre del producto <span className="req">*</span></label><input className="input" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej. KEKITO CHOCOLATE" /></div>
           <div className="field-row">
-            <div className="field"><label>Categoría</label><input className="input" value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} list="categorias-list" /><datalist id="categorias-list">{categorias.map((c) => <option key={c} value={c} />)}</datalist></div>
+            <div className="field"><label>Categoría</label><select className="select" value={form.categoria_id || ''} onChange={(e) => { const c = (catalogo.categorias || []).find((x) => x.id === Number(e.target.value)); setForm({ ...form, categoria_id: e.target.value, categoria: c?.nombre || form.categoria }); }}><option value="">Seleccionar…</option>{(catalogo.categorias || []).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></div>
+            <div className="field"><label>Marca</label><select className="select" value={form.marca_id || ''} onChange={(e) => { const m = (catalogo.marcas || []).find((x) => x.id === Number(e.target.value)); setForm({ ...form, marca_id: e.target.value, marca: m?.nombre || '' }); }}><option value="">Sin marca</option>{(catalogo.marcas || []).map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}</select></div>
             <div className="field"><label>Unidad</label><select className="select" value={form.unidad} onChange={(e) => setForm({ ...form, unidad: e.target.value })}><option value="unidad">Unidad</option><option value="caja">Caja</option><option value="paquete">Paquete</option></select></div>
           </div>
           <div className="field-row">

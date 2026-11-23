@@ -364,6 +364,12 @@ router.post('/:id/pagos', allow('ventas', 'preventista', 'cobranzas'), (req, res
   const aCapital = round2(Math.max(0, monto - aInteres));
   const restanteInteres = round2(Math.max(0, credito.pendiente - aInteres));
   const metodo = req.body?.metodo || 'efectivo';
+  const clienteCobro = db.clientes.find((c) => c.id === pedido.cliente_id);
+  const conCuenta = Boolean(clienteCobro?.saldo > 0 || clienteCobro?.bloqueado_por_deuda || clienteCobro?.limite_credito > 0);
+  const numeroComprobante = String(req.body?.numero_comprobante || '').trim();
+  if ((metodo !== 'efectivo' || conCuenta) && !numeroComprobante) {
+    return res.status(400).json({ error: 'Este pago requiere número de comprobante o factura.' });
+  }
   const ahora = new Date().toISOString();
   const detalle = aInteres > 0 ? ` · Interés Bs ${aInteres.toFixed(2)} · Capital Bs ${aCapital.toFixed(2)}` : '';
   const pago = {
@@ -377,6 +383,8 @@ router.post('/:id/pagos', allow('ventas', 'preventista', 'cobranzas'), (req, res
     metodo,
     fecha: ahora,
     usuario_id: req.user.id,
+    numero_comprobante: numeroComprobante || null,
+    tipo_comprobante: ['factura', 'boleta', 'recibo', 'transferencia'].includes(req.body?.tipo_comprobante) ? req.body.tipo_comprobante : 'recibo',
     nota: `${req.body?.nota || 'Cobro registrado'}${detalle}`,
   };
   db.pagos.unshift(pago);

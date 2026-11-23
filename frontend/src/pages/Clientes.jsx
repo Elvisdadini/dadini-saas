@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { descargarPlantilla, leerExcel } from '../excel';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Building2, CalendarCheck, CheckCircle2, CircleDollarSign, Crosshair, Eye, ExternalLink, FileSpreadsheet, Lock, Mail, MapPin, Navigation, Pencil, Phone, Plus, Search, ShieldAlert, ShieldCheck, ShoppingCart, Tag, Truck, Unlock, Upload, UserRound, Users, Wallet,
+  Building2, CalendarCheck, CheckCircle2, CircleDollarSign, Crosshair, Eye, ExternalLink, FileSpreadsheet, Lock, Mail, MapPin, MessageCircle, Navigation, Pencil, Phone, Plus, Search, ShieldAlert, ShieldCheck, ShoppingCart, Tag, Truck, Unlock, Upload, UserRound, Users, Wallet,
 } from 'lucide-react';
 import { api, qs } from '../api';
 import { puede, useAuth } from '../auth';
@@ -11,7 +11,7 @@ import Mapa from '../components/Mapa';
 import { abrirEnMapas, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, EmptyState, Estado, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
-const VACIO = { nombre: '', tipo: 'minorista', zona: 'Centro', direccion: '', telefono: '', email: '', limite_credito: 0, contacto: '', notas: '', activo: true, latitud: '', longitud: '', precision: null, ruta_venta: '', dia_visita: '', categoria_cliente_id: '', vendedor_id: '' };
+const VACIO = { nombre: '', tipo: 'minorista', zona: 'Centro', direccion: '', telefono: '', whatsapp: '', email: '', limite_credito: 0, contacto: '', notas: '', activo: true, latitud: '', longitud: '', precision: null, ruta_venta: '', dia_visita: '', categoria_cliente_id: '', vendedor_id: '' };
 
 export default function Clientes() {
   const { user } = useAuth();
@@ -28,6 +28,9 @@ export default function Clientes() {
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState(VACIO);
   const [detail, setDetail] = useState(null);
+  const [bloqueo, setBloqueo] = useState(null);
+  const [motivoBloqueo, setMotivoBloqueo] = useState('');
+  const [porDeuda, setPorDeuda] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importRows, setImportRows] = useState([]);
@@ -71,7 +74,7 @@ export default function Clientes() {
   const abrirNuevo = () => { setEditando(null); setForm(VACIO); setFormOpen(true); };
   const abrirEditar = (c) => {
     setEditando(c);
-    setForm({ nombre: c.nombre, tipo: c.tipo, zona: c.zona, direccion: c.direccion, telefono: c.telefono, email: c.email, limite_credito: c.limite_credito, contacto: c.contacto, notas: c.notas, activo: c.activo, latitud: c.latitud ?? '', longitud: c.longitud ?? '', precision: c.precision ?? null, ruta_venta: c.ruta_venta || '', dia_visita: c.dia_visita || '', categoria_cliente_id: c.categoria_cliente_id || '', vendedor_id: c.vendedor_id || '' });
+    setForm({ nombre: c.nombre, tipo: c.tipo, zona: c.zona, direccion: c.direccion, telefono: c.telefono, whatsapp: c.whatsapp || '', email: c.email, limite_credito: c.limite_credito, contacto: c.contacto, notas: c.notas, activo: c.activo, latitud: c.latitud ?? '', longitud: c.longitud ?? '', precision: c.precision ?? null, ruta_venta: c.ruta_venta || '', dia_visita: c.dia_visita || '', categoria_cliente_id: c.categoria_cliente_id || '', vendedor_id: c.vendedor_id || '' });
     setFormOpen(true);
   };
 
@@ -154,14 +157,26 @@ export default function Clientes() {
   };
 
   const toggleBloqueo = async (cliente) => {
+    if (cliente.activo) { setBloqueo(cliente); setMotivoBloqueo(''); setPorDeuda(false); return; }
     try {
-      const r = await api.patch(`/clientes/${cliente.id}/bloqueo`, {
-        activo: !cliente.activo,
-        por_deuda: Boolean(cliente.bloqueado_por_deuda),
-        motivo: cliente.activo ? 'Bloqueo manual por administración' : undefined,
-      });
-      toast(cliente.activo ? 'Cliente bloqueado' : 'Cliente desbloqueado');
+      const r = await api.patch(`/clientes/${cliente.id}/bloqueo`, { activo: true });
+      toast('Cliente desbloqueado');
       setDetail({ ...detail, cliente: r.cliente });
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const confirmarBloqueo = async () => {
+    if (!motivoBloqueo.trim()) return toast('Indica el motivo del bloqueo.', 'error');
+    try {
+      const r = await api.patch(`/clientes/${bloqueo.id}/bloqueo`, {
+        activo: false,
+        por_deuda: porDeuda,
+        motivo: motivoBloqueo.trim(),
+      });
+      toast('Cliente bloqueado: no se le permitirán nuevas ventas ni actividades');
+      setDetail({ ...detail, cliente: r.cliente });
+      setBloqueo(null);
       await cargar();
     } catch (error) { toast(error.message, 'error'); }
   };
@@ -356,6 +371,7 @@ export default function Clientes() {
           </div>
           <div className="field-row">
             <div className="field"><label>Teléfono</label><input className="input" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} placeholder="7XXXXXXX" /></div>
+            <div className="field"><label>WhatsApp para comprobantes</label><input className="input" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="5917XXXXXXX" /><span className="hint">Aquí se enviarán los comprobantes de cobranza.</span></div>
             <div className="field"><label>Correo electrónico</label><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="cliente@correo.bo" /></div>
           </div>
           <div className="field-row">
@@ -379,6 +395,7 @@ export default function Clientes() {
             </div>
             <div className="grid grid-3" style={{ gap: 10 }}>
               <div className="info-row"><span><Phone size={10} /> Teléfono</span><strong>{detail.cliente.telefono || '—'}</strong></div>
+              <div className="info-row"><span><MessageCircle size={10} /> WhatsApp</span><strong>{detail.cliente.whatsapp || detail.cliente.telefono || '—'}</strong></div>
               <div className="info-row"><span><Mail size={10} /> Correo</span><strong>{detail.cliente.email || '—'}</strong></div>
               <div className="info-row"><span><MapPin size={10} /> Dirección</span><strong>{detail.cliente.direccion || '—'}</strong></div>
             </div>
@@ -498,6 +515,15 @@ export default function Clientes() {
             <div className="field"><label>Latitud</label><input className="input" type="number" step="0.000001" value={visitaForm.latitud} onChange={(e) => setVisitaForm({ ...visitaForm, latitud: e.target.value })} /></div>
             <div className="field"><label>Longitud</label><input className="input" type="number" step="0.000001" value={visitaForm.longitud} onChange={(e) => setVisitaForm({ ...visitaForm, longitud: e.target.value })} /></div>
           </div>
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(bloqueo)} onClose={() => setBloqueo(null)} title="Bloquear cliente" subtitle={bloqueo ? bloqueo.nombre : ''} size="sm"
+        footer={<><button className="btn btn-ghost" onClick={() => setBloqueo(null)}>Cancelar</button><button className="btn btn-danger" onClick={confirmarBloqueo}>Bloquear cliente</button></>}>
+        <div className="form-stack">
+          <div className="notice notice-warn"><Lock size={15} /> El cliente no podrá recibir nuevas ventas ni registrar actividades. Las cobranzas siguen permitidas para regularizar su cuenta.</div>
+          <div className="field"><label>Motivo del bloqueo <span className="req">*</span></label><textarea className="textarea" value={motivoBloqueo} onChange={(e) => setMotivoBloqueo(e.target.value)} placeholder="Ej. Cuenta pendiente con la empresa" /></div>
+          <label className="check"><input type="checkbox" checked={porDeuda} onChange={(e) => setPorDeuda(e.target.checked)} /> Bloqueo por deuda con la empresa</label>
         </div>
       </Modal>
 

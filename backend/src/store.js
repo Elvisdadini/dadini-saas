@@ -10,7 +10,7 @@ const ENTIDADES = [
   'cliente_categorias', 'almacenes_moviles', 'solicitudes_carga', 'devoluciones_movil',
   'objetivos_mensuales', 'confirmaciones_carga',
   'proveedores', 'tipos_gasto', 'solicitudes_compra', 'ordenes_compra', 'gastos', 'pagos_proveedor',
-  'boletas_pago', 'conceptos_nomina',
+  'boletas_pago', 'conceptos_nomina', 'producto_categorias', 'producto_marcas',
 ];
 
 let modo = 'json';

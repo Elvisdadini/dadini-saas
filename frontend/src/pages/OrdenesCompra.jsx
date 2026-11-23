@@ -11,7 +11,7 @@ export default function OrdenesCompra() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pagar, setPagar] = useState(null);
-  const [form, setForm] = useState({ monto: '', metodo: 'transferencia', referencia: '', notas: '' });
+  const [form, setForm] = useState({ monto: '', metodo: 'transferencia', referencia: '', notas: '', tipo_comprobante: 'factura', numero_comprobante: '' });
   const [busy, setBusy] = useState(false);
 
   const cargar = useCallback(async () => {
@@ -58,7 +58,7 @@ export default function OrdenesCompra() {
                     <td className="num text-red">Bs {o.saldo.toFixed(2)}</td>
                     <td><Badge tone={o.estado === 'recibida' ? 'green' : 'amber'}>{o.estado}</Badge></td>
                     <td><Badge tone={o.pago_estado === 'pagado' ? 'green' : o.pago_estado === 'parcial' ? 'blue' : 'red'}>{o.pago_estado}</Badge></td>
-                    <td className="actions">{o.saldo > 0 && puedePagar && <button className="btn btn-primary btn-sm" onClick={() => { setPagar(o); setForm({ monto: o.saldo.toFixed(2), metodo: 'transferencia', referencia: '', notas: '' }); }}><CircleDollarSign size={12} /> Pagar</button>}</td>
+                    <td className="actions">{o.saldo > 0 && puedePagar && <button className="btn btn-primary btn-sm" onClick={() => { setPagar(o); setForm({ monto: o.saldo.toFixed(2), metodo: 'transferencia', referencia: '', notas: '', tipo_comprobante: 'factura', numero_comprobante: '' }); }}><CircleDollarSign size={12} /> Pagar</button>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -72,6 +72,10 @@ export default function OrdenesCompra() {
           <div className="field"><label>Monto (Bs)</label><input className="input" type="number" min="0.01" step="0.01" value={form.monto} onChange={(e) => setForm({ ...form, monto: e.target.value })} /></div>
           <div className="field"><label>Método</label><select className="select" value={form.metodo} onChange={(e) => setForm({ ...form, metodo: e.target.value })}><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="qr">QR</option></select></div>
           <div className="field"><label>Referencia</label><input className="input" value={form.referencia} onChange={(e) => setForm({ ...form, referencia: e.target.value })} /></div>
+          <div className="field-row">
+            <div className="field"><label>Tipo de comprobante <span className="req">*</span></label><select className="select" value={form.tipo_comprobante} onChange={(e) => setForm({ ...form, tipo_comprobante: e.target.value })}><option value="factura">Factura</option><option value="boleta">Boleta</option><option value="recibo">Recibo</option><option value="transferencia">Transferencia</option></select></div>
+            <div className="field"><label>Nro. de comprobante / factura <span className="req">*</span></label><input className="input" value={form.numero_comprobante} onChange={(e) => setForm({ ...form, numero_comprobante: e.target.value })} placeholder="Ej. F-00123" /></div>
+          </div>
           <div className="field"><label>Notas</label><textarea className="textarea" value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} /></div>
         </div>
       </Modal>

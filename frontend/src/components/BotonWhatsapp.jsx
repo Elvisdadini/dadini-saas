@@ -3,7 +3,7 @@ import { MessageCircle } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../ui';
 
-export default function BotonWhatsapp({ tipo, clienteId, pedidoId, telefono, latitud, longitude, longitud, monto, referencia, mensaje, label, disabled }) {
+export default function BotonWhatsapp({ tipo, clienteId, pedidoId, telefono, latitud, longitude, longitud, monto, referencia, mensaje, recibo, numeroComprobante, tipoComprobante, label, disabled }) {
   const toast = useToast();
   const [enviando, setEnviando] = useState(false);
 
@@ -20,6 +20,9 @@ export default function BotonWhatsapp({ tipo, clienteId, pedidoId, telefono, lat
         monto,
         referencia,
         mensaje,
+        recibo: recibo || numeroComprobante,
+        numero_comprobante: numeroComprobante,
+        tipo_comprobante: tipoComprobante,
       });
       window.open(r.url, '_blank', 'noopener,noreferrer');
       await api.patch(`/whatsapp/${r.mensaje.id}/estado`, { estado: 'enviado' });

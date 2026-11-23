@@ -80,7 +80,7 @@ router.get('/:id', (req, res) => {
 
 router.post('/', requirePermiso('clientes_crear'), allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas'), (req, res) => {
   const db = load();
-  const { nombre, tipo, zona, direccion, telefono, email, limite_credito, contacto, notas, latitud, longitud, precision, ruta_venta, dia_visita, categoria_cliente_id } = req.body || {};
+  const { nombre, tipo, zona, direccion, telefono, whatsapp, email, limite_credito, contacto, notas, latitud, longitud, precision, ruta_venta, dia_visita, categoria_cliente_id } = req.body || {};
   if (!nombre) return res.status(400).json({ error: 'El nombre del cliente es obligatorio.' });
   const cliente = {
     id: nextId(db.clientes),
@@ -90,6 +90,7 @@ router.post('/', requirePermiso('clientes_crear'), allow('ventas', 'preventista'
     zona: zona || 'Centro',
     direccion: direccion || '',
     telefono: telefono || '',
+    whatsapp: whatsapp || telefono || '',
     email: email || '',
     limite_credito: num(limite_credito, 0),
     saldo: 0,
@@ -240,6 +241,7 @@ router.post('/importar', allow('admin', 'ventas', 'preventista'), (req, res) => 
       zona: String(valor(fila, 'zona', 'Zona', 'ZONA') || req.user.zona_venta || 'Centro').trim(),
       direccion: String(valor(fila, 'direccion', 'Dirección', 'DIRECCION', 'dirección') || '').trim(),
       telefono,
+      whatsapp: String(valor(fila, 'whatsapp', 'WhatsApp', 'WHATSAPP') || telefono).trim(),
       email: String(valor(fila, 'email', 'Email', 'EMAIL', 'correo') || '').trim(),
       limite_credito: num(valor(fila, 'limite_credito', 'limiteCredito', 'LIMITE_CREDITO'), 0),
       saldo: 0,
@@ -280,7 +282,7 @@ router.put('/:id', requirePermiso('clientes_editar'), allow('ventas', 'preventis
   const db = load();
   const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
-  const campos = ['nombre', 'tipo', 'zona', 'direccion', 'telefono', 'email', 'contacto', 'notas', 'activo'];
+  const campos = ['nombre', 'tipo', 'zona', 'direccion', 'telefono', 'whatsapp', 'email', 'contacto', 'notas', 'activo'];
   campos.forEach((c) => { if (req.body?.[c] !== undefined) cliente[c] = req.body[c]; });
   if (req.body?.limite_credito !== undefined) cliente.limite_credito = num(req.body.limite_credito);
   if (req.body?.ruta_venta !== undefined) cliente.ruta_venta = req.body.ruta_venta || null;

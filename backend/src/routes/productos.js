@@ -24,11 +24,16 @@ router.get('/', (req, res) => {
   if (!todos) productos = productos.filter((p) => p.activo);
   if (categoria && categoria !== 'todas') productos = productos.filter((p) => p.categoria === categoria);
   if (bajo_stock === 'true') productos = productos.filter((p) => p.bajo_stock);
-  if (search) productos = productos.filter((p) => matches(`${p.nombre} ${p.sku} ${p.categoria}`, search));
-  const categorias = [...new Set(db.productos.filter((p) => p.activo).map((p) => p.categoria))];
+  if (search) productos = productos.filter((p) => matches(`${p.nombre} ${p.sku} ${p.categoria} ${p.marca || ''}`, search));
+  const categorias = (db.producto_categorias || []).length
+    ? db.producto_categorias.filter((c) => c.activa !== false).map((c) => c.nombre)
+    : [...new Set(db.productos.filter((p) => p.activo).map((p) => p.categoria))];
+  const marcas = (db.producto_marcas || []).filter((m) => m.activa !== false).map((m) => m.nombre);
   return res.json({
     productos: productos.sort((a, b) => a.nombre.localeCompare(b.nombre)),
     categorias,
+    marcas,
+    catalogo: { categorias: db.producto_categorias || [], marcas: db.producto_marcas || [] },
     resumen: {
       total: db.productos.filter((p) => p.activo).length,
       unidades: round2(db.stock.reduce((s, x) => s + x.cantidad, 0)),
@@ -64,15 +69,21 @@ router.get('/movimientos', (req, res) => {
 
 router.post('/', allow('almacen'), (req, res) => {
   const db = load();
-  const { nombre, categoria, precio, costo, emoji, color, unidad, unidades_por_caja, unidades_por_paquete, presentacion, vender_por, stock_minimo, stock_inicial, sku, categorias_clientes, peso_kg } = req.body || {};
-  if (!nombre || !categoria || !precio) return res.status(400).json({ error: 'Nombre, categoría y precio son obligatorios.' });
+  const { nombre, categoria, categoria_id, marca, marca_id, precio, costo, emoji, color, unidad, unidades_por_caja, unidades_por_paquete, presentacion, vender_por, stock_minimo, stock_inicial, sku, categorias_clientes, peso_kg } = req.body || {};
+  const categoriaCatalogo = categoria_id ? (db.producto_categorias || []).find((c) => c.id === Number(categoria_id)) : null;
+  const marcaCatalogo = marca_id ? (db.producto_marcas || []).find((m) => m.id === Number(marca_id)) : null;
+  const categoriaFinal = categoriaCatalogo?.nombre || categoria;
+  if (!nombre || !precio || !categoriaFinal) return res.status(400).json({ error: 'Nombre, categoría y precio son obligatorios.' });
   const codigo = sku || `DAD-${String(nextId(db.productos)).padStart(3, '0')}`;
   if (db.productos.some((p) => p.sku === codigo)) return res.status(400).json({ error: 'El SKU ya existe.' });
   const producto = {
     id: nextId(db.productos),
     sku: codigo,
     nombre: String(nombre).toUpperCase().trim(),
-    categoria,
+    categoria: categoriaFinal,
+    categoria_id: categoriaCatalogo?.id || null,
+    marca: marcaCatalogo?.nombre || marca || null,
+    marca_id: marcaCatalogo?.id || null,
     precio: round2(num(precio)),
     costo: round2(num(costo)),
     emoji: emoji || '📦',
@@ -179,9 +190,16 @@ router.put('/:id', allow('almacen'), (req, res) => {
   const db = load();
   const producto = db.productos.find((p) => p.id === Number(req.params.id));
   if (!producto) return res.status(404).json({ error: 'Producto no encontrado.' });
-  const { nombre, categoria, precio, costo, emoji, color, unidad, unidades_por_caja, unidades_por_paquete, presentacion, vender_por, stock_minimo, activo, categorias_clientes, peso_kg } = req.body || {};
+  const { nombre, categoria, categoria_id, marca, marca_id, precio, costo, emoji, color, unidad, unidades_por_caja, unidades_por_paquete, presentacion, vender_por, stock_minimo, activo, categorias_clientes, peso_kg } = req.body || {};
   if (nombre) producto.nombre = String(nombre).toUpperCase().trim();
-  if (categoria) producto.categoria = categoria;
+  if (categoria_id) {
+    const cat = (db.producto_categorias || []).find((c) => c.id === Number(categoria_id));
+    if (cat) { producto.categoria = cat.nombre; producto.categoria_id = cat.id; }
+  } else if (categoria) producto.categoria = categoria;
+  if (marca_id) {
+    const mar = (db.producto_marcas || []).find((m) => m.id === Number(marca_id));
+    if (mar) { producto.marca = mar.nombre; producto.marca_id = mar.id; }
+  } else if (marca !== undefined) producto.marca = marca;
   if (precio !== undefined) producto.precio = round2(num(precio));
   if (costo !== undefined) producto.costo = round2(num(costo));
   if (emoji) producto.emoji = emoji;

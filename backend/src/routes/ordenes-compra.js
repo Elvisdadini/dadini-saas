@@ -48,6 +48,8 @@ router.post('/:id/pagar', allow('admin', 'dueno'), (req, res) => {
   const monto = round2(num(req.body?.monto));
   if (monto <= 0) return res.status(400).json({ error: 'Ingresa un monto mayor a cero.' });
   if (monto > info.saldo + 0.01) return res.status(400).json({ error: `El monto supera el saldo (Bs ${info.saldo.toFixed(2)}).` });
+  const numeroComprobante = String(req.body?.numero_comprobante || '').trim();
+  if (!numeroComprobante) return res.status(400).json({ error: 'Ingresa el número de comprobante o factura del pago.' });
   const pago = {
     id: nextId(db.pagos_proveedor),
     codigo: nextCode(db.pagos_proveedor, 'codigo', 'PAG-PROV', 1),
@@ -56,6 +58,8 @@ router.post('/:id/pagar', allow('admin', 'dueno'), (req, res) => {
     monto,
     metodo: req.body?.metodo || 'transferencia',
     referencia: req.body?.referencia || '',
+    tipo_comprobante: ['factura', 'boleta', 'recibo', 'transferencia'].includes(req.body?.tipo_comprobante) ? req.body.tipo_comprobante : 'factura',
+    numero_comprobante: numeroComprobante,
     notas: req.body?.notas || '',
     fecha: new Date().toISOString(),
     usuario_id: req.user.id,

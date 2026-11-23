@@ -49,6 +49,7 @@ function pedidoResumen(db, pedido, detalle = false) {
     cliente_tipo: cliente?.tipo || 'minorista',
     cliente_zona: cliente?.zona || '',
     cliente_telefono: cliente?.telefono || '',
+    cliente_whatsapp: cliente?.whatsapp || cliente?.telefono || '',
     cliente_latitud: cliente?.latitud ?? null,
     cliente_longitud: cliente?.longitud ?? null,
     vendedor_nombre: vendedor?.nombre || 'Sin asignar',

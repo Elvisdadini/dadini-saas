@@ -37,6 +37,8 @@ export default function Administracion() {
   const [auditAccion, setAuditAccion] = useState('todas');
   const [busy, setBusy] = useState(false);
   const [reset, setReset] = useState(null);
+  const [bloqueo, setBloqueo] = useState(null);
+  const [motivoBloqueo, setMotivoBloqueo] = useState('');
   const [catalogos, setCatalogos] = useState({ modulos: [], acciones: [], plantillas: [] });
 
   const cargarUsuarios = async () => {
@@ -119,10 +121,22 @@ export default function Administracion() {
   };
 
   const toggleActivo = async (u) => {
+    if (u.activo) { setBloqueo(u); setMotivoBloqueo(''); return; }
     setBusy(true);
     try {
-      await api.put(`/usuarios/${u.id}`, { activo: !u.activo });
-      toast(u.activo ? 'Usuario desactivado' : 'Usuario activado');
+      await api.patch(`/usuarios/${u.id}/bloqueo`, { activo: true });
+      toast('Usuario activado');
+      cargarUsuarios();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
+
+  const confirmarBloqueo = async () => {
+    if (!motivoBloqueo.trim()) return toast('Indica el motivo del bloqueo.', 'error');
+    setBusy(true);
+    try {
+      await api.patch(`/usuarios/${bloqueo.id}/bloqueo`, { activo: false, motivo: motivoBloqueo.trim() });
+      toast(`${bloqueo.nombre} bloqueado: no podrá ingresar ni realizar actividades`);
+      setBloqueo(null);
       cargarUsuarios();
     } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
   };
@@ -388,6 +402,14 @@ export default function Administracion() {
           )}
           {!editing && <div className="field"><label>Contraseña inicial</label><input className="input" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /><span className="hint">Mínimo 8 caracteres. El usuario puede cambiarla luego.</span></div>}
           <div className="notice notice-info"><ShieldCheck size={15} /> Los permisos limitan funciones sensibles: nadie que no sea supervisión o administración puede borrar pedidos, cobranzas ni alterar los reportes mensuales.</div>
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(bloqueo)} onClose={() => setBloqueo(null)} title="Bloquear usuario" subtitle={bloqueo ? `${bloqueo.nombre} · ${bloqueo.email}` : ''} size="sm"
+        footer={<><button className="btn btn-ghost" onClick={() => setBloqueo(null)}>Cancelar</button><button className="btn btn-danger" onClick={confirmarBloqueo} disabled={busy}>{busy ? 'Bloqueando…' : 'Bloquear acceso'}</button></>}>
+        <div className="form-stack">
+          <div className="notice notice-warn"><Lock size={15} /> El usuario no podrá iniciar sesión ni ejecutar ninguna actividad mientras esté bloqueado.</div>
+          <div className="field"><label>Motivo del bloqueo <span className="req">*</span></label><textarea className="textarea" value={motivoBloqueo} onChange={(e) => setMotivoBloqueo(e.target.value)} placeholder="Ej. Cuenta pendiente con la empresa, revisión de cobranzas…" /></div>
         </div>
       </Modal>
 

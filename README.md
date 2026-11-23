@@ -336,6 +336,13 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Los permisos se guardan en cada usuario y se entregan en `/api/auth/me`, por lo que aparecen o desaparecen al cerrar sesión y volver a ingresar. Administración y dueño tienen siempre todas las funciones.
 - Acciones sensibles protegidas: editar/cancelar pedidos requiere `pedidos_editar`; crear/editar clientes requiere `clientes_crear`/`clientes_editar`; eliminar rutas requiere `rutas_eliminar`.
 
+### Inventario, bloqueos y comprobantes
+
+- **Inventario → Categorías y marcas:** altas, bajas y asignación de categorías y marcas de producto. El formulario de producto usa catálogos en lugar de texto libre.
+- **Bloqueos:** administración puede bloquear usuarios (impide ingreso y actividades) y clientes (impide nuevas ventas y visitas, permite cobranzas), registrando motivo y fecha.
+- **Comprobantes:** los pagos a proveedores requieren tipo y número de comprobante/factura. Los cobros con cuenta o método distinto de efectivo requieren número de comprobante.
+- **WhatsApp de cobranza:** al registrar un cobro se puede enviar el comprobante al número de WhatsApp registrado en el cliente; el mensaje incluye el número de comprobante y queda en la trazabilidad.
+
 ### Continuidad y respaldos
 
 - **Ping automático:** `.github/workflows/keep-alive.yml` consulta `/api/health` cada 10 minutos para que Render Free no duerma y la APK abra rápido.

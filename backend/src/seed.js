@@ -643,6 +643,22 @@ function buildSeed() {
     mensajes_whatsapp: [],
     promociones,
     cliente_categorias: categoriasCliente,
+    producto_categorias: ['Galletas', 'Ponquesitos', 'Snacks', 'Surtidos'].map((nombre, i) => ({
+      id: i + 1,
+      codigo: `PCAT-${String(i + 1).padStart(4, '0')}`,
+      nombre,
+      descripcion: `Categoría de producto ${nombre}`,
+      activa: true,
+      created_at: atHour(now, 8),
+    })),
+    producto_marcas: ['DADINI', 'Kekito', 'Animalocos'].map((nombre, i) => ({
+      id: i + 1,
+      codigo: `PMAR-${String(i + 1).padStart(4, '0')}`,
+      nombre,
+      descripcion: `Marca ${nombre}`,
+      activa: true,
+      created_at: atHour(now, 8),
+    })),
     zonas: [
       { id: 1, codigo: 'ZON-0001', nombre: 'Centro', descripcion: 'Zona comercial Centro', activa: true, created_at: atHour(now, 8) },
       { id: 2, codigo: 'ZON-0002', nombre: 'Quillacollo', descripcion: 'Zona comercial Quillacollo', activa: true, created_at: atHour(now, 8) },

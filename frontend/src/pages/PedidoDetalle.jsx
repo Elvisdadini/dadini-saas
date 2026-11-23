@@ -25,7 +25,8 @@ export default function PedidoDetalle() {
   const [routeOpen, setRouteOpen] = useState(false);
   const [rutas, setRutas] = useState([]);
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [pay, setPay] = useState({ monto: '', metodo: 'efectivo', nota: '' });
+  const [pay, setPay] = useState({ monto: '', metodo: 'efectivo', nota: '', numero_comprobante: '', tipo_comprobante: 'recibo' });
+  const [ultimoPago, setUltimoPago] = useState(null);
   const [busy, setBusy] = useState(false);
   const [selectedRuta, setSelectedRuta] = useState('');
   const [visitas, setVisitas] = useState([]);
@@ -103,13 +104,19 @@ export default function PedidoDetalle() {
     } finally { setBusy(false); }
   };
 
+  const abrirPago = () => {
+    setUltimoPago(null);
+    setPay({ monto: (pedido?.total_a_cobrar || pedido?.saldo || 0).toFixed(2), metodo: 'efectivo', nota: '', numero_comprobante: '', tipo_comprobante: 'recibo' });
+    setPayOpen(true);
+  };
+
   const registrarPago = async () => {
     setBusy(true);
     try {
-      const data = await api.post(`/pedidos/${id}/pagos`, { monto: Number(pay.monto), metodo: pay.metodo, nota: pay.nota });
+      const data = await api.post(`/pedidos/${id}/pagos`, { monto: Number(pay.monto), metodo: pay.metodo, nota: pay.nota, numero_comprobante: pay.numero_comprobante, tipo_comprobante: pay.tipo_comprobante });
       setPedido(data.pedido);
-      setPayOpen(false);
-      toast('Pago registrado correctamente');
+      setUltimoPago(data.pago);
+      toast('Pago registrado. Envía el comprobante al WhatsApp del cliente.');
     } catch (error) {
       toast(error.message, 'error');
     } finally { setBusy(false); }
@@ -145,7 +152,7 @@ export default function PedidoDetalle() {
             <button className="btn btn-ghost" onClick={() => navigate('/ventas')}><ArrowLeft size={15} /> Volver</button>
             <button className="btn btn-outline" onClick={() => window.print()}><Printer size={14} /> Imprimir</button>
             <BotonWhatsapp tipo="pedido" clienteId={pedido.cliente_id} pedidoId={pedido.id} telefono={pedido.cliente_telefono} latitud={pedido.cliente_latitud} longitud={pedido.cliente_longitud} monto={pedido.total} label="Enviar pedido" />
-            {pedido.saldo > 0 && pedido.estado !== 'cancelado' && puedeCobrar && <button className="btn btn-primary" onClick={() => setPayOpen(true)}><Wallet size={14} /> Registrar cobro</button>}
+            {pedido.saldo > 0 && pedido.estado !== 'cancelado' && puedeCobrar && <button className="btn btn-primary" onClick={abrirPago}><Wallet size={14} /> Registrar cobro</button>}
             {siguiente && puedeVender && <button className="btn btn-navy" onClick={() => avanzar(siguiente)} disabled={busy}>Pasar a {siguiente} <ArrowRight size={14} /></button>}
           </>
         )}
@@ -294,7 +301,7 @@ export default function PedidoDetalle() {
                   <Money value={p.monto} />
                 </div>
               ))}
-              {pedido.saldo > 0 && puedeCobrar && <button className="btn btn-soft btn-sm btn-block mt-12" onClick={() => setPayOpen(true)}><CircleDollarSign size={14} /> Registrar pago</button>}
+              {pedido.saldo > 0 && puedeCobrar && <button className="btn btn-soft btn-sm btn-block mt-12" onClick={abrirPago}><CircleDollarSign size={14} /> Registrar pago</button>}
             </div>
           </div>
 
@@ -342,6 +349,18 @@ export default function PedidoDetalle() {
             </select>
           </div>
           <div className="field"><label>Nota</label><input className="input" placeholder="Referencia del pago…" value={pay.nota} onChange={(e) => setPay({ ...pay, nota: e.target.value })} /></div>
+          <div className="field-row">
+            <div className="field"><label>Tipo de comprobante</label><select className="select" value={pay.tipo_comprobante} onChange={(e) => setPay({ ...pay, tipo_comprobante: e.target.value })}><option value="recibo">Recibo</option><option value="factura">Factura</option><option value="boleta">Boleta</option><option value="transferencia">Transferencia</option></select></div>
+            <div className="field"><label>Nro. de comprobante / factura</label><input className="input" value={pay.numero_comprobante} onChange={(e) => setPay({ ...pay, numero_comprobante: e.target.value })} placeholder="Ej. REC-0042" /></div>
+          </div>
+          {ultimoPago && (
+            <div className="notice notice-info">
+              Comprobante <strong>{ultimoPago.numero_comprobante || ultimoPago.codigo}</strong> registrado.
+              <div style={{ marginTop: 8 }}>
+                <BotonWhatsapp tipo="cobranza" clienteId={pedido.cliente_id} pedidoId={pedido.id} telefono={pedido.cliente_whatsapp} monto={ultimoPago.monto} numeroComprobante={ultimoPago.numero_comprobante} tipoComprobante={ultimoPago.tipo_comprobante} label="Enviar comprobante al WhatsApp" />
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 
