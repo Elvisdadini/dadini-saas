@@ -1,17 +1,22 @@
 package bo.dadini.saas.app;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.webkit.CookieManager;
+import android.webkit.GeolocationPermissions;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -37,16 +42,19 @@ public class MainActivity extends Activity {
 
     private static final String SITE_URL = "https://dadini-saas.onrender.com";
     private static final int FILE_CHOOSER_REQUEST = 4321;
+    private static final int PERMISOS_REQUEST = 1001;
 
     private WebView webView;
     private LinearLayout loadingView;
     private LinearLayout errorView;
+    private TextView loadingText;
     private ValueCallback<Uri[]> filePathCallback;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
 
         Window window = getWindow();
         window.setStatusBarColor(Color.parseColor("#061C33"));
@@ -76,8 +84,9 @@ public class MainActivity extends Activity {
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setRenderPriority(WebSettings.RenderPriority.HIGH);
+        settings.setGeolocationEnabled(true);
         settings.setUserAgentString(settings.getUserAgentString() + " DadiniSaasApp/21.0.1");
 
         CookieManager.getInstance().setAcceptCookie(true);
@@ -102,7 +111,7 @@ public class MainActivity extends Activity {
         barParams.topMargin = 12;
         loadingView.addView(progressBar, barParams);
 
-        TextView loadingText = new TextView(this);
+        loadingText = new TextView(this);
         loadingText.setText("Cargando DADINI SaaS...\nPrimera carga: puede tardar cerca de 1 minuto.");
         loadingText.setTextColor(Color.WHITE);
         loadingText.setTextSize(13);
@@ -163,6 +172,19 @@ public class MainActivity extends Activity {
 
         setContentView(root);
 
+        // ---------- Permisos en tiempo de ejecución ----------
+        solicitarPermisos();
+
+        // Si el servidor está despertando, lo indicamos en pantalla.
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (loadingView.getVisibility() == View.VISIBLE) {
+                    loadingText.setText("El servidor se está despertando.\nPuede tardar cerca de 1 minuto.");
+                }
+            }
+        }, 20000);
+
         // ---------- Navegación ----------
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -176,12 +198,19 @@ public class MainActivity extends Activity {
             }
 
             @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
+
                 loadingView.setVisibility(View.GONE);
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+
                 if (request.isForMainFrame()) mostrarError();
             }
 
@@ -192,9 +221,12 @@ public class MainActivity extends Activity {
         });
 
         webView.setWebChromeClient(new WebChromeClient() {
+
             @Override
-            public void onProgressChanged(WebView view, int newProgress) {
-                if (newProgress < 100) loadingView.setVisibility(View.VISIBLE);
+            public void onGeolocationPermissionsShowPrompt(final String origin,
+                                                           final GeolocationPermissions.Callback callback) {
+                // Los permisos ya fueron aprobados por el usuario al abrir la app.
+                callback.invoke(origin, true, false);
             }
 
             @Override
@@ -213,10 +245,35 @@ public class MainActivity extends Activity {
         });
 
         if (savedInstanceState != null) {
+
             webView.restoreState(savedInstanceState);
         } else {
+
             webView.loadUrl(SITE_URL);
         }
+    }
+
+    @SuppressLint("InlinedApi")
+    private void solicitarPermisos() {
+        String[] permisos = {
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.CAMERA,
+            Manifest.permission.READ_CONTACTS,
+            Build.VERSION.SDK_INT >= 33
+                ? Manifest.permission.READ_MEDIA_IMAGES
+                : Manifest.permission.READ_EXTERNAL_STORAGE
+        };
+        java.util.List<String> faltan = new java.util.ArrayList<String>();
+        for (String permiso : permisos) {
+            if (checkSelfPermission(permiso) != PackageManager.PERMISSION_GRANTED) faltan.add(permiso);
+        }
+        if (!faltan.isEmpty()) requestPermissions(faltan.toArray(new String[0]), PERMISOS_REQUEST);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
     private void mostrarError() {
@@ -299,3 +356,4 @@ public class MainActivity extends Activity {
         }
     }
 }
+

@@ -1,0 +1,16 @@
+name: Mantener DADINI SaaS despierto
+
+# Render Free duerme el servicio tras ~15 min sin peticiones. Un ping cada
+# 10 minutos evita la espera de ~50 s al abrir la APK desde el celular.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar salud del servicio
+        run: |
+          curl -fsS --retry 2 --max-time 30 https://dadini-saas.onrender.com/api/health

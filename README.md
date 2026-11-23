@@ -345,7 +345,7 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 
 ### APK DADINI SaaS v21
 
-- **APK actual:** `DADINI-SaaS-21.0.1.apk` (carga optimizada), independiente de la APK de preventa anterior (que se conserva intacta).
+- **APK actual:** `DADINI-SaaS-21.0.3.apk` (carga optimizada y permisos de cámara, ubicación, contactos y galería), independiente de la APK de preventa anterior (que se conserva intacta).
 - Muestra el SaaS publicado dentro de un WebView seguro: misma interfaz, módulos, roles y permisos.
 - Incluye el logo DADINI sin marca de agua como ícono y en la pantalla de inicio; el mismo logo aparece en miniatura en la web.
 - Código de la app y script de compilación en `android/`; llave de firma en `android/dadini-app/signing/` (no versionada).
