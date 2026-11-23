@@ -336,6 +336,16 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Los permisos se guardan en cada usuario y se entregan en `/api/auth/me`, por lo que aparecen o desaparecen al cerrar sesión y volver a ingresar. Administración y dueño tienen siempre todas las funciones.
 - Acciones sensibles protegidas: editar/cancelar pedidos requiere `pedidos_editar`; crear/editar clientes requiere `clientes_crear`/`clientes_editar`; eliminar rutas requiere `rutas_eliminar`.
 
+### Conteo de inventario
+
+- **Inventario → Conteo de inventario:** conteos semanales o mensuales del inventario general (o por almacén).
+- Al iniciar se piden **dos responsables** y se **congela** el stock: se guarda una instantánea que no cambia aunque se sigan registrando pedidos.
+- Captura rápida por **código de barras/QR con la cámara del teléfono** (BarcodeDetector nativo de Android WebView) o escribiendo SKU/código/nombre.
+- Comparativa en pantalla: sistema congelado vs. físico contado, diferencia, estado y progreso.
+- Vista independiente de **congelamiento** y **historial** de conteos.
+- Al finalizar se puede **ajustar el stock** a lo contado, generando movimientos y auditoría.
+- La APK 21.0.4 otorga el permiso de cámara al WebView para el escáner.
+
 ### Manifiesto de preparación de carga
 
 - **Inventario → Preparado de carga → Manifiesto para imprimir:** genera un manifiesto imprimible con:

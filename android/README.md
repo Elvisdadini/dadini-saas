@@ -5,10 +5,10 @@ Aplicación Android nueva e independiente de la APK de preventa anterior. Muestr
 seguro que carga https://dadini-saas.onrender.com.
 
 - Paquete: `bo.dadini.saas.app`
-- Versión: `21.0.3` (versionCode 4, carga optimizada)
+- Versión: `21.0.4` (versionCode 5, cámara habilitada para escáner de códigos)
 - Android mínimo: 7.0 (API 24)
 - Ícono y pantalla de inicio: logo DADINI sin marca de agua.
-- Salida: `backend/assets/apk/DADINI-SaaS-21.0.3.apk`
+- Salida: `backend/assets/apk/DADINI-SaaS-21.0.4.apk`
 - Permisos solicitados al abrir: ubicación, cámara, contactos y galería (imágenes).
 
 ## Compilar

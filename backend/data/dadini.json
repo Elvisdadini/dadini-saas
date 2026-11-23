@@ -1,6 +1,6 @@
 {
   "version": 19,
-  "generado_en": "2026-11-23T02:58:16.120Z",
+  "generado_en": "2026-11-23T19:47:11.307Z",
   "usuarios": [
     {
       "id": 1,
@@ -10,14 +10,14 @@
       "cargo": "Gerente general",
       "telefono": "67451234",
       "activo": true,
-      "password": "$2a$10$Wz6HZdQ53k6wCMdBLBnFMO6DcRi3Xw6wDtII9hZOQI.4YgHzl53JG",
+      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
       "bono_fijo": 0,
       "descuento_fijo": 0,
       "antiguedad_anios": 2,
-      "created_at": "2026-07-25T13:00:00.000Z",
+      "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
       "permisos": [
         "dashboard",
@@ -71,14 +71,14 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$Wz6HZdQ53k6wCMdBLBnFMO6DcRi3Xw6wDtII9hZOQI.4YgHzl53JG",
+      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
       "bono_fijo": 0,
       "descuento_fijo": 0,
       "antiguedad_anios": 3,
-      "created_at": "2026-07-25T13:00:00.000Z",
+      "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
       "permisos": [
         "dashboard",
@@ -102,14 +102,14 @@
       "cargo": "Jefe de almacén",
       "telefono": "72345678",
       "activo": true,
-      "password": "$2a$10$Wz6HZdQ53k6wCMdBLBnFMO6DcRi3Xw6wDtII9hZOQI.4YgHzl53JG",
+      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
       "bono_fijo": 0,
       "descuento_fijo": 0,
       "antiguedad_anios": 4,
-      "created_at": "2026-07-25T13:00:00.000Z",
+      "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
       "permisos": [
         "dashboard",
@@ -130,14 +130,14 @@
       "repartidor_id": 1,
       "vehiculo_id": 2,
       "activo": true,
-      "password": "$2a$10$Wz6HZdQ53k6wCMdBLBnFMO6DcRi3Xw6wDtII9hZOQI.4YgHzl53JG",
+      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 1,
       "bono_fijo": 0,
       "descuento_fijo": 0,
       "antiguedad_anios": 1,
-      "created_at": "2026-07-25T13:00:00.000Z",
+      "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
       "permisos": [
         "dashboard",
@@ -157,14 +157,14 @@
       "cargo": "Analista de cobranzas",
       "telefono": "74567890",
       "activo": true,
-      "password": "$2a$10$Wz6HZdQ53k6wCMdBLBnFMO6DcRi3Xw6wDtII9hZOQI.4YgHzl53JG",
+      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
       "bono_fijo": 0,
       "descuento_fijo": 0,
       "antiguedad_anios": 2,
-      "created_at": "2026-07-25T13:00:00.000Z",
+      "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
       "permisos": [
         "dashboard",
@@ -197,14 +197,14 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$Wz6HZdQ53k6wCMdBLBnFMO6DcRi3Xw6wDtII9hZOQI.4YgHzl53JG",
+      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
       "bono_fijo": 0,
       "descuento_fijo": 0,
       "antiguedad_anios": 3,
-      "created_at": "2026-07-25T13:00:00.000Z",
+      "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
       "permisos": [
         "dashboard",
@@ -228,14 +228,14 @@
       "cargo": "Dueño del sistema",
       "telefono": "70000001",
       "activo": true,
-      "password": "$2a$10$Wz6HZdQ53k6wCMdBLBnFMO6DcRi3Xw6wDtII9hZOQI.4YgHzl53JG",
+      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
       "bono_fijo": 0,
       "descuento_fijo": 0,
       "antiguedad_anios": 4,
-      "created_at": "2026-07-25T13:00:00.000Z",
+      "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
       "permisos": [
         "dashboard",
@@ -280,14 +280,14 @@
       "es_venta_directa": true,
       "almacen_movil_id": 1,
       "activo": true,
-      "password": "$2a$10$Wz6HZdQ53k6wCMdBLBnFMO6DcRi3Xw6wDtII9hZOQI.4YgHzl53JG",
+      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
       "bono_fijo": 0,
       "descuento_fijo": 0,
       "antiguedad_anios": 1,
-      "created_at": "2026-07-25T13:00:00.000Z",
+      "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
       "permisos": [
         "dashboard",
@@ -309,14 +309,14 @@
       "cargo": "Supervisora de ventas",
       "telefono": "70000003",
       "activo": true,
-      "password": "$2a$10$Wz6HZdQ53k6wCMdBLBnFMO6DcRi3Xw6wDtII9hZOQI.4YgHzl53JG",
+      "password": "$2a$10$H1uDQourxyTT.j/MCH/uhO6jz7d9/d4wDv3cBoZnYpXInGpOzZyUy",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
       "bono_fijo": 0,
       "descuento_fijo": 0,
       "antiguedad_anios": 2,
-      "created_at": "2026-07-25T13:00:00.000Z",
+      "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
       "permisos": [
         "dashboard",
@@ -391,7 +391,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 1,
       "marca": null
     },
@@ -417,7 +417,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 1,
       "marca": null
     },
@@ -443,7 +443,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 1,
       "marca": null
     },
@@ -469,7 +469,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 2,
       "marca": null
     },
@@ -495,7 +495,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 2,
       "marca": null
     },
@@ -521,7 +521,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 2,
       "marca": null
     },
@@ -547,7 +547,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 2,
       "marca": null
     },
@@ -573,7 +573,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 1,
       "marca": null
     },
@@ -599,7 +599,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 3,
       "marca": null
     },
@@ -625,7 +625,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 3,
       "marca": null
     },
@@ -651,7 +651,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 3,
       "marca": null
     },
@@ -677,7 +677,7 @@
       "peso_kg": 0.25,
       "stock_minimo": 24,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 3,
       "marca": null
     },
@@ -706,7 +706,7 @@
       "peso_kg": 12,
       "stock_minimo": 6,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 4,
       "marca": null
     },
@@ -735,7 +735,7 @@
       "peso_kg": 12,
       "stock_minimo": 6,
       "activo": true,
-      "created_at": "2026-06-25T14:00:00.000Z",
+      "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 4,
       "marca": null
     }
@@ -1223,7 +1223,7 @@
       "descuento_fijo": 0,
       "precios": [],
       "activa": true,
-      "created_at": "2026-07-25T12:00:00.000Z"
+      "created_at": "2026-07-26T12:00:00.000Z"
     },
     {
       "id": 2,
@@ -1234,7 +1234,7 @@
       "descuento_fijo": 0,
       "precios": [],
       "activa": true,
-      "created_at": "2026-07-25T12:00:00.000Z"
+      "created_at": "2026-07-26T12:00:00.000Z"
     },
     {
       "id": 3,
@@ -1245,7 +1245,7 @@
       "descuento_fijo": 0,
       "precios": [],
       "activa": true,
-      "created_at": "2026-07-25T12:00:00.000Z"
+      "created_at": "2026-07-26T12:00:00.000Z"
     }
   ],
   "producto_categorias": [
@@ -1255,7 +1255,7 @@
       "nombre": "Galletas",
       "descripcion": "Categoría de producto Galletas",
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     },
     {
       "id": 2,
@@ -1263,7 +1263,7 @@
       "nombre": "Ponquesitos",
       "descripcion": "Categoría de producto Ponquesitos",
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     },
     {
       "id": 3,
@@ -1271,7 +1271,7 @@
       "nombre": "Snacks",
       "descripcion": "Categoría de producto Snacks",
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     },
     {
       "id": 4,
@@ -1279,7 +1279,7 @@
       "nombre": "Surtidos",
       "descripcion": "Categoría de producto Surtidos",
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     }
   ],
   "producto_marcas": [
@@ -1289,7 +1289,7 @@
       "nombre": "DADINI",
       "descripcion": "Marca DADINI",
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     },
     {
       "id": 2,
@@ -1297,7 +1297,7 @@
       "nombre": "Kekito",
       "descripcion": "Marca Kekito",
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     },
     {
       "id": 3,
@@ -1305,9 +1305,10 @@
       "nombre": "Animalocos",
       "descripcion": "Marca Animalocos",
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     }
   ],
+  "conteos_inventario": [],
   "zonas": [
     {
       "id": 1,
@@ -1315,7 +1316,7 @@
       "nombre": "Centro",
       "descripcion": "Zona comercial Centro",
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     },
     {
       "id": 2,
@@ -1323,7 +1324,7 @@
       "nombre": "Quillacollo",
       "descripcion": "Zona comercial Quillacollo",
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     },
     {
       "id": 3,
@@ -1331,7 +1332,7 @@
       "nombre": "La Recoleta",
       "descripcion": "Zona comercial La Recoleta",
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     }
   ],
   "tipos_cliente": [
@@ -1341,7 +1342,7 @@
       "nombre": "Minorista",
       "descripcion": "Clientes minoristas",
       "activo": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     },
     {
       "id": 2,
@@ -1349,7 +1350,7 @@
       "nombre": "Mayorista",
       "descripcion": "Clientes mayoristas",
       "activo": true,
-      "created_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z"
     }
   ],
   "rutas_venta": [
@@ -1363,8 +1364,8 @@
       "vendedor_id": 2,
       "distribuidor_id": 1,
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z",
-      "updated_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z",
+      "updated_at": "2026-11-23T12:00:00.000Z"
     },
     {
       "id": 2,
@@ -1376,8 +1377,8 @@
       "vendedor_id": 6,
       "distribuidor_id": 2,
       "activa": true,
-      "created_at": "2026-11-22T12:00:00.000Z",
-      "updated_at": "2026-11-22T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z",
+      "updated_at": "2026-11-23T12:00:00.000Z"
     }
   ],
   "almacenes_moviles": [],
@@ -1405,7 +1406,7 @@
       ],
       "condiciones_pago": "Contado",
       "activo": true,
-      "created_at": "2026-08-24T13:00:00.000Z"
+      "created_at": "2026-08-25T13:00:00.000Z"
     },
     {
       "id": 2,
@@ -1426,7 +1427,7 @@
       ],
       "condiciones_pago": "Crédito 15 días",
       "activo": true,
-      "created_at": "2026-09-03T13:00:00.000Z"
+      "created_at": "2026-09-04T13:00:00.000Z"
     },
     {
       "id": 3,
@@ -1447,7 +1448,7 @@
       ],
       "condiciones_pago": "Crédito 30 días",
       "activo": true,
-      "created_at": "2026-09-13T13:00:00.000Z"
+      "created_at": "2026-09-14T13:00:00.000Z"
     }
   ],
   "tipos_gasto": [

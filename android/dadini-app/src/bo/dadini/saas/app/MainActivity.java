@@ -17,6 +17,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.webkit.CookieManager;
 import android.webkit.GeolocationPermissions;
+import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -221,6 +222,12 @@ public class MainActivity extends Activity {
         });
 
         webView.setWebChromeClient(new WebChromeClient() {
+
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                // Cámara y micrófono para el escáner de códigos del conteo.
+                request.grant(request.getResources());
+            }
 
             @Override
             public void onGeolocationPermissionsShowPrompt(final String origin,

@@ -3,9 +3,9 @@ const path = require('path');
 const config = require('./config');
 const { save } = require('./db');
 
-const ARCHIVO_POR_DEFECTO = 'DADINI-SaaS-21.0.3.apk';
-const VERSION_POR_DEFECTO = '21.0.3';
-const APK_ANTERIORES = ['DADINI-Preventa-20.0.0.apk', 'DADINI-SaaS-21.0.0.apk', 'DADINI-SaaS-21.0.1.apk', 'DADINI-SaaS-21.0.2.apk'];
+const ARCHIVO_POR_DEFECTO = 'DADINI-SaaS-21.0.4.apk';
+const VERSION_POR_DEFECTO = '21.0.4';
+const APK_ANTERIORES = ['DADINI-Preventa-20.0.0.apk', 'DADINI-SaaS-21.0.0.apk', 'DADINI-SaaS-21.0.1.apk', 'DADINI-SaaS-21.0.2.apk', 'DADINI-SaaS-21.0.3.apk'];
 
 function directorioApk() {
   const directorio = path.join(config.uploadDir, 'apk');
