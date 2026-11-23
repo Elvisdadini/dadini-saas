@@ -83,7 +83,7 @@ export default function Administracion() {
   const abrirUsuario = (u = null) => {
     setEditing(u);
     const modeloVendedor = (catalogos.plantillas || []).find((p) => p.id === 'vendedor');
-    setForm(u ? { nombre: u.nombre, email: u.email, usuario: u.usuario || '', pin: '', rol: u.rol, cargo: u.cargo, telefono: u.telefono, password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo, plantilla: u.plantilla_permisos || '', permisos: u.permisos || [] } : { ...USUARIO_VACIO, rol: 'preventista', plantilla: 'vendedor', permisos: [...(modeloVendedor?.permisos || [])] });
+    setForm(u ? { nombre: u.nombre, email: u.email, usuario: u.usuario || '', pin: '', rol: u.rol, cargo: u.cargo, telefono: u.telefono, password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo, plantilla: u.plantilla_permisos || '', permisos: u.permisos || [] } : { ...USUARIO_VACIO, rol: 'preventista', plantilla: 'vendedor', permisos: [...(modeloVendedor?.permisos || [])], repartidor_id: repartidores.find((r) => r.activo !== false)?.id || '' });
     setModal(true);
   };
 
@@ -97,7 +97,14 @@ export default function Administracion() {
   // Cascada: al elegir un rol se aplica automáticamente su modelo de permisos.
   const cambiarRol = (rol) => {
     const plantilla = (catalogos.plantillas || []).find((p) => p.rol === rol);
-    setForm((f) => ({ ...f, rol, plantilla: plantilla?.id || '', permisos: plantilla ? [...plantilla.permisos] : f.permisos }));
+    const esVendedor = ['ventas', 'preventista', 'vendedor_camion'].includes(rol);
+    setForm((f) => ({
+      ...f,
+      rol,
+      plantilla: plantilla?.id || '',
+      permisos: plantilla ? [...plantilla.permisos] : f.permisos,
+      repartidor_id: esVendedor && !f.repartidor_id ? (repartidores.find((r) => r.activo !== false)?.id || '') : f.repartidor_id,
+    }));
   };
 
   const alternarPermiso = (codigo) => {
@@ -339,10 +346,10 @@ export default function Administracion() {
           <div className="field-row">
             <div className="field"><label>Rol de acceso</label><select className="select" value={form.rol} onChange={(e) => cambiarRol(e.target.value)}>{Object.entries(ROL_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select><span className="hint">Al elegir el rol se aplica en cascada su modelo de permisos.</span></div>
             <div className="field"><label>Cargo</label><input className="input" value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} /></div>
-            {(form.rol === 'ventas' || form.rol === 'preventista') && (
+            {['ventas', 'preventista', 'vendedor_camion'].includes(form.rol) && (
               <>
                 <div className="field-row">
-                  <div className="field"><label>Repartidor asignado</label><select className="select" value={form.repartidor_id} onChange={(e) => setForm({ ...form, repartidor_id: e.target.value })}><option value="">Sin asignar</option>{repartidores.map((r) => <option key={r.id} value={r.id}>{r.emoji} {r.nombre}</option>)}</select></div>
+                  <div className="field"><label>Distribuidor asignado</label><select className="select" value={form.repartidor_id} onChange={(e) => setForm({ ...form, repartidor_id: e.target.value })}><option value="">Sin asignar (automático)</option>{repartidores.map((r) => <option key={r.id} value={r.id}>{r.emoji} {r.nombre}</option>)}</select><span className="hint">Se asigna automáticamente al crear el vendedor; puedes modificarlo aquí.</span></div>
                   <div className="field"><label>Vehículo asignado</label><select className="select" value={form.vehiculo_id} onChange={(e) => setForm({ ...form, vehiculo_id: e.target.value })}><option value="">Sin asignar</option>{vehiculos.map((v) => <option key={v.id} value={v.id}>{v.placa} · {v.modelo}</option>)}</select></div>
                 </div>
                 {form.rol === 'preventista' && (

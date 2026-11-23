@@ -9,6 +9,16 @@ router.use(authRequired, allow());
 
 const ROLES = ['admin', 'dueno', 'supervisor', 'ventas', 'preventista', 'vendedor_camion', 'almacen', 'distribucion', 'cobranzas'];
 
+// Asigna automáticamente el distribuidor con menos vendedores para equilibrar
+// la carga entre repartidores activos.
+function distribuidorAutomatico(db) {
+  const activos = (db.repartidores || []).filter((r) => r.activo !== false);
+  if (!activos.length) return null;
+  return activos
+    .map((r) => ({ repartidor: r, usuarios: db.usuarios.filter((u) => u.repartidor_id === r.id).length }))
+    .sort((a, b) => a.usuarios - b.usuarios || a.repartidor.id - b.repartidor.id)[0].repartidor;
+}
+
 function generarUsuario(db, nombre) {
   const base = String(nombre || '').trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'usuario';
   let candidato = base;
@@ -50,6 +60,10 @@ router.post('/', (req, res) => {
   const correo = String(email || '').trim().toLowerCase() || `${nombreUsuario}@dadini.bo`;
   if (db.usuarios.some((u) => u.email.toLowerCase() === correo)) return res.status(400).json({ error: 'Ya existe un usuario con ese correo.' });
   if (pin && !/^\d{4,8}$/.test(String(pin))) return res.status(400).json({ error: 'El PIN debe tener entre 4 y 8 dígitos.' });
+  const repartidor = repartidor_id ? (db.repartidores || []).find((r) => r.id === Number(repartidor_id)) : null;
+  if (repartidor_id && !repartidor) return res.status(400).json({ error: 'El distribuidor seleccionado no existe.' });
+  const esVendedor = ['ventas', 'preventista', 'vendedor_camion'].includes(rol);
+  const asignado = repartidor || (esVendedor ? distribuidorAutomatico(db) : null);
   const user = {
     id: nextId(db.usuarios),
     nombre,
@@ -58,11 +72,11 @@ router.post('/', (req, res) => {
     rol,
     cargo: cargo || '',
     telefono: telefono || '',
-    repartidor_id: repartidor_id ? Number(repartidor_id) : null,
+    repartidor_id: asignado?.id || null,
     vehiculo_id: vehiculo_id ? Number(vehiculo_id) : null,
     ruta_venta: ruta_venta || null,
     dias_visita: Array.isArray(dias_visita) ? dias_visita.map(Number) : [],
-    zona_venta: zona_venta || null,
+    zona_venta: zona_venta || asignado?.zona || null,
     categoria_cliente_id: categoria_cliente_id ? Number(categoria_cliente_id) : null,
     es_venta_directa: Boolean(es_venta_directa),
     almacen_movil_id: almacen_movil_id ? Number(almacen_movil_id) : null,
@@ -83,7 +97,7 @@ router.post('/', (req, res) => {
     permisos: normalizarPermisos(permisos) || permisosPorPlantilla(plantilla) || permisosPorRol(rol),
   };
   db.usuarios.push(user);
-  audit(db, req, 'Usuario creado', 'Usuarios', `${user.nombre} · ${user.rol}`);
+  audit(db, req, 'Usuario creado', 'Usuarios', `${user.nombre} · ${user.rol}${asignado ? ` · distribuidor ${asignado.nombre}` : ''}`);
   save();
   const { password: _p, ...safe } = user;
   return res.status(201).json({ usuario: safe });

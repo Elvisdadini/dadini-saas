@@ -804,6 +804,10 @@ h4 { font-size: 14px; font-weight: 700; }
   .manifiesto-block h4 { margin: 8px 0 4px; }
   .manifiesto-header h2 { font-size: 16px; }
   .summary-box { border: 1px solid #bbb !important; }
+  .manifiesto.solo-productos .clientes-section,
+  .manifiesto.solo-productos .resumen-section,
+  .manifiesto.solo-clientes .productos-section,
+  .manifiesto.solo-clientes .distribuidores-section { display: none !important; }
 }
 
 /* ── Geolocalización y mapas ───────────────────────────────── */

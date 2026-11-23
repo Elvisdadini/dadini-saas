@@ -197,7 +197,7 @@ router.post('/', allow('ventas', 'preventista', 'vendedor_camion'), (req, res) =
   if (esPreventa) {
     pedido.es_preventa = true;
     pedido.ruta_venta = vendedor?.ruta_venta || null;
-    pedido.repartidor_asignado_id = vendedor?.repartidor_id || null;
+    pedido.repartidor_asignado_id = vendedor?.repartidor_id || cliente?.distribuidor_id || null;
     pedido.fecha_entrega_programada = addDaysISO(new Date(), 1);
     pedido.estado = 'preparando';
     if (pedido.repartidor_asignado_id) {
@@ -418,6 +418,22 @@ router.post('/:id/pagos', allow('ventas', 'preventista', 'cobranzas'), (req, res
   audit(db, req, 'Pago registrado', 'Cobranzas', `${pedido.codigo} · Bs ${monto.toFixed(2)} · ${cliente?.nombre || ''}${detalle}`);
   save();
   return res.json({ pedido: pedidoResumen(db, pedido, true), pago });
+});
+
+// Permite asignar un distribuidor a ventas de oficina o pedidos cuyo cliente
+// no tiene vendedor (y por lo tanto no tenía repartidor derivado).
+router.patch('/:id/asignar-distribuidor', allow('admin', 'dueno', 'supervisor', 'ventas', 'distribucion'), (req, res) => {
+  const db = load();
+  const pedido = db.pedidos.find((p) => p.id === Number(req.params.id));
+  if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado.' });
+  const repartidor = (db.repartidores || []).find((r) => r.id === Number(req.body?.distribuidor_id) && r.activo !== false);
+  if (!repartidor) return res.status(400).json({ error: 'Selecciona un distribuidor activo.' });
+  pedido.repartidor_asignado_id = repartidor.id;
+  const cliente = db.clientes.find((c) => c.id === pedido.cliente_id);
+  if (cliente && !cliente.vendedor_id) cliente.distribuidor_id = repartidor.id;
+  audit(db, req, 'Distribuidor asignado', 'Ventas', `${pedido.codigo} · ${repartidor.nombre}`);
+  save();
+  return res.json({ pedido: pedidoResumen(db, pedido, true) });
 });
 
 router.patch('/:id/asignar-ruta', allow('distribucion', 'ventas'), (req, res) => {

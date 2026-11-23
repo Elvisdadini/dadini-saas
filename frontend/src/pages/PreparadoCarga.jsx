@@ -29,6 +29,7 @@ export default function PreparadoCarga() {
   const [mfFiltros, setMfFiltros] = useState({ fecha: hoy(), distribuidor_id: '', estado: 'todos' });
   const [mfCargando, setMfCargando] = useState(false);
   const [preparados, setPreparados] = useState([]);
+  const [impresion, setImpresion] = useState('todo');
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -82,6 +83,20 @@ export default function PreparadoCarga() {
   useEffect(() => { if (tab === 'manifiesto' && !manifiesto) generarManifiesto(); /* eslint-disable-next-line */ }, [tab]);
 
   const alternarPreparado = (id) => setPreparados((lista) => lista.includes(id) ? lista.filter((x) => x !== id) : [...lista, id]);
+
+  const imprimir = (modo) => {
+    setImpresion(modo);
+    window.setTimeout(() => window.print(), 120);
+  };
+
+  const asignarDistribuidor = async (pedido, distribuidorId) => {
+    if (!distribuidorId) return;
+    try {
+      await api.patch(`/pedidos/${pedido.id}/asignar-distribuidor`, { distribuidor_id: Number(distribuidorId) });
+      toast(`Distribuidor asignado al pedido ${pedido.codigo}`);
+      await generarManifiesto();
+    } catch (error) { toast(error.message, 'error'); }
+  };
 
   const confirmar = async () => {
     if (!form.vendedor_id) return toast('Selecciona un vendedor.', 'error');
@@ -159,7 +174,10 @@ export default function PreparadoCarga() {
         subtitle="Agrupa las unidades de todos los pedidos, conviértelas en cajas y carga el camión como almacén móvil."
         actions={<>
           <button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>
-          {tab === 'manifiesto' && <button className="btn btn-primary" onClick={() => window.print()}><Printer size={14} /> Imprimir manifiesto</button>}
+          {tab === 'manifiesto' && <>
+            <button className="btn btn-outline" onClick={() => imprimir('productos')}><Printer size={14} /> Imprimir productos</button>
+            <button className="btn btn-primary" onClick={() => imprimir('clientes')}><Printer size={14} /> Imprimir clientes</button>
+          </>}
         </>}
       />
 
@@ -322,7 +340,7 @@ export default function PreparadoCarga() {
       )}
 
       {tab === 'manifiesto' && (
-        <div className="manifiesto">
+        <div className={`manifiesto ${impresion !== 'todo' ? `solo-${impresion}` : ''}`}>
           <div className="panel mb-16 no-print">
             <div className="panel-head">
               <div><h3>Generar manifiesto de carga</h3><p>Consolida los pedidos confirmados por distribuidor, vendedor, cliente y producto.</p></div>
@@ -364,12 +382,12 @@ export default function PreparadoCarga() {
                 <StatCard label="Monto total de la carga" value={<Money value={manifiesto.totales.monto} />} icon={Truck} tone="green" />
               </div>
 
-              <div className="panel manifiesto-block mb-16">
+              <div className="panel manifiesto-block mb-16 productos-section">
                 <div className="panel-head"><div><h3>1. Lista de productos a preparar</h3><p>Marca la casilla a medida que se prepara cada referencia.</p></div><Badge tone="orange">{manifiesto.productos.length} referencias</Badge></div>
                 {manifiesto.productos.length === 0 ? <div className="table-empty">No hay productos en la carga.</div> : (
                   <div className="table-wrap">
                     <table className="data-table">
-                      <thead><tr><th>✓</th><th>Producto</th><th className="num">Unidades</th><th className="num">Uds./caja</th><th className="num">Cajas</th><th className="num">Sueltas</th><th className="num">Pedidos</th></tr></thead>
+                      <thead><tr><th>✓</th><th>Producto</th><th className="num">Unidades</th><th className="num">Uds./caja</th><th className="num">Cajas</th><th className="num">Sueltas</th><th className="num">Peso ud. (kg)</th><th className="num">Peso total (kg)</th><th className="num">Pedidos</th></tr></thead>
                       <tbody>
                         {manifiesto.productos.map((l) => (
                           <tr key={l.producto_id}>
@@ -379,9 +397,21 @@ export default function PreparadoCarga() {
                             <td className="num muted">{l.unidades_por_caja}</td>
                             <td className="num">{l.cajas_a_preparar}</td>
                             <td className="num">{l.unidades_sueltas || '—'}</td>
+                            <td className="num">{Number(l.peso_unitario_kg || 0).toFixed(3)}</td>
+                            <td className="num cell-strong">{Number(l.peso_total_kg || 0).toFixed(2)}</td>
                             <td className="num">{l.pedidos}</td>
                           </tr>
                         ))}
+                        <tr>
+                          <td colSpan={2} className="cell-strong">TOTAL DE LA CARGA</td>
+                          <td className="num cell-strong">{manifiesto.totales.unidades}</td>
+                          <td className="num">—</td>
+                          <td className="num cell-strong">{manifiesto.totales.cajas}</td>
+                          <td className="num">—</td>
+                          <td className="num">—</td>
+                          <td className="num cell-strong">{Number(manifiesto.totales.peso_kg || 0).toFixed(2)}</td>
+                          <td className="num">{manifiesto.totales.pedidos}</td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
@@ -389,7 +419,7 @@ export default function PreparadoCarga() {
               </div>
 
               {manifiesto.distribuidores.map((d, index) => (
-                <div className="panel manifiesto-block mb-16" key={d.id || `sin-${index}`}>
+                <div className="panel manifiesto-block mb-16 distribuidores-section" key={d.id || `sin-${index}`}>
                   <div className="panel-head">
                     <div><h3>2.{index + 1} {d.emoji} {d.nombre}</h3><p>{d.zona || 'Sin zona'} · Código {d.codigo || '—'} · Vendedores asignados: {d.vendedores_nombres || '—'}</p></div>
                     <Badge tone="blue">{d.totales.pedidos} pedidos</Badge>
@@ -416,9 +446,10 @@ export default function PreparadoCarga() {
                       </table>
                     </div>
                     <h4 className="small">Pedidos y clientes confirmados</h4>
+                    {!d.id && <div className="notice notice-warn" style={{ marginBottom: 8 }}>Venta de oficina o cliente sin vendedor: asigna un distribuidor para incluir estos pedidos en la carga.</div>}
                     <div className="table-wrap">
                       <table className="data-table">
-                        <thead><tr><th>Cliente</th><th>Zona</th><th>Pedido</th><th>Fecha</th><th>Vendedor</th><th className="num">Cantidad</th><th className="num">Unidades</th><th className="num">Cajas</th><th className="num">Total Bs</th></tr></thead>
+                        <thead><tr><th>Cliente</th><th>Zona</th><th>Pedido</th><th>Fecha</th><th>Vendedor</th><th className="num">Cantidad</th><th className="num">Unidades</th><th className="num">Cajas</th><th className="num">Total Bs</th><th>Distribuidor</th></tr></thead>
                         <tbody>
                           {d.clientes.flatMap((c) => c.pedidos.map((p) => (
                             <tr key={`${d.id}-${p.id}`}>
@@ -431,6 +462,14 @@ export default function PreparadoCarga() {
                               <td className="num">{p.unidades}</td>
                               <td className="num">{p.cajas}</td>
                               <td className="num">{Number(p.total || 0).toFixed(2)}</td>
+                              <td>
+                                {d.id ? (d.nombre || '—') : (
+                                  <select className="select input-sm" value="" onChange={(e) => asignarDistribuidor({ id: p.id, codigo: p.codigo }, e.target.value)}>
+                                    <option value="">Asignar distribuidor…</option>
+                                    {(manifiesto.catalogo_distribuidores || []).map((r) => <option key={r.id} value={r.id}>{r.emoji} {r.nombre}</option>)}
+                                  </select>
+                                )}
+                              </td>
                             </tr>
                           )))}
                         </tbody>
@@ -440,7 +479,7 @@ export default function PreparadoCarga() {
                 </div>
               ))}
 
-              <div className="panel manifiesto-block mb-16">
+              <div className="panel manifiesto-block mb-16 clientes-section">
                 <div className="panel-head"><div><h3>3. Clientes con pedido confirmado</h3><p>Detalle de quién realizó cada pedido y el total por cliente.</p></div></div>
                 <div className="table-wrap">
                   <table className="data-table">
@@ -450,7 +489,7 @@ export default function PreparadoCarga() {
                 </div>
               </div>
 
-              <div className="panel manifiesto-block summary-box">
+              <div className="panel manifiesto-block summary-box resumen-section">
                 <div className="split"><span className="small muted">Pedidos confirmados</span><strong>{manifiesto.totales.pedidos}</strong></div>
                 <div className="split mt-8"><span className="small muted">Clientes</span><strong>{manifiesto.totales.clientes}</strong></div>
                 <div className="split mt-8"><span className="small muted">Distribuidores / vendedores</span><strong>{manifiesto.totales.distribuidores} / {manifiesto.totales.vendedores}</strong></div>

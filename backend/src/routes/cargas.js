@@ -228,7 +228,9 @@ function lineasDePedido(db, pedido) {
       unidad: producto.unidad,
       presentacion: producto.presentacion,
       unidades_por_caja: Math.max(1, Math.round(num(producto.unidades_por_caja, 1) || 1)),
+      peso_unitario_kg: num(producto.peso_kg, 0.25),
       cantidad_unidades: 0,
+      peso_total_kg: 0,
       pedidos: 0,
     };
     prev.cantidad_unidades += Number(item.cantidad) || 0;
@@ -236,7 +238,7 @@ function lineasDePedido(db, pedido) {
     mapa.set(producto.id, prev);
   });
   return [...mapa.values()]
-    .map((l) => ({ ...l, ...cajas(l.cantidad_unidades, l.unidades_por_caja) }))
+    .map((l) => ({ ...l, peso_total_kg: round2(l.cantidad_unidades * l.peso_unitario_kg), ...cajas(l.cantidad_unidades, l.unidades_por_caja) }))
     .sort((a, b) => b.cantidad_unidades - a.cantidad_unidades);
 }
 
@@ -311,10 +313,11 @@ router.get('/manifiesto', (req, res) => {
     c.unidades += p.unidades; c.cajas += p.cajas; c.monto += p.total;
 
     p.lineas.forEach((l) => {
-      if (!g.productos.has(l.producto_id)) g.productos.set(l.producto_id, { ...l, pedidos: 0, cantidad_unidades: 0 });
+      if (!g.productos.has(l.producto_id)) g.productos.set(l.producto_id, { ...l, pedidos: 0, cantidad_unidades: 0, peso_total_kg: 0 });
       const pl = g.productos.get(l.producto_id);
       pl.pedidos += 1;
       pl.cantidad_unidades += l.cantidad_unidades;
+      pl.peso_total_kg = round2(pl.cantidad_unidades * pl.peso_unitario_kg);
       const calc = cajas(pl.cantidad_unidades, pl.unidades_por_caja);
       pl.cajas_completas = calc.cajas_completas;
       pl.unidades_sueltas = calc.unidades_sueltas;
@@ -349,9 +352,10 @@ router.get('/manifiesto', (req, res) => {
 
   const productosMap = new Map();
   enriquecidos.forEach((p) => p.lineas.forEach((l) => {
-    if (!productosMap.has(l.producto_id)) productosMap.set(l.producto_id, { ...l, cantidad_unidades: 0, pedidos: 0, distribuidores: new Set() });
+    if (!productosMap.has(l.producto_id)) productosMap.set(l.producto_id, { ...l, cantidad_unidades: 0, pedidos: 0, peso_total_kg: 0, distribuidores: new Set() });
     const item = productosMap.get(l.producto_id);
     item.cantidad_unidades += l.cantidad_unidades;
+    item.peso_total_kg = round2(item.cantidad_unidades * item.peso_unitario_kg);
     item.pedidos += 1;
     item.distribuidores.add(p.distribuidor_nombre);
     const calc = cajas(item.cantidad_unidades, item.unidades_por_caja);
@@ -388,7 +392,7 @@ router.get('/manifiesto', (req, res) => {
       unidades: enriquecidos.reduce((s, p) => s + p.unidades, 0),
       cajas: enriquecidos.reduce((s, p) => s + p.cajas, 0),
       monto: round2(enriquecidos.reduce((s, p) => s + p.total, 0)),
-      peso_kg: round2(enriquecidos.reduce((s, p) => s + p.peso_kg, 0)),
+      peso_kg: round2(productos.reduce((s, p) => s + p.peso_total_kg, 0)),
     },
   });
 });

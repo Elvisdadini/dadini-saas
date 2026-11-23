@@ -344,7 +344,9 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
   3. Lista de clientes con pedidos confirmados incluyendo vendedor, cantidades y total por cliente.
 - Totales generales: pedidos, clientes, distribuidores, vendedores, unidades, cajas, peso y monto total de la carga.
 - Endpoint: `GET /api/cargas/manifiesto?fecha=&distribuidor_id=&estado=`.
-- Botón **Imprimir manifiesto** con estilos `@media print` (oculta menú y botones, evita cortar bloques).
+- **Dos impresiones independientes:** *Imprimir productos* (unidades, cajas, sueltas, peso por unidad, peso total por producto y peso total de la carga) e *Imprimir clientes* (clientes, vendedor que hizo el pedido, total del pedido y totales generales en monto y cantidad de pedidos).
+- **Asignación automática de distribuidor:** al crear un usuario vendedor se asigna el distribuidor activo con menos vendedores; se puede modificar después desde Administración.
+- **Ventas de oficina o clientes sin vendedor:** se pueden asignar manualmente a un distribuidor desde el manifiesto (`PATCH /api/pedidos/:id/asignar-distribuidor`), y también se hereda el distribuidor del cliente al crear la preventa.
 
 ### Inventario, bloqueos y comprobantes
 
