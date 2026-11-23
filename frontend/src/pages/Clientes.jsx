@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { descargarPlantilla, leerExcel } from '../excel';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Building2, CalendarCheck, CheckCircle2, CircleDollarSign, Crosshair, Eye, ExternalLink, FileSpreadsheet, Lock, Mail, MapPin, Navigation, Pencil, Phone, Plus, Search, ShieldAlert, ShoppingCart, Tag, Truck, Unlock, Upload, UserRound, Users, Wallet,
+  Building2, CalendarCheck, CheckCircle2, CircleDollarSign, Crosshair, Eye, ExternalLink, FileSpreadsheet, Lock, Mail, MapPin, Navigation, Pencil, Phone, Plus, Search, ShieldAlert, ShieldCheck, ShoppingCart, Tag, Truck, Unlock, Upload, UserRound, Users, Wallet,
 } from 'lucide-react';
 import { api, qs } from '../api';
 import { puede, useAuth } from '../auth';
