@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Boxes, CalendarDays, CheckCircle2, ClipboardList, Package, PackageCheck,
-  Play, RefreshCcw, Truck, Wallet,
+  Play, Plus, Printer, RefreshCcw, Truck,
 } from 'lucide-react';
-import { api } from '../api';
-import { Badge, EmptyState, Estado, Fecha, Modal, Money, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
+import { api, qs } from '../api';
+import { Badge, EmptyState, Fecha, Modal, Money, PageHeader, SkeletonRows, StatCard, Tabs, useToast } from '../ui';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 
@@ -24,6 +24,11 @@ export default function PreparadoCarga() {
   const [guardando, setGuardando] = useState(false);
   const [filtros, setFiltros] = useState({ fecha: hoy(), vendedor_id: '', almacen_id: '' });
   const [form, setForm] = useState({ vendedor_id: '', repartidor_id: '', vehiculo_id: '', notas: '' });
+  const [tab, setTab] = useState('preparar');
+  const [manifiesto, setManifiesto] = useState(null);
+  const [mfFiltros, setMfFiltros] = useState({ fecha: hoy(), distribuidor_id: '', estado: 'todos' });
+  const [mfCargando, setMfCargando] = useState(false);
+  const [preparados, setPreparados] = useState([]);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -63,6 +68,20 @@ export default function PreparadoCarga() {
       setCalculando(false);
     }
   };
+
+  const generarManifiesto = async () => {
+    setMfCargando(true);
+    try {
+      const r = await api.get(`/cargas/manifiesto${qs(mfFiltros)}`);
+      setManifiesto(r);
+      setPreparados([]);
+      if (!r.pedidos.length) toast('No hay pedidos confirmados para esos filtros.', 'info');
+    } catch (error) { toast(error.message, 'error'); } finally { setMfCargando(false); }
+  };
+
+  useEffect(() => { if (tab === 'manifiesto' && !manifiesto) generarManifiesto(); /* eslint-disable-next-line */ }, [tab]);
+
+  const alternarPreparado = (id) => setPreparados((lista) => lista.includes(id) ? lista.filter((x) => x !== id) : [...lista, id]);
 
   const confirmar = async () => {
     if (!form.vendedor_id) return toast('Selecciona un vendedor.', 'error');
@@ -138,9 +157,22 @@ export default function PreparadoCarga() {
         eyebrow="Ventas / Cierre del día"
         title="Preparado de carga"
         subtitle="Agrupa las unidades de todos los pedidos, conviértelas en cajas y carga el camión como almacén móvil."
-        actions={<button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>}
+        actions={<>
+          <button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>
+          {tab === 'manifiesto' && <button className="btn btn-primary" onClick={() => window.print()}><Printer size={14} /> Imprimir manifiesto</button>}
+        </>}
       />
 
+      <div className="no-print">
+        <Tabs
+          tabs={[{ value: 'preparar', label: 'Preparar y cargar' }, { value: 'manifiesto', label: 'Manifiesto para imprimir' }]}
+          active={tab}
+          onChange={setTab}
+        />
+      </div>
+
+      {tab === 'preparar' && (
+        <>
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>
         <StatCard label="Pedidos a preparar" value={preview?.totales?.pedidos ?? '—'} icon={ClipboardList} tone="blue" hint="Del cierre seleccionado" />
         <StatCard label="Unidades totales" value={preview?.totales?.unidades ?? '—'} icon={Package} tone="orange" hint="Suma de todos los pedidos" />
@@ -283,6 +315,150 @@ export default function PreparadoCarga() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+        </>
+      )}
+
+      {tab === 'manifiesto' && (
+        <div className="manifiesto">
+          <div className="panel mb-16 no-print">
+            <div className="panel-head">
+              <div><h3>Generar manifiesto de carga</h3><p>Consolida los pedidos confirmados por distribuidor, vendedor, cliente y producto.</p></div>
+              <button className="btn btn-primary" onClick={generarManifiesto} disabled={mfCargando}><ClipboardList size={14} /> {mfCargando ? 'Generando…' : 'Generar manifiesto'}</button>
+            </div>
+            <div className="panel-body">
+              <div className="filters">
+                <div className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><label><CalendarDays size={12} /> Fecha</label><input type="date" className="input input-sm" value={mfFiltros.fecha} onChange={(e) => setMfFiltros({ ...mfFiltros, fecha: e.target.value })} /></div>
+                <select className="select" value={mfFiltros.distribuidor_id} onChange={(e) => setMfFiltros({ ...mfFiltros, distribuidor_id: e.target.value })}>
+                  <option value="">Todos los distribuidores</option>
+                  {(manifiesto?.catalogo_distribuidores || []).map((d) => <option key={d.id} value={d.id}>{d.emoji} {d.nombre}</option>)}
+                </select>
+                <select className="select" value={mfFiltros.estado} onChange={(e) => setMfFiltros({ ...mfFiltros, estado: e.target.value })}>
+                  <option value="todos">Todos los estados</option>
+                  <option value="pendiente">Pendientes</option>
+                  <option value="preparando">Preparando</option>
+                  <option value="enviado">Enviados</option>
+                  <option value="entregado">Entregados</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {!manifiesto ? (
+            <EmptyState icon={ClipboardList} title="Sin manifiesto" message="Pulsa «Generar manifiesto» para consolidar la carga." />
+          ) : (
+            <>
+              <div className="panel manifiesto-block print-only">
+                <div className="panel-body">
+                  <h2 style={{ margin: 0 }}>DADINI · Manifiesto de preparación y carga</h2>
+                  <p className="small muted">Fecha {manifiesto.fecha} · Distribuidor: {manifiesto.filtros.distribuidor_id ? (manifiesto.distribuidores[0]?.nombre || '—') : 'Todos'} · Estado: {manifiesto.filtros.estado}</p>
+                </div>
+              </div>
+
+              <div className="stat-grid mb-16 no-print" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>
+                <StatCard label="Pedidos" value={manifiesto.totales.pedidos} icon={ClipboardList} tone="blue" />
+                <StatCard label="Unidades" value={manifiesto.totales.unidades} icon={Package} tone="orange" />
+                <StatCard label="Cajas" value={manifiesto.totales.cajas} icon={Boxes} tone="purple" />
+                <StatCard label="Monto total de la carga" value={<Money value={manifiesto.totales.monto} />} icon={Truck} tone="green" />
+              </div>
+
+              <div className="panel manifiesto-block mb-16">
+                <div className="panel-head"><div><h3>1. Lista de productos a preparar</h3><p>Marca la casilla a medida que se prepara cada referencia.</p></div><Badge tone="orange">{manifiesto.productos.length} referencias</Badge></div>
+                {manifiesto.productos.length === 0 ? <div className="table-empty">No hay productos en la carga.</div> : (
+                  <div className="table-wrap">
+                    <table className="data-table">
+                      <thead><tr><th>✓</th><th>Producto</th><th className="num">Unidades</th><th className="num">Uds./caja</th><th className="num">Cajas</th><th className="num">Sueltas</th><th className="num">Pedidos</th></tr></thead>
+                      <tbody>
+                        {manifiesto.productos.map((l) => (
+                          <tr key={l.producto_id}>
+                            <td><input type="checkbox" checked={preparados.includes(l.producto_id)} onChange={() => alternarPreparado(l.producto_id)} /></td>
+                            <td className="cell-strong">{l.emoji} {l.nombre}<span className="cell-sub">{l.sku} · {l.distribuidores.join(', ')}</span></td>
+                            <td className="num">{l.cantidad_unidades}</td>
+                            <td className="num muted">{l.unidades_por_caja}</td>
+                            <td className="num">{l.cajas_a_preparar}</td>
+                            <td className="num">{l.unidades_sueltas || '—'}</td>
+                            <td className="num">{l.pedidos}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {manifiesto.distribuidores.map((d, index) => (
+                <div className="panel manifiesto-block mb-16" key={d.id || `sin-${index}`}>
+                  <div className="panel-head">
+                    <div><h3>2.{index + 1} {d.emoji} {d.nombre}</h3><p>{d.zona || 'Sin zona'} · Código {d.codigo || '—'} · Vendedores asignados: {d.vendedores_nombres || '—'}</p></div>
+                    <Badge tone="blue">{d.totales.pedidos} pedidos</Badge>
+                  </div>
+                  <div className="panel-body">
+                    <div className="grid grid-4" style={{ gap: 8, marginBottom: 12 }}>
+                      <div className="mini-stat"><span>Vendedores</span><strong>{d.vendedores.length}</strong></div>
+                      <div className="mini-stat"><span>Clientes</span><strong>{d.totales.clientes}</strong></div>
+                      <div className="mini-stat"><span>Unidades / cajas</span><strong>{d.totales.unidades} / {d.totales.cajas}</strong></div>
+                      <div className="mini-stat"><span>Total Bs</span><strong>{d.totales.monto.toFixed(2)}</strong></div>
+                    </div>
+                    <h4 className="small">Vendedores de esta carga</h4>
+                    <div className="table-wrap" style={{ marginBottom: 12 }}>
+                      <table className="data-table">
+                        <thead><tr><th>Vendedor</th><th>Rol</th><th className="num">Pedidos</th><th className="num">Unidades</th><th className="num">Cajas</th><th className="num">Total Bs</th></tr></thead>
+                        <tbody>{d.vendedores.map((v) => <tr key={`${d.id}-${v.id}`}><td className="cell-strong">{v.nombre}</td><td>{v.rol || '—'}</td><td className="num">{v.pedidos}</td><td className="num">{v.unidades}</td><td className="num">{v.cajas}</td><td className="num">{Number(v.monto || 0).toFixed(2)}</td></tr>)}</tbody>
+                      </table>
+                    </div>
+                    <h4 className="small">Productos a cargar para este distribuidor</h4>
+                    <div className="table-wrap" style={{ marginBottom: 12 }}>
+                      <table className="data-table">
+                        <thead><tr><th>Producto</th><th className="num">Unidades</th><th className="num">Cajas</th><th className="num">Sueltas</th></tr></thead>
+                        <tbody>{d.productos.map((p) => <tr key={`${d.id}-p-${p.producto_id}`}><td className="cell-strong">{p.emoji} {p.nombre}</td><td className="num">{p.cantidad_unidades}</td><td className="num">{p.cajas_a_preparar}</td><td className="num">{p.unidades_sueltas}</td></tr>)}</tbody>
+                      </table>
+                    </div>
+                    <h4 className="small">Pedidos y clientes confirmados</h4>
+                    <div className="table-wrap">
+                      <table className="data-table">
+                        <thead><tr><th>Cliente</th><th>Zona</th><th>Pedido</th><th>Fecha</th><th>Vendedor</th><th className="num">Cantidad</th><th className="num">Unidades</th><th className="num">Cajas</th><th className="num">Total Bs</th></tr></thead>
+                        <tbody>
+                          {d.clientes.flatMap((c) => c.pedidos.map((p) => (
+                            <tr key={`${d.id}-${p.id}`}>
+                              <td className="cell-strong">{c.nombre}<span className="cell-sub">{c.telefono || ''}</span></td>
+                              <td>{c.zona || '—'}</td>
+                              <td>{p.codigo}</td>
+                              <td>{p.fecha}</td>
+                              <td>{p.vendedor}</td>
+                              <td className="num">{p.items}</td>
+                              <td className="num">{p.unidades}</td>
+                              <td className="num">{p.cajas}</td>
+                              <td className="num">{Number(p.total || 0).toFixed(2)}</td>
+                            </tr>
+                          )))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="panel manifiesto-block mb-16">
+                <div className="panel-head"><div><h3>3. Clientes con pedido confirmado</h3><p>Detalle de quién realizó cada pedido y el total por cliente.</p></div></div>
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead><tr><th>Cliente</th><th>Zona</th><th>Vendedores</th><th className="num">Pedidos</th><th className="num">Unidades</th><th className="num">Cajas</th><th className="num">Total Bs</th></tr></thead>
+                    <tbody>{manifiesto.clientes.map((c) => <tr key={c.id}><td className="cell-strong">{c.nombre}</td><td>{c.zona || '—'}</td><td>{c.vendedores.join(', ')}</td><td className="num">{c.pedidos.length}</td><td className="num">{c.unidades}</td><td className="num">{c.cajas}</td><td className="num">{c.monto.toFixed(2)}</td></tr>)}</tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="panel manifiesto-block summary-box">
+                <div className="split"><span className="small muted">Pedidos confirmados</span><strong>{manifiesto.totales.pedidos}</strong></div>
+                <div className="split mt-8"><span className="small muted">Clientes</span><strong>{manifiesto.totales.clientes}</strong></div>
+                <div className="split mt-8"><span className="small muted">Distribuidores / vendedores</span><strong>{manifiesto.totales.distribuidores} / {manifiesto.totales.vendedores}</strong></div>
+                <div className="split mt-8"><span className="small muted">Unidades · cajas · peso (kg)</span><strong>{manifiesto.totales.unidades} · {manifiesto.totales.cajas} · {manifiesto.totales.peso_kg}</strong></div>
+                <div className="split mt-8"><span className="small muted">TOTAL DE LA CARGA</span><strong><Money value={manifiesto.totales.monto} /></strong></div>
+              </div>
+            </>
+          )}
         </div>
       )}
 

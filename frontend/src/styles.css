@@ -797,6 +797,13 @@ h4 { font-size: 14px; font-weight: 700; }
   .print-only { display: block; }
   .detail-grid { grid-template-columns: 1fr; }
   .status-actions, .btn { display: none !important; }
+  .manifiesto-block { break-inside: avoid; page-break-inside: avoid; margin-bottom: 10px; }
+  .manifiesto-block .panel-head { padding: 6px 0; }
+  .manifiesto-block .panel-body { padding: 6px 0; }
+  .manifiesto-block table { font-size: 9px; }
+  .manifiesto-block h4 { margin: 8px 0 4px; }
+  .manifiesto-header h2 { font-size: 16px; }
+  .summary-box { border: 1px solid #bbb !important; }
 }
 
 /* ── Geolocalización y mapas ───────────────────────────────── */

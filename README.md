@@ -336,6 +336,16 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Los permisos se guardan en cada usuario y se entregan en `/api/auth/me`, por lo que aparecen o desaparecen al cerrar sesión y volver a ingresar. Administración y dueño tienen siempre todas las funciones.
 - Acciones sensibles protegidas: editar/cancelar pedidos requiere `pedidos_editar`; crear/editar clientes requiere `clientes_crear`/`clientes_editar`; eliminar rutas requiere `rutas_eliminar`.
 
+### Manifiesto de preparación de carga
+
+- **Inventario → Preparado de carga → Manifiesto para imprimir:** genera un manifiesto imprimible con:
+  1. Lista consolidada de productos a preparar (unidades, uds./caja, cajas, sueltas y casilla de marcado).
+  2. Carga agrupada por distribuidor, con sus vendedores asignados, productos, pedidos y clientes.
+  3. Lista de clientes con pedidos confirmados incluyendo vendedor, cantidades y total por cliente.
+- Totales generales: pedidos, clientes, distribuidores, vendedores, unidades, cajas, peso y monto total de la carga.
+- Endpoint: `GET /api/cargas/manifiesto?fecha=&distribuidor_id=&estado=`.
+- Botón **Imprimir manifiesto** con estilos `@media print` (oculta menú y botones, evita cortar bloques).
+
 ### Inventario, bloqueos y comprobantes
 
 - **Inventario → Categorías y marcas:** altas, bajas y asignación de categorías y marcas de producto. El formulario de producto usa catálogos en lugar de texto libre.
