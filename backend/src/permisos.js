@@ -122,6 +122,7 @@ function asegurarEstructura(db) {
       if (cat) { p.categoria_id = cat.id; cambio = true; }
     }
     if (p.marca === undefined) { p.marca = null; cambio = true; }
+    if (p.imagen_url === undefined) { p.imagen_url = null; cambio = true; }
   });
   if (!db.configuracion) { db.configuracion = {}; cambio = true; }
   (db.usuarios || []).forEach((u) => {

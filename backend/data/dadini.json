@@ -1,6 +1,6 @@
 {
   "version": 19,
-  "generado_en": "2026-11-23T20:26:09.510Z",
+  "generado_en": "2026-11-23T21:08:23.145Z",
   "usuarios": [
     {
       "id": 1,
@@ -10,7 +10,7 @@
       "cargo": "Gerente general",
       "telefono": "67451234",
       "activo": true,
-      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
+      "password": "$2a$10$UlMhWWKyF86lAgwq/48hyeCKdRbUYjz8L/Yf3264nS6T9mIUJmgXe",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -71,7 +71,7 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
+      "password": "$2a$10$UlMhWWKyF86lAgwq/48hyeCKdRbUYjz8L/Yf3264nS6T9mIUJmgXe",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -102,7 +102,7 @@
       "cargo": "Jefe de almacén",
       "telefono": "72345678",
       "activo": true,
-      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
+      "password": "$2a$10$UlMhWWKyF86lAgwq/48hyeCKdRbUYjz8L/Yf3264nS6T9mIUJmgXe",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -130,7 +130,7 @@
       "repartidor_id": 1,
       "vehiculo_id": 2,
       "activo": true,
-      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
+      "password": "$2a$10$UlMhWWKyF86lAgwq/48hyeCKdRbUYjz8L/Yf3264nS6T9mIUJmgXe",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 1,
@@ -157,7 +157,7 @@
       "cargo": "Analista de cobranzas",
       "telefono": "74567890",
       "activo": true,
-      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
+      "password": "$2a$10$UlMhWWKyF86lAgwq/48hyeCKdRbUYjz8L/Yf3264nS6T9mIUJmgXe",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -197,7 +197,7 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
+      "password": "$2a$10$UlMhWWKyF86lAgwq/48hyeCKdRbUYjz8L/Yf3264nS6T9mIUJmgXe",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -228,7 +228,7 @@
       "cargo": "Dueño del sistema",
       "telefono": "70000001",
       "activo": true,
-      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
+      "password": "$2a$10$UlMhWWKyF86lAgwq/48hyeCKdRbUYjz8L/Yf3264nS6T9mIUJmgXe",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -280,7 +280,7 @@
       "es_venta_directa": true,
       "almacen_movil_id": 1,
       "activo": true,
-      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
+      "password": "$2a$10$UlMhWWKyF86lAgwq/48hyeCKdRbUYjz8L/Yf3264nS6T9mIUJmgXe",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -309,7 +309,7 @@
       "cargo": "Supervisora de ventas",
       "telefono": "70000003",
       "activo": true,
-      "password": "$2a$10$9Ad3kijrOgRgiZU/YL6LsOMMaf9HZqU3cznts4/LxWrKRdPlakWwS",
+      "password": "$2a$10$UlMhWWKyF86lAgwq/48hyeCKdRbUYjz8L/Yf3264nS6T9mIUJmgXe",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -393,7 +393,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 1,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 2,
@@ -419,7 +420,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 1,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 3,
@@ -445,7 +447,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 1,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 4,
@@ -471,7 +474,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 2,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 5,
@@ -497,7 +501,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 2,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 6,
@@ -523,7 +528,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 2,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 7,
@@ -549,7 +555,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 2,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 8,
@@ -575,7 +582,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 1,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 9,
@@ -601,7 +609,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 3,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 10,
@@ -627,7 +636,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 3,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 11,
@@ -653,7 +663,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 3,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 12,
@@ -679,7 +690,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 3,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 13,
@@ -708,7 +720,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 4,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     },
     {
       "id": 14,
@@ -737,7 +750,8 @@
       "activo": true,
       "created_at": "2026-06-26T14:00:00.000Z",
       "categoria_id": 4,
-      "marca": null
+      "marca": null,
+      "imagen_url": null
     }
   ],
   "stock": [

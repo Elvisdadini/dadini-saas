@@ -1,0 +1,131 @@
+const express = require('express');
+const { createClient } = require('@supabase/supabase-js');
+const { load, save } = require('../db');
+const { authRequired, allow } = require('../auth');
+const { audit, round2 } = require('../utils');
+const config = require('../config');
+
+const router = express.Router();
+router.use(authRequired);
+
+const BUCKET = 'productos';
+const MAX_BYTES = 200 * 1024; // máximo 200 KB por imagen
+let supabase = null;
+
+function cliente() {
+  if (!config.supabase.url || !config.supabase.serviceKey) throw new Error('Supabase no está configurado.');
+  if (!supabase) {
+    supabase = createClient(config.supabase.url, config.supabase.serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return supabase;
+}
+
+async function asegurarBucket() {
+  const storage = cliente().storage;
+  const { error } = await storage.getBucket(BUCKET);
+  if (!error) return;
+  const { error: creacion } = await storage.createBucket(BUCKET, {
+    public: true,
+    fileSizeLimit: '2MB',
+    allowedMimeTypes: ['image/webp', 'image/jpeg', 'image/png'],
+  });
+  if (creacion && !/already exists/i.test(creacion.message)) throw new Error(creacion.message);
+}
+
+function nombreArchivo(sku) {
+  return `${String(sku || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '') || 'producto'}.webp`;
+}
+
+function decodificar(dataUrl) {
+  const valor = String(dataUrl || '');
+  if (!/^data:image\/(webp|jpeg|png);base64,/i.test(valor)) return null;
+  const buffer = Buffer.from(valor.slice(valor.indexOf(',') + 1), 'base64');
+  if (!buffer.length || buffer.length > MAX_BYTES) return null;
+  return buffer;
+}
+
+async function subirUno(sku, dataUrl) {
+  await asegurarBucket();
+  const buffer = decodificar(dataUrl);
+  if (!buffer) return { ok: false, error: `Imagen inválida o mayor a 200 KB (${sku}).` };
+  const archivo = nombreArchivo(sku);
+  const storage = cliente().storage;
+  const { error } = await storage.from(BUCKET).upload(archivo, buffer, {
+    contentType: 'image/webp',
+    cacheControl: '3600',
+    upsert: true,
+  });
+  if (error) return { ok: false, error: error.message };
+  const { data } = storage.from(BUCKET).getPublicUrl(archivo);
+  return { ok: true, sku, url: data.publicUrl, bytes: buffer.length };
+}
+
+router.post('/upload', allow('admin', 'dueno', 'almacen'), async (req, res) => {
+  const db = load();
+  const { sku, imagen } = req.body || {};
+  if (!sku) return res.status(400).json({ error: 'Indica el SKU del producto.' });
+  try {
+    const resultado = await subirUno(sku, imagen);
+    if (!resultado.ok) return res.status(400).json({ error: resultado.error });
+    const producto = db.productos.find((p) => String(p.sku).toLowerCase() === String(sku).toLowerCase());
+    if (producto) producto.imagen_url = resultado.url;
+    audit(db, req, 'Imagen de producto cargada', 'Inventario', `${sku} · ${round2(resultado.bytes / 1024)} KB`);
+    save();
+    return res.status(201).json({ ...resultado, producto_id: producto?.id || null });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+// Carga masiva: el navegador optimiza cada imagen a WebP y envía lotes.
+router.post('/lote', allow('admin', 'dueno', 'almacen'), async (req, res) => {
+  const db = load();
+  const imagenes = Array.isArray(req.body?.imagenes) ? req.body.imagenes : [];
+  if (!imagenes.length) return res.status(400).json({ error: 'No se enviaron imágenes.' });
+  if (imagenes.length > 60) return res.status(400).json({ error: 'Máximo 60 imágenes por lote.' });
+  const correctas = [];
+  const errores = [];
+  try {
+    await asegurarBucket();
+    for (const item of imagenes) {
+      const resultado = await subirUno(item?.sku, item?.imagen);
+      if (resultado.ok) correctas.push(resultado);
+      else errores.push(resultado.error);
+    }
+    correctas.forEach((r) => {
+      const producto = db.productos.find((p) => String(p.sku).toLowerCase() === String(r.sku).toLowerCase());
+      if (producto) producto.imagen_url = r.url;
+    });
+    if (correctas.length) {
+      audit(db, req, 'Imágenes de producto cargadas', 'Inventario', `${correctas.length} imágenes · ${errores.length} errores`);
+      save();
+    }
+    return res.json({ cargadas: correctas.length, errores, resultados: correctas });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+router.get('/estado', (req, res) => {
+  const db = load();
+  return res.json({
+    bucket: BUCKET,
+    configurado: Boolean(config.supabase.url && config.supabase.serviceKey),
+    con_imagen: db.productos.filter((p) => p.imagen_url).length,
+    total: db.productos.length,
+    maximo_kb: Math.round(MAX_BYTES / 1024),
+  });
+});
+
+router.delete('/:sku', allow('admin', 'dueno', 'almacen'), async (req, res) => {
+  const db = load();
+  const archivo = nombreArchivo(req.params.sku);
+  try {
+    await cliente().storage.from(BUCKET).remove([archivo]);
+    const producto = db.productos.find((p) => String(p.sku).toLowerCase() === String(req.params.sku).toLowerCase());
+    if (producto) producto.imagen_url = null;
+    audit(db, req, 'Imagen de producto eliminada', 'Inventario', req.params.sku);
+    save();
+    return res.json({ ok: true });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+module.exports = router;

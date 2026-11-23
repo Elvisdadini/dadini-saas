@@ -3,15 +3,16 @@ import { Link } from 'react-router-dom';
 import { descargarPlantilla, leerExcel } from '../excel';
 import {
   ArrowLeftRight, ArrowDownToLine, ArrowUpFromLine, BadgePercent, Boxes, Building2, ClipboardList,
-  FileSpreadsheet, Package, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, Trash2, Truck, Undo2, Upload, Warehouse,
+  FileSpreadsheet, ImagePlus, Package, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, Trash2, Truck, Undo2, Upload, UploadCloud, Warehouse,
 } from 'lucide-react';
 import { api, qs } from '../api';
+import { optimizarImagen, pesoDeDataUrl, skuDeArchivo } from '../imagen';
 import { useAuth } from '../auth';
 import {
   Badge, EmptyState, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, Tabs, useToast,
 } from '../ui';
 
-const PRODUCTO_VACIO = { nombre: '', categoria: '', categoria_id: '', marca: '', marca_id: '', precio: '', costo: '', unidad: 'unidad', unidades_por_caja: 24, unidades_por_paquete: 12, presentacion: 'unidad', vender_por: ['unidad', 'caja', 'paquete'], categorias_clientes: [], peso_kg: 0.25, stock_minimo: 10, stock_inicial: 0, emoji: '📦', color: '#FF6500', activo: true };
+const PRODUCTO_VACIO = { nombre: '', categoria: '', categoria_id: '', marca: '', marca_id: '', imagen_url: '', precio: '', costo: '', unidad: 'unidad', unidades_por_caja: 24, unidades_por_paquete: 12, presentacion: 'unidad', vender_por: ['unidad', 'caja', 'paquete'], categorias_clientes: [], peso_kg: 0.25, stock_minimo: 10, stock_inicial: 0, emoji: '📦', color: '#FF6500', activo: true };
 const ALMACEN_VACIO = { nombre: '', direccion: '', zona: '', ciudad: 'Cochabamba', encargado: '', telefono: '' };
 
 export default function Inventario() {
@@ -47,6 +48,11 @@ export default function Inventario() {
   const [whEdit, setWhEdit] = useState(null);
   const [whForm, setWhForm] = useState(ALMACEN_VACIO);
   const [busy, setBusy] = useState(false);
+  const [imagenPendiente, setImagenPendiente] = useState(null);
+  const [loteOpen, setLoteOpen] = useState(false);
+  const [loteArchivos, setLoteArchivos] = useState([]);
+  const [loteProgreso, setLoteProgreso] = useState(0);
+  const [loteResultado, setLoteResultado] = useState(null);
 
   const puedeEditar = ['admin', 'almacen'].includes(user?.rol);
   const esAdmin = user?.rol === 'admin';
@@ -79,7 +85,8 @@ export default function Inventario() {
 
   const abrirProducto = (p = null) => {
     setEditing(p);
-    setForm(p ? { nombre: p.nombre, categoria: p.categoria, categoria_id: p.categoria_id || '', marca: p.marca || '', marca_id: p.marca_id || '', precio: p.precio, costo: p.costo, unidad: p.unidad, unidades_por_caja: p.unidades_por_caja || (p.unidad === 'caja' ? 1 : 24), categorias_clientes: p.categorias_clientes || [], peso_kg: p.peso_kg || 0.25, unidades_por_paquete: p.unidades_por_paquete || 12, presentacion: p.presentacion || p.unidad || 'unidad', vender_por: p.vender_por || ['unidad', 'caja', 'paquete'], stock_minimo: p.stock_minimo, stock_inicial: 0, emoji: p.emoji, color: p.color, activo: p.activo } : PRODUCTO_VACIO);
+    setImagenPendiente(p?.imagen_url || null);
+    setForm(p ? { nombre: p.nombre, categoria: p.categoria, categoria_id: p.categoria_id || '', marca: p.marca || '', marca_id: p.marca_id || '', imagen_url: p.imagen_url || '', precio: p.precio, costo: p.costo, unidad: p.unidad, unidades_por_caja: p.unidades_por_caja || (p.unidad === 'caja' ? 1 : 24), categorias_clientes: p.categorias_clientes || [], peso_kg: p.peso_kg || 0.25, unidades_por_paquete: p.unidades_por_paquete || 12, presentacion: p.presentacion || p.unidad || 'unidad', vender_por: p.vender_por || ['unidad', 'caja', 'paquete'], stock_minimo: p.stock_minimo, stock_inicial: 0, emoji: p.emoji, color: p.color, activo: p.activo } : PRODUCTO_VACIO);
     setProductModal(true);
   };
 
@@ -87,11 +94,54 @@ export default function Inventario() {
     if (!form.nombre || !form.precio) return toast('Nombre y precio son obligatorios.', 'error');
     setBusy(true);
     try {
-      if (editing) await api.put(`/productos/${editing.id}`, form);
-      else await api.post('/productos', form);
+      let producto;
+      if (editing) producto = (await api.put(`/productos/${editing.id}`, form)).producto;
+      else producto = (await api.post('/productos', form)).producto;
+      if (imagenPendiente && imagenPendiente.startsWith('data:')) {
+        const subida = await api.post('/productos-imagenes/upload', { sku: producto.sku, imagen: imagenPendiente });
+        await api.put(`/productos/${producto.id}`, { imagen_url: subida.url });
+        toast(`Imagen subida · ${pesoDeDataUrl(imagenPendiente)} KB (WebP)`);
+      }
       toast(editing ? 'Producto actualizado' : 'Producto creado');
       setProductModal(false);
       cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
+
+  const seleccionarImagen = async (evento) => {
+    const archivo = evento.target.files?.[0];
+    if (!archivo) return;
+    try {
+      const datos = await optimizarImagen(archivo);
+      setImagenPendiente(datos);
+      toast(`Imagen optimizada: ${pesoDeDataUrl(datos)} KB · WebP`, 'info');
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const subirLote = async () => {
+    if (!loteArchivos.length) return toast('Selecciona imágenes.', 'error');
+    setBusy(true);
+    setLoteProgreso(0);
+    setLoteResultado(null);
+    try {
+      const optimizadas = [];
+      for (const archivo of loteArchivos) {
+        try {
+          optimizadas.push({ sku: skuDeArchivo(archivo.name), imagen: await optimizarImagen(archivo) });
+        } catch (e) { /* se omite la que no se puede leer */ }
+      }
+      let cargadas = 0;
+      const errores = [];
+      for (let i = 0; i < optimizadas.length; i += 40) {
+        const lote = optimizadas.slice(i, i + 40);
+        const r = await api.post('/productos-imagenes/lote', { imagenes: lote });
+        cargadas += r.cargadas || 0;
+        errores.push(...(r.errores || []));
+        setLoteProgreso(Math.round(((i + lote.length) / optimizadas.length) * 100));
+      }
+      setLoteResultado({ cargadas, errores });
+      toast(`${cargadas} imágenes cargadas${errores.length ? ` · ${errores.length} errores` : ''}`);
+      await cargar();
     } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
   };
 
@@ -209,6 +259,7 @@ export default function Inventario() {
             <Link className="btn btn-ghost" to="/inventario/almacenes-moviles"><Truck size={14} /> Almacenes móviles</Link>
             <Link className="btn btn-ghost" to="/inventario/devoluciones"><Undo2 size={14} /> Devoluciones</Link>
             <Link className="btn btn-ghost" to="/inventario/preparado"><PackageCheck size={14} /> Preparar carga</Link>
+            {puedeEditar && <button className="btn btn-outline" onClick={() => { setLoteArchivos([]); setLoteResultado(null); setLoteOpen(true); }}><UploadCloud size={14} /> Cargar imágenes</button>}
             {puedeEditar && <button className="btn btn-outline" onClick={() => setImportOpen(true)}><Upload size={14} /> Importar Excel</button>}
             {puedeEditar && <button className="btn btn-primary" onClick={() => abrirProducto()}><Plus size={15} /> Nuevo producto</button>}
           </>
@@ -375,6 +426,12 @@ export default function Inventario() {
       >
         <div className="form-stack">
           <div className="field"><label>Nombre del producto <span className="req">*</span></label><input className="input" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej. KEKITO CHOCOLATE" /></div>
+          <div className="field"><label>Imagen del producto</label>
+            <div className="inline">
+              {imagenPendiente ? <img src={imagenPendiente} alt="Vista previa" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} /> : <div className="logo-empty"><ImagePlus size={22} /></div>}
+              <div><label className="btn btn-soft btn-sm"><ImagePlus size={13} /> Elegir imagen<input type="file" accept="image/*" hidden onChange={seleccionarImagen} /></label><span className="hint">Se optimiza a WebP 800 px · máx. 200 KB. Se guarda en Supabase Storage.</span></div>
+            </div>
+          </div>
           <div className="field-row">
             <div className="field"><label>Categoría</label><select className="select" value={form.categoria_id || ''} onChange={(e) => { const c = (catalogo.categorias || []).find((x) => x.id === Number(e.target.value)); setForm({ ...form, categoria_id: e.target.value, categoria: c?.nombre || form.categoria }); }}><option value="">Seleccionar…</option>{(catalogo.categorias || []).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></div>
             <div className="field"><label>Marca</label><select className="select" value={form.marca_id || ''} onChange={(e) => { const m = (catalogo.marcas || []).find((x) => x.id === Number(e.target.value)); setForm({ ...form, marca_id: e.target.value, marca: m?.nombre || '' }); }}><option value="">Sin marca</option>{(catalogo.marcas || []).map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}</select></div>
@@ -454,6 +511,17 @@ export default function Inventario() {
             <div className="field"><label>Encargado</label><input className="input" value={whForm.encargado} onChange={(e) => setWhForm({ ...whForm, encargado: e.target.value })} /></div>
             <div className="field"><label>Teléfono</label><input className="input" value={whForm.telefono} onChange={(e) => setWhForm({ ...whForm, telefono: e.target.value })} /></div>
           </div>
+        </div>
+      </Modal>
+
+      <Modal open={loteOpen} onClose={() => setLoteOpen(false)} title="Cargar imágenes de productos" subtitle="Nombra cada archivo con el SKU, por ejemplo DAD-001.webp" size="lg"
+        footer={<><button className="btn btn-ghost" onClick={() => setLoteOpen(false)}>Cerrar</button><button className="btn btn-primary" onClick={subirLote} disabled={busy || !loteArchivos.length}>{busy ? `Subiendo… ${loteProgreso}%` : `Subir ${loteArchivos.length} imágenes`}</button></>}>
+        <div className="form-stack">
+          <div className="notice notice-info"><UploadCloud size={15} /> Cada imagen se redimensiona a 800 px y se convierte a WebP antes de subirla. Peso ideal 30–60 KB, máximo 200 KB. Se envían en lotes de 40 para no saturar la conexión.</div>
+          <div className="field"><label>Seleccionar imágenes (varias)</label><input type="file" accept="image/*" multiple className="input" onChange={(e) => { setLoteArchivos([...(e.target.files || [])]); setLoteResultado(null); }} /></div>
+          {loteArchivos.length > 0 && <div className="small muted">{loteArchivos.length} archivos · ej. {skuDeArchivo(loteArchivos[0].name)}</div>}
+          {busy && <div className="progress"><span className="progress-fill" style={{ width: `${loteProgreso}%` }} /></div>}
+          {loteResultado && <div className="notice notice-info">Cargadas: {loteResultado.cargadas}{loteResultado.errores.length > 0 ? ` · Errores: ${loteResultado.errores.join('; ')}` : ''}</div>}
         </div>
       </Modal>
 

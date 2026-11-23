@@ -69,7 +69,7 @@ router.get('/movimientos', (req, res) => {
 
 router.post('/', allow('almacen'), (req, res) => {
   const db = load();
-  const { nombre, categoria, categoria_id, marca, marca_id, precio, costo, emoji, color, unidad, unidades_por_caja, unidades_por_paquete, presentacion, vender_por, stock_minimo, stock_inicial, sku, categorias_clientes, peso_kg } = req.body || {};
+  const { nombre, categoria, categoria_id, marca, marca_id, precio, costo, emoji, color, unidad, unidades_por_caja, unidades_por_paquete, presentacion, vender_por, stock_minimo, stock_inicial, sku, categorias_clientes, peso_kg, imagen_url } = req.body || {};
   const categoriaCatalogo = categoria_id ? (db.producto_categorias || []).find((c) => c.id === Number(categoria_id)) : null;
   const marcaCatalogo = marca_id ? (db.producto_marcas || []).find((m) => m.id === Number(marca_id)) : null;
   const categoriaFinal = categoriaCatalogo?.nombre || categoria;
@@ -84,6 +84,7 @@ router.post('/', allow('almacen'), (req, res) => {
     categoria_id: categoriaCatalogo?.id || null,
     marca: marcaCatalogo?.nombre || marca || null,
     marca_id: marcaCatalogo?.id || null,
+    imagen_url: imagen_url || null,
     precio: round2(num(precio)),
     costo: round2(num(costo)),
     emoji: emoji || '📦',
@@ -190,7 +191,7 @@ router.put('/:id', allow('almacen'), (req, res) => {
   const db = load();
   const producto = db.productos.find((p) => p.id === Number(req.params.id));
   if (!producto) return res.status(404).json({ error: 'Producto no encontrado.' });
-  const { nombre, categoria, categoria_id, marca, marca_id, precio, costo, emoji, color, unidad, unidades_por_caja, unidades_por_paquete, presentacion, vender_por, stock_minimo, activo, categorias_clientes, peso_kg } = req.body || {};
+  const { nombre, categoria, categoria_id, marca, marca_id, precio, costo, emoji, color, unidad, unidades_por_caja, unidades_por_paquete, presentacion, vender_por, stock_minimo, activo, categorias_clientes, peso_kg, imagen_url } = req.body || {};
   if (nombre) producto.nombre = String(nombre).toUpperCase().trim();
   if (categoria_id) {
     const cat = (db.producto_categorias || []).find((c) => c.id === Number(categoria_id));
@@ -200,6 +201,7 @@ router.put('/:id', allow('almacen'), (req, res) => {
     const mar = (db.producto_marcas || []).find((m) => m.id === Number(marca_id));
     if (mar) { producto.marca = mar.nombre; producto.marca_id = mar.id; }
   } else if (marca !== undefined) producto.marca = marca;
+  if (imagen_url !== undefined) producto.imagen_url = imagen_url || null;
   if (precio !== undefined) producto.precio = round2(num(precio));
   if (costo !== undefined) producto.costo = round2(num(costo));
   if (emoji) producto.emoji = emoji;

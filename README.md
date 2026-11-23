@@ -336,6 +336,15 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Los permisos se guardan en cada usuario y se entregan en `/api/auth/me`, por lo que aparecen o desaparecen al cerrar sesión y volver a ingresar. Administración y dueño tienen siempre todas las funciones.
 - Acciones sensibles protegidas: editar/cancelar pedidos requiere `pedidos_editar`; crear/editar clientes requiere `clientes_crear`/`clientes_editar`; eliminar rutas requiere `rutas_eliminar`.
 
+### Imágenes de productos
+
+- Las fotos **no se guardan en base64 dentro del JSON** (500 imágenes generarían ~66 MB y harían lenta cada sincronización).
+- Se suben al bucket público `productos` de **Supabase Storage** y en el producto solo se guarda `imagen_url`.
+- El navegador optimiza cada imagen a **WebP 800 px / calidad 0.8 (30–60 KB, máx. 200 KB)** antes de subirla.
+- Carga individual desde el formulario de producto y **carga masiva** desde `Inventario → Cargar imágenes` (archivos nombrados por SKU, ej. `DAD-001.webp`, en lotes de 40).
+- El POS muestra las imágenes con **carga diferida** (`loading="lazy"`), con emoji de respaldo si no hay foto.
+- Límite: 200 KB por imagen; 500 imágenes a 50 KB ≈ 25 MB (dentro del plan gratuito de Supabase).
+
 ### Punto de venta y QR de pago
 
 - **Venta desde mostrador u oficina:** catálogo visual por imagen del producto, botón **Escanear producto** (código de barras, SKU o nombre) con la cámara del teléfono y registro rápido al carrito.

@@ -335,7 +335,9 @@ export default function VentaNueva() {
                   const disponible = stockEn(p);
                   return (
                     <button key={p.id} className="pos-product" disabled={disponible <= 0} onClick={() => agregar(p)}>
-                      <span className="pp-emoji">{p.emoji}</span>
+                      {p.imagen_url
+                        ? <img className="pp-img" src={p.imagen_url} alt={p.nombre} loading="lazy" />
+                        : <span className="pp-emoji">{p.emoji}</span>}
                       <span className="pp-name">{p.nombre}</span>
                       <span className="pp-meta">
                         <span className="pp-price"><Money value={precioEfectivo(p) * unidadesPorPresentacion(p)} /> <small className="muted">/ {presentacionVenta}</small></span>
