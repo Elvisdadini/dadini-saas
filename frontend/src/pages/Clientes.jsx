@@ -75,6 +75,13 @@ export default function Clientes() {
   const diaHoy = (() => { const d = new Date().getDay() || 7; return d > 5 ? 1 : d; })();
   const diaEfectivo = Number(form.dia_visita) || diaHoy;
   const vendedorFormId = Number(form.vendedor_id) || user?.id;
+  const tiposDeRuta = useMemo(() => {
+    const codigo = form.ruta_venta || editando?.ruta_venta;
+    const ruta = (data?.rutasVenta || []).find((r) => r.codigo === codigo);
+    const ids = ruta?.tipos_cliente_ids || [];
+    return ids.length ? (data?.tiposCliente || []).filter((t) => ids.map(Number).includes(t.id)) : [];
+  }, [data, form.ruta_venta, editando]);
+
   const zonasDelDia = useMemo(() => {
     const ids = new Set();
     const nombres = new Set();
@@ -388,11 +395,13 @@ export default function Clientes() {
                 setForm({ ...form, tipo_cliente_id: e.target.value, tipo: (t?.nombre || 'minorista').toLowerCase() });
               }}>
                 <option value="">Seleccionar…</option>
-                {(data?.tiposClienteOrdenados || data?.tiposCliente || []).map((t) => (
+                {(tiposDeRuta.length ? tiposDeRuta : (data?.tiposClienteOrdenados || data?.tiposCliente || [])).map((t) => (
                   <option key={t.id} value={t.id}>{t.nivel ? '↳ ' : ''}{t.nombre}</option>
                 ))}
               </select>
-              <span className="hint">Incluye los subtipos creados para cada negocio.</span>
+              <span className="hint">{tiposDeRuta.length
+                ? `Tipos definidos para la ruta ${form.ruta_venta}.`
+                : 'Incluye los subtipos creados para cada negocio.'}</span>
             </div>
           </div>
           <div className="field-row">
