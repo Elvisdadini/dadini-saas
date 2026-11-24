@@ -81,6 +81,7 @@ app.use('/api/cobranzas', require('./routes/cobranzas'));
 app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/rutas-venta', require('./routes/rutas-venta'));
 app.use('/api/permisos', require('./routes/permisos'));
+app.use('/api/ia', require('./routes/ia'));
 app.use('/api/reportes', require('./routes/reportes'));
 app.use('/api/configuracion', require('./routes/configuracion'));
 const { repartidoresRouter, vehiculosRouter } = require('./routes/logistica');

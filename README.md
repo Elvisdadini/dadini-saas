@@ -244,6 +244,15 @@ Endpoints: `POST /api/whatsapp`, `GET /api/whatsapp`, `PATCH /api/whatsapp/:id/e
 - Acciones de **eliminar** disponibles: categorías de cliente (con validación de clientes/vendedores/promociones/subcategorías), tipos de cliente (clientes/subtipos), zonas (clientes/rutas/vendedores), productos (`DELETE /productos/:id?permanente=true`, bloqueado si hay ventas), además de las ya existentes para categorías/marcas de producto y rutas. Todas usan el diálogo `Confirm` y auditoría.
 - En Roles y permisos y en el alta de usuarios, el check **"Mostrar solo funciones activas"** oculta las funciones no asignadas; el menú respeta la misma compatibilidad módulo ↔ subfunción que el backend.
 
+### Asistente AI (OpenAI)
+
+Botón **Asistente AI** en la barra superior. Panel con chat, sugerencias y **alertas proactivas** (cobranzas vencidas, stock bajo, visitas pendientes del día y caída de ventas).
+
+- **Configuración:** añadir `OPENAI_API_KEY` en Render (y opcionalmente `AI_MODEL`, por defecto `gpt-4o-mini`, y `AI_BASE_URL`). La llave **nunca** se envía al frontend. Sin llave, las alertas siguen funcionando y el chat muestra un aviso.
+- **Herramientas de lectura:** resumen de ventas, cobranzas vencidas, stock bajo, clientes por zona/día y productos más vendidos.
+- **Herramientas de escritura:** crear cliente, actualizar precio y registrar visita. El agente **propone** la acción y el usuario debe pulsar **Confirmar y ejecutar**. Cada ejecución respeta los permisos del usuario y queda en auditoría.
+- Límite de 40 consultas por minuto por usuario. Costo estimado con `gpt-4o-mini`: muy bajo para uso normal.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.

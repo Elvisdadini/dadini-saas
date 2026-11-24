@@ -9,6 +9,7 @@ import { api } from '../api';
 import { useAuth, puede, ROL_LABEL } from '../auth';
 import { Avatar, Modal, useToast } from '../ui';
 import BrandStyle from './BrandStyle';
+import AsistenteIA from './AsistenteIA';
 
 const NAV = [
   { group: 'Principal', items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard, key: 'dashboard', end: true }] },
@@ -260,6 +261,7 @@ export default function Shell({ children }) {
           </div>
           <GlobalSearch puede={puede} user={user} navigate={navigate} />
           <div className="topbar-actions">
+            <AsistenteIA pagina={page[0]} />
             {puede(user, 'administracion') && (
               <button className="btn btn-outline btn-sm" onClick={sincronizarGlobal} title="Guardar y sincronizar todos los cambios">
                 <RefreshCw size={14} /> Sincronizar
