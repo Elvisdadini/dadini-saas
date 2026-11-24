@@ -1,6 +1,6 @@
 {
   "version": 19,
-  "generado_en": "2026-11-23T22:46:37.129Z",
+  "generado_en": "2026-11-24T00:31:33.038Z",
   "usuarios": [
     {
       "id": 1,
@@ -10,7 +10,7 @@
       "cargo": "Gerente general",
       "telefono": "67451234",
       "activo": true,
-      "password": "$2a$10$WxNHSOybHvwS3yWoH7ZZKuzzfO/LGRnvGrUiyROoTrWKfnxIfkXq.",
+      "password": "$2a$10$U6dAPY7gWb/dckZwGTYv5eskGHhNK8VjoGxjGaXV1AxW0sh51y5Ae",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -19,6 +19,7 @@
       "antiguedad_anios": 2,
       "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
+      "whatsapp": "67451234",
       "permisos": [
         "dashboard",
         "ventas",
@@ -194,7 +195,7 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$WxNHSOybHvwS3yWoH7ZZKuzzfO/LGRnvGrUiyROoTrWKfnxIfkXq.",
+      "password": "$2a$10$U6dAPY7gWb/dckZwGTYv5eskGHhNK8VjoGxjGaXV1AxW0sh51y5Ae",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -203,6 +204,7 @@
       "antiguedad_anios": 3,
       "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
+      "whatsapp": "71234567",
       "permisos": [
         "dashboard",
         "ventas",
@@ -244,7 +246,7 @@
       "cargo": "Jefe de almacén",
       "telefono": "72345678",
       "activo": true,
-      "password": "$2a$10$WxNHSOybHvwS3yWoH7ZZKuzzfO/LGRnvGrUiyROoTrWKfnxIfkXq.",
+      "password": "$2a$10$U6dAPY7gWb/dckZwGTYv5eskGHhNK8VjoGxjGaXV1AxW0sh51y5Ae",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -253,6 +255,7 @@
       "antiguedad_anios": 4,
       "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
+      "whatsapp": "72345678",
       "permisos": [
         "dashboard",
         "inventario",
@@ -309,7 +312,7 @@
       "repartidor_id": 1,
       "vehiculo_id": 2,
       "activo": true,
-      "password": "$2a$10$WxNHSOybHvwS3yWoH7ZZKuzzfO/LGRnvGrUiyROoTrWKfnxIfkXq.",
+      "password": "$2a$10$U6dAPY7gWb/dckZwGTYv5eskGHhNK8VjoGxjGaXV1AxW0sh51y5Ae",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 1,
@@ -318,6 +321,7 @@
       "antiguedad_anios": 1,
       "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
+      "whatsapp": "73456789",
       "permisos": [
         "dashboard",
         "ventas",
@@ -348,7 +352,7 @@
       "cargo": "Analista de cobranzas",
       "telefono": "74567890",
       "activo": true,
-      "password": "$2a$10$WxNHSOybHvwS3yWoH7ZZKuzzfO/LGRnvGrUiyROoTrWKfnxIfkXq.",
+      "password": "$2a$10$U6dAPY7gWb/dckZwGTYv5eskGHhNK8VjoGxjGaXV1AxW0sh51y5Ae",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -357,6 +361,7 @@
       "antiguedad_anios": 2,
       "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
+      "whatsapp": "74567890",
       "permisos": [
         "dashboard",
         "ventas",
@@ -399,7 +404,7 @@
         5
       ],
       "activo": true,
-      "password": "$2a$10$WxNHSOybHvwS3yWoH7ZZKuzzfO/LGRnvGrUiyROoTrWKfnxIfkXq.",
+      "password": "$2a$10$U6dAPY7gWb/dckZwGTYv5eskGHhNK8VjoGxjGaXV1AxW0sh51y5Ae",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -408,6 +413,7 @@
       "antiguedad_anios": 3,
       "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
+      "whatsapp": "75678901",
       "permisos": [
         "dashboard",
         "ventas",
@@ -449,7 +455,7 @@
       "cargo": "Dueño del sistema",
       "telefono": "70000001",
       "activo": true,
-      "password": "$2a$10$WxNHSOybHvwS3yWoH7ZZKuzzfO/LGRnvGrUiyROoTrWKfnxIfkXq.",
+      "password": "$2a$10$U6dAPY7gWb/dckZwGTYv5eskGHhNK8VjoGxjGaXV1AxW0sh51y5Ae",
       "salario_base": 0,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -458,6 +464,7 @@
       "antiguedad_anios": 4,
       "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
+      "whatsapp": "70000001",
       "permisos": [
         "dashboard",
         "ventas",
@@ -624,7 +631,7 @@
       "es_venta_directa": true,
       "almacen_movil_id": 1,
       "activo": true,
-      "password": "$2a$10$WxNHSOybHvwS3yWoH7ZZKuzzfO/LGRnvGrUiyROoTrWKfnxIfkXq.",
+      "password": "$2a$10$U6dAPY7gWb/dckZwGTYv5eskGHhNK8VjoGxjGaXV1AxW0sh51y5Ae",
       "salario_base": 2500,
       "comision_venta_pct": 2,
       "comision_distribucion_pct": 0,
@@ -633,6 +640,7 @@
       "antiguedad_anios": 1,
       "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
+      "whatsapp": "70000002",
       "permisos": [
         "dashboard",
         "ventas",
@@ -663,7 +671,7 @@
       "cargo": "Supervisora de ventas",
       "telefono": "70000003",
       "activo": true,
-      "password": "$2a$10$WxNHSOybHvwS3yWoH7ZZKuzzfO/LGRnvGrUiyROoTrWKfnxIfkXq.",
+      "password": "$2a$10$U6dAPY7gWb/dckZwGTYv5eskGHhNK8VjoGxjGaXV1AxW0sh51y5Ae",
       "salario_base": 2500,
       "comision_venta_pct": 0,
       "comision_distribucion_pct": 0,
@@ -672,6 +680,7 @@
       "antiguedad_anios": 2,
       "created_at": "2026-07-26T13:00:00.000Z",
       "ultimo_acceso": null,
+      "whatsapp": "70000003",
       "permisos": [
         "dashboard",
         "ventas",
@@ -1614,7 +1623,8 @@
       "descuento_fijo": 0,
       "precios": [],
       "activa": true,
-      "created_at": "2026-07-26T12:00:00.000Z"
+      "created_at": "2026-07-26T12:00:00.000Z",
+      "padre_id": null
     },
     {
       "id": 2,
@@ -1625,7 +1635,8 @@
       "descuento_fijo": 0,
       "precios": [],
       "activa": true,
-      "created_at": "2026-07-26T12:00:00.000Z"
+      "created_at": "2026-07-26T12:00:00.000Z",
+      "padre_id": null
     },
     {
       "id": 3,
@@ -1636,7 +1647,8 @@
       "descuento_fijo": 0,
       "precios": [],
       "activa": true,
-      "created_at": "2026-07-26T12:00:00.000Z"
+      "created_at": "2026-07-26T12:00:00.000Z",
+      "padre_id": null
     }
   ],
   "producto_categorias": [
@@ -1646,7 +1658,8 @@
       "nombre": "Galletas",
       "descripcion": "Categoría de producto Galletas",
       "activa": true,
-      "created_at": "2026-11-23T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z",
+      "padre_id": null
     },
     {
       "id": 2,
@@ -1654,7 +1667,8 @@
       "nombre": "Ponquesitos",
       "descripcion": "Categoría de producto Ponquesitos",
       "activa": true,
-      "created_at": "2026-11-23T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z",
+      "padre_id": null
     },
     {
       "id": 3,
@@ -1662,7 +1676,8 @@
       "nombre": "Snacks",
       "descripcion": "Categoría de producto Snacks",
       "activa": true,
-      "created_at": "2026-11-23T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z",
+      "padre_id": null
     },
     {
       "id": 4,
@@ -1670,7 +1685,8 @@
       "nombre": "Surtidos",
       "descripcion": "Categoría de producto Surtidos",
       "activa": true,
-      "created_at": "2026-11-23T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z",
+      "padre_id": null
     }
   ],
   "producto_marcas": [
@@ -1680,7 +1696,8 @@
       "nombre": "DADINI",
       "descripcion": "Marca DADINI",
       "activa": true,
-      "created_at": "2026-11-23T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z",
+      "padre_id": null
     },
     {
       "id": 2,
@@ -1688,7 +1705,8 @@
       "nombre": "Kekito",
       "descripcion": "Marca Kekito",
       "activa": true,
-      "created_at": "2026-11-23T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z",
+      "padre_id": null
     },
     {
       "id": 3,
@@ -1696,7 +1714,8 @@
       "nombre": "Animalocos",
       "descripcion": "Marca Animalocos",
       "activa": true,
-      "created_at": "2026-11-23T12:00:00.000Z"
+      "created_at": "2026-11-23T12:00:00.000Z",
+      "padre_id": null
     }
   ],
   "conteos_inventario": [],

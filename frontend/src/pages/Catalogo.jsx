@@ -3,6 +3,7 @@ import { Download, FileText, Printer, Share2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { api } from '../api';
 import { Badge, EmptyState, Fecha, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
+import SelectorEmpleadosWhatsapp from '../components/SelectorEmpleadosWhatsapp';
 
 const LIMITE_IMG = 16; // 4 x 4 por hoja carta
 const LIMITE_TEXTO = 35; // 5 x 7 por hoja
@@ -36,6 +37,8 @@ export default function Catalogo() {
   const [opciones, setOpciones] = useState({ con_precios: true, con_nombres: true, con_detalles: true, con_imagenes: true, categoria: 'todas' });
   const [resultado, setResultado] = useState(null);
   const [vistaOpen, setVistaOpen] = useState(false);
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [selectorUrl, setSelectorUrl] = useState('');
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -180,7 +183,7 @@ export default function Catalogo() {
                 <div className="notice notice-info"><Badge tone="green">Listo</Badge> {Math.round(resultado.bytes / 1024)} KB · {paginas} hoja(s)</div>
                 <div className="inline">
                   <button className="btn btn-outline" onClick={() => setVistaOpen(true)}><FileText size={14} /> Visualizar catálogo</button>
-                  <button className="btn btn-green" onClick={() => compartir(resultado.url)}><Share2 size={14} /> Compartir por WhatsApp</button>
+                  <button className="btn btn-green" onClick={() => { setSelectorUrl(resultado.url); setSelectorOpen(true); }}><Share2 size={14} /> Enviar por WhatsApp</button>
                   <a className="btn btn-soft" href={resultado.url} download target="_blank" rel="noreferrer"><Download size={14} /> Descargar</a>
                 </div>
               </div>
@@ -195,11 +198,21 @@ export default function Catalogo() {
           <div className="table-wrap">
             <table className="data-table">
               <thead><tr><th>Archivo</th><th className="num">Tamaño</th><th>Fecha</th><th /></tr></thead>
-              <tbody>{historial.map((h) => <tr key={h.nombre}><td className="cell-strong">{h.nombre}</td><td className="num">{Math.round(h.bytes / 1024)} KB</td><td><Fecha value={h.creado} /></td><td className="actions"><button className="btn btn-soft btn-sm" onClick={() => setVistaOpen(h.url)}>Ver</button><button className="btn btn-green btn-sm" onClick={() => compartir(h.url)}>Compartir</button></td></tr>)}</tbody>
+              <tbody>{historial.map((h) => <tr key={h.nombre}><td className="cell-strong">{h.nombre}</td><td className="num">{Math.round(h.bytes / 1024)} KB</td><td><Fecha value={h.creado} /></td><td className="actions"><button className="btn btn-soft btn-sm" onClick={() => setVistaOpen(h.url)}>Ver</button><button className="btn btn-green btn-sm" onClick={() => { setSelectorUrl(h.url); setSelectorOpen(true); }}>Compartir</button></td></tr>)}</tbody>
             </table>
           </div>
         )}
       </div>
+
+      <SelectorEmpleadosWhatsapp
+        open={selectorOpen}
+        onClose={() => setSelectorOpen(false)}
+        titulo="Enviar catálogo por WhatsApp"
+        tipo="otro"
+        tituloDocumento="Catálogo de productos DADINI"
+        urlAdjunto={selectorUrl}
+        mensaje="Hola, aquí tienes el catálogo de productos DADINI actualizado."
+      />
 
       <Modal open={Boolean(vistaOpen)} onClose={() => setVistaOpen(false)} title="Vista del catálogo" size="xl">
         {vistaOpen && typeof vistaOpen === 'string'

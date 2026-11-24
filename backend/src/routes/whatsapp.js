@@ -95,4 +95,45 @@ router.patch('/:id/estado', (req, res) => {
   return res.json({ mensaje: registro });
 });
 
+// Envío a varios empleados: se generan los links wa.me y se deja trazabilidad.
+router.post('/masivo', allow('ventas', 'preventista', 'distribucion', 'cobranzas'), (req, res) => {
+  const db = load();
+  const body = req.body || {};
+  const ids = Array.isArray(body.usuario_ids) ? body.usuario_ids.map(Number) : [];
+  const tipo = ['pedido', 'entrega', 'cobranza', 'otro'].includes(body.tipo) ? body.tipo : 'otro';
+  if (!ids.length) return res.status(400).json({ error: 'Selecciona al menos un empleado.' });
+  const ahora = new Date().toISOString();
+  const envios = [];
+  const omitidos = [];
+  ids.forEach((id) => {
+    const usuario = db.usuarios.find((u) => u.id === id);
+    const telefono = soloDigitos((usuario?.whatsapp || usuario?.telefono || ''));
+    if (!usuario || !telefono) { omitidos.push(usuario?.nombre || `ID ${id}`); return; }
+    const mensaje = String(body.mensaje || '').trim()
+      || `Hola ${usuario.nombre}, tienes un nuevo documento de DADINI.${body.url_adjunto ? ` ${body.url_adjunto}` : ''}`;
+    const registro = {
+      id: nextId(db.mensajes_whatsapp),
+      tipo,
+      cliente_id: null,
+      pedido_id: body.pedido_id ? Number(body.pedido_id) : null,
+      telefono,
+      mensaje,
+      referencia: body.titulo || null,
+      monto: 0,
+      estado: 'generado',
+      latitud: null,
+      longitud: null,
+      usuario_id: req.user.id,
+      fecha: ahora,
+      created_at: ahora,
+      destinatario_usuario_id: usuario.id,
+    };
+    db.mensajes_whatsapp.unshift(registro);
+    envios.push({ nombre: usuario.nombre, telefono, url: `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, id: registro.id });
+  });
+  audit(db, req, 'WhatsApp masivo generado', 'Comunicaciones', `${envios.length} empleados · ${body.titulo || tipo}`);
+  save();
+  return res.status(201).json({ envios, omitidos });
+});
+
 module.exports = router;

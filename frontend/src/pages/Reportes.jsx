@@ -5,6 +5,7 @@ import { api, downloadCSV, qs } from '../api';
 import { useAuth } from '../auth';
 import { AreaChart, Bars, Donut } from '../charts';
 import { Badge, EmptyState, Fecha, Money, Num, PageHeader, SkeletonRows, StatCard, Tabs, useToast } from '../ui';
+import SelectorEmpleadosWhatsapp from '../components/SelectorEmpleadosWhatsapp';
 
 function iso(date) { return date.toISOString().slice(0, 10); }
 
@@ -17,6 +18,7 @@ export default function Reportes() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('productos');
   const [campo, setCampo] = useState(null);
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const [dist, setDist] = useState(null);
   const [fDist, setFDist] = useState({ desde: iso(new Date(Date.now() - 29 * 86400000)), hasta: iso(new Date()), distribuidor_id: '', ruta_venta: 'todas', almacen_id: '' });
   const [fCampo, setFCampo] = useState({
@@ -118,6 +120,7 @@ export default function Reportes() {
               <button className="btn btn-outline btn-sm" onClick={() => preset(90)}>90 días</button>
             </div>
             <button className="btn btn-primary" onClick={() => exportar('ventas')}><Download size={14} /> Exportar</button>
+            <button className="btn btn-green" onClick={() => setSelectorOpen(true)}><Wallet size={14} /> Enviar reporte por WhatsApp</button>
           </>
         )}
       />
@@ -446,6 +449,15 @@ export default function Reportes() {
           )}
         </div>
       </div>
+
+      <SelectorEmpleadosWhatsapp
+        open={selectorOpen}
+        onClose={() => setSelectorOpen(false)}
+        titulo="Enviar reporte por WhatsApp"
+        tipo="otro"
+        tituloDocumento={`Reporte DADINI ${desde} al ${hasta}`}
+        mensaje={`Reporte DADINI del ${desde} al ${hasta}\nVentas: Bs ${Number(r.total || 0).toFixed(2)} · Pedidos: ${r.pedidos || 0}\nUnidades: ${Number(r.unidades || 0).toLocaleString('es-BO')} · Utilidad: Bs ${Number(r.margen || 0).toFixed(2)}`}
+      />
     </>
   );
 }

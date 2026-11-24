@@ -411,7 +411,8 @@ router.post('/', allow('ventas', 'preventista', 'distribucion'), (req, res) => {
 
   const vendedor = db.usuarios.find((u) => u.id === vendedorId);
   const repartidorId = Number(body.repartidor_id) || vendedor?.repartidor_id || null;
-  const vehiculoId = Number(body.vehiculo_id) || vendedor?.vehiculo_id || null;
+  const distribuidor = db.usuarios.find((u) => u.rol === 'distribucion' && u.repartidor_id === Number(repartidorId));
+  const vehiculoId = Number(body.vehiculo_id) || distribuidor?.vehiculo_id || vendedor?.vehiculo_id || null;
   if (!repartidorId || !vehiculoId) return res.status(400).json({ error: 'El vendedor no tiene repartidor/vehículo asignado. Selecciónalos manualmente.' });
 
   const lineas = generarLineas(db, pedidos);

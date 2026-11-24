@@ -192,6 +192,14 @@ function asegurarEstructura(db) {
     });
     cambio = true;
   }
+  ['cliente_categorias', 'producto_categorias', 'producto_marcas'].forEach((clave) => {
+    (db[clave] || []).forEach((item) => {
+      if (item.padre_id === undefined) { item.padre_id = null; cambio = true; }
+    });
+  });
+  (db.usuarios || []).forEach((u) => {
+    if (u.whatsapp === undefined) { u.whatsapp = u.telefono || null; cambio = true; }
+  });
   (db.productos || []).forEach((p) => {
     if (!p.categoria_id && p.categoria) {
       const cat = db.producto_categorias.find((c) => String(c.nombre).toLowerCase() === String(p.categoria).toLowerCase());

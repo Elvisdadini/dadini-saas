@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { CircleDollarSign, Pencil, Plus, Printer, RefreshCcw, Settings2, Users } from 'lucide-react';
 import { api } from '../api';
 import BotonWhatsapp from '../components/BotonWhatsapp';
+import SelectorEmpleadosWhatsapp from '../components/SelectorEmpleadosWhatsapp';
 import { Badge, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
 const mesActual = () => new Date().toISOString().slice(0, 7);
@@ -12,6 +13,7 @@ export default function Nomina() {
   const [periodo, setPeriodo] = useState(mesActual());
   const [loading, setLoading] = useState(true);
   const [boleta, setBoleta] = useState(null);
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [empleados, setEmpleados] = useState([]);
   const [conceptos, setConceptos] = useState([]);
@@ -110,6 +112,7 @@ export default function Nomina() {
           <input type="month" className="input input-sm" value={periodo} onChange={(e) => setPeriodo(e.target.value)} />
           <button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>
           <button className="btn btn-primary" onClick={generar} disabled={busy}><Users size={14} /> Generar planilla</button>
+          <button className="btn btn-green" onClick={() => setSelectorOpen(true)}><Printer size={14} /> Enviar boletas por WhatsApp</button>
         </>} />
       <div className="stat-grid mb-16" style={{ gridTemplateColumns: 'repeat(3, minmax(0,1fr))' }}>
         <StatCard label="Total planilla" value={`Bs ${(r.total || 0).toFixed(2)}`} icon={CircleDollarSign} tone="blue" hint={periodo} />
@@ -232,6 +235,15 @@ export default function Nomina() {
           </div>
         )}
       </Modal>
+
+      <SelectorEmpleadosWhatsapp
+        open={selectorOpen}
+        onClose={() => setSelectorOpen(false)}
+        titulo="Enviar boletas de pago por WhatsApp"
+        tipo="otro"
+        tituloDocumento={`Boletas de pago ${periodo}`}
+        mensaje={`Hola, aquí está tu boleta de pago de ${periodo}.`}
+      />
     </>
   );
 }

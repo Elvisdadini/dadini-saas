@@ -13,6 +13,7 @@ function listar(db, clave, prefijo) {
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
     .map((item) => ({
       ...item,
+      padre_nombre: (db[clave] || []).find((x) => x.id === item.padre_id)?.nombre || '',
       productos: (db.productos || []).filter((p) => p[clave === 'producto_categorias' ? 'categoria_id' : 'marca_id'] === item.id).length,
     }));
 }
@@ -23,12 +24,15 @@ function crear(db, req, res, clave, prefijo) {
   if ((db[clave] || []).some((x) => String(x.nombre).toLowerCase() === nombre.toLowerCase())) {
     return res.status(400).json({ error: 'Ya existe un registro con ese nombre.' });
   }
+  const padreId = req.body?.padre_id ? Number(req.body.padre_id) : null;
+  if (padreId && !(db[clave] || []).some((x) => x.id === padreId)) return res.status(400).json({ error: 'La categoría/marca padre no existe.' });
   const id = nextId(db[clave]);
   const item = {
     id,
     codigo: `${prefijo}${String(id).padStart(4, '0')}`,
     nombre,
     descripcion: String(req.body?.descripcion || ''),
+    padre_id: padreId,
     activa: req.body?.activa !== false,
     created_at: new Date().toISOString(),
   };
@@ -43,6 +47,12 @@ function actualizar(db, req, res, clave) {
   if (!item) return res.status(404).json({ error: 'Registro no encontrado.' });
   if (req.body?.nombre !== undefined) item.nombre = String(req.body.nombre).trim() || item.nombre;
   if (req.body?.descripcion !== undefined) item.descripcion = req.body.descripcion;
+  if (req.body?.padre_id !== undefined) {
+    const padreId = req.body.padre_id ? Number(req.body.padre_id) : null;
+    if (padreId === item.id) return res.status(400).json({ error: 'No puede ser su propia subcategoría.' });
+    if (padreId && !(db[clave] || []).some((x) => x.id === padreId)) return res.status(400).json({ error: 'La categoría/marca padre no existe.' });
+    item.padre_id = padreId;
+  }
   if (req.body?.activa !== undefined) item.activa = Boolean(req.body.activa);
   audit(db, req, 'Catálogo de productos actualizado', 'Inventario', item.nombre);
   save();

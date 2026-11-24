@@ -4,7 +4,7 @@ import { ArrowLeft, BadgePercent, Pencil, Plus, RefreshCcw, Tag, Users } from 'l
 import { api } from '../api';
 import { Badge, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
-const VACIA = { nombre: '', descripcion: '', descuento_porcentaje: 0, descuento_fijo: 0, precios: [], activa: true };
+const VACIA = { nombre: '', descripcion: '', padre_id: '', descuento_porcentaje: 0, descuento_fijo: 0, precios: [], activa: true };
 
 export default function CategoriasClientes() {
   const toast = useToast();
@@ -80,7 +80,7 @@ export default function CategoriasClientes() {
                 {data.categorias.map((c) => (
                   <tr key={c.id}>
                     <td className="cell-strong">{c.codigo}</td>
-                    <td>{c.nombre}<span className="cell-sub">{c.descripcion}</span></td>
+                    <td>{c.padre_id ? `↳ ${c.nombre}` : <strong>{c.nombre}</strong>}<span className="cell-sub">{c.padre_nombre ? `Subcategoría de ${c.padre_nombre} · ` : ''}{c.descripcion}</span></td>
                     <td className="num"><Badge tone="orange">{c.descuento_porcentaje}% {c.descuento_fijo ? `+ Bs ${c.descuento_fijo}` : ''}</Badge></td>
                     <td className="num">{c.clientes}</td>
                     <td>{c.precios?.length || 0} productos</td>
@@ -99,6 +99,7 @@ export default function CategoriasClientes() {
         <div className="form-stack">
           <div className="field"><label>Nombre</label><input className="input" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} /></div>
           <div className="field"><label>Descripción</label><input className="input" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} /></div>
+          <div className="field"><label>Categoría padre (subcategoría)</label><select className="select" value={form.padre_id || ''} onChange={(e) => setForm({ ...form, padre_id: e.target.value })}><option value="">Es una categoría principal</option>{(data?.categorias || []).filter((c) => c.id !== editando?.id && !c.padre_id).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select><span className="hint">Ej. Tienda de barrio → Tienda A, Tienda B, Supermercado, Minimercado.</span></div>
           <div className="field-row">
             <div className="field"><label>Descuento porcentual (%)</label><input type="number" className="input" value={form.descuento_porcentaje} onChange={(e) => setForm({ ...form, descuento_porcentaje: e.target.value })} /></div>
             <div className="field"><label>Descuento fijo (Bs)</label><input type="number" className="input" value={form.descuento_fijo} onChange={(e) => setForm({ ...form, descuento_fijo: e.target.value })} /></div>

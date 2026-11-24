@@ -2,6 +2,7 @@ const express = require('express');
 const { load, save } = require('../db');
 const { authRequired, allow, hash } = require('../auth');
 const { nextId, audit, matches, num } = require('../utils');
+const { vehiculoDeRepartidor, vehiculoLibre } = require('../asignacion-vehiculo');
 const { MODULOS, ACCIONES, PLANTILLAS, permisosPorRol, permisosPorPlantilla, normalizarPermisos } = require('../permisos');
 
 const router = express.Router();
@@ -52,7 +53,7 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const db = load();
-  const { nombre, email, usuario, rol, cargo, telefono, password, pin, repartidor_id, vehiculo_id, ruta_venta, dias_visita, zona_venta, categoria_cliente_id, es_venta_directa, almacen_movil_id, salario_base, comision_venta_pct, comision_distribucion_pct, bono_fijo, descuento_fijo, antiguedad_anios, permisos, plantilla } = req.body || {};
+  const { nombre, email, usuario, rol, cargo, telefono, whatsapp, password, pin, repartidor_id, vehiculo_id, ruta_venta, dias_visita, zona_venta, categoria_cliente_id, es_venta_directa, almacen_movil_id, salario_base, comision_venta_pct, comision_distribucion_pct, bono_fijo, descuento_fijo, antiguedad_anios, permisos, plantilla } = req.body || {};
   if (!nombre || !rol) return res.status(400).json({ error: 'Nombre y rol son obligatorios.' });
   if (!ROLES.includes(rol)) return res.status(400).json({ error: 'Rol inválido.' });
   const nombreUsuario = String(usuario || '').trim() || generarUsuario(db, nombre);
@@ -64,6 +65,11 @@ router.post('/', (req, res) => {
   if (repartidor_id && !repartidor) return res.status(400).json({ error: 'El distribuidor seleccionado no existe.' });
   const esVendedor = ['ventas', 'preventista', 'vendedor_camion'].includes(rol);
   const asignado = repartidor || (esVendedor ? distribuidorAutomatico(db) : null);
+  const vehiculoFinal = vehiculo_id
+    ? Number(vehiculo_id)
+    : rol === 'distribucion'
+      ? (vehiculoLibre(db)?.id || null)
+      : (vehiculoDeRepartidor(db, asignado?.id)?.id || null);
   const user = {
     id: nextId(db.usuarios),
     nombre,
@@ -72,8 +78,9 @@ router.post('/', (req, res) => {
     rol,
     cargo: cargo || '',
     telefono: telefono || '',
+    whatsapp: whatsapp || telefono || '',
     repartidor_id: asignado?.id || null,
-    vehiculo_id: vehiculo_id ? Number(vehiculo_id) : null,
+    vehiculo_id: vehiculoFinal,
     ruta_venta: ruta_venta || null,
     dias_visita: Array.isArray(dias_visita) ? dias_visita.map(Number) : [],
     zona_venta: zona_venta || asignado?.zona || null,
@@ -107,7 +114,7 @@ router.put('/:id', (req, res) => {
   const db = load();
   const user = db.usuarios.find((u) => u.id === Number(req.params.id));
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
-  const { nombre, email, usuario, rol, cargo, telefono, activo, pin } = req.body || {};
+  const { nombre, email, usuario, rol, cargo, telefono, whatsapp, activo, pin } = req.body || {};
   if (rol && !ROLES.includes(rol)) return res.status(400).json({ error: 'Rol inválido.' });
   if (email && db.usuarios.some((u) => u.id !== user.id && u.email.toLowerCase() === String(email).toLowerCase())) {
     return res.status(400).json({ error: 'Ese correo ya está en uso.' });
@@ -118,11 +125,17 @@ router.put('/:id', (req, res) => {
   if (pin && !/^\d{4,8}$/.test(String(pin))) return res.status(400).json({ error: 'El PIN debe tener entre 4 y 8 dígitos.' });
   if (activo === false && user.id === req.user.id) return res.status(400).json({ error: 'No puedes desactivar tu propia cuenta.' });
   if (rol && user.id === req.user.id && rol !== 'admin') return res.status(400).json({ error: 'No puedes quitarte el rol de administrador.' });
-  ['nombre', 'email', 'rol', 'cargo', 'telefono'].forEach((c) => { if (req.body?.[c] !== undefined) user[c] = req.body[c]; });
+  ['nombre', 'email', 'rol', 'cargo', 'telefono', 'whatsapp'].forEach((c) => { if (req.body?.[c] !== undefined) user[c] = req.body[c]; });
   if (usuario !== undefined) user.usuario = String(usuario).trim() || user.usuario;
   if (pin !== undefined) user.pin = pin ? hash(String(pin)) : null;
   if (req.body?.repartidor_id !== undefined) user.repartidor_id = req.body.repartidor_id ? Number(req.body.repartidor_id) : null;
   if (req.body?.vehiculo_id !== undefined) user.vehiculo_id = req.body.vehiculo_id ? Number(req.body.vehiculo_id) : null;
+  // Al asignar un distribuidor se toma su camión; si el usuario ES distribuidor
+  // y no tiene camión, se le asigna el primero disponible.
+  if (req.body?.repartidor_id !== undefined && req.body?.vehiculo_id === undefined) {
+    user.vehiculo_id = vehiculoDeRepartidor(db, user.repartidor_id)?.id || user.vehiculo_id || null;
+  }
+  if (user.rol === 'distribucion' && !user.vehiculo_id) user.vehiculo_id = vehiculoLibre(db)?.id || null;
   if (req.body?.ruta_venta !== undefined) user.ruta_venta = req.body.ruta_venta || null;
   if (req.body?.dias_visita !== undefined) user.dias_visita = Array.isArray(req.body.dias_visita) ? req.body.dias_visita.map(Number) : [];
   if (req.body?.zona_venta !== undefined) user.zona_venta = req.body.zona_venta || null;

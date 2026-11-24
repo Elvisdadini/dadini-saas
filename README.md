@@ -336,6 +336,12 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Los permisos se guardan en cada usuario y se entregan en `/api/auth/me`, por lo que aparecen o desaparecen al cerrar sesión y volver a ingresar. Administración y dueño tienen siempre todas las funciones.
 - Acciones sensibles protegidas: editar/cancelar pedidos requiere `pedidos_editar`; crear/editar clientes requiere `clientes_crear`/`clientes_editar`; eliminar rutas requiere `rutas_eliminar`.
 
+### Subcategorías, camión y WhatsApp masivo
+
+- **Clientes en categorías** y **Inventario en categorías y marcas** aceptan una **categoría/marca padre**: ej. *Tienda de barrio → Tienda A, Tienda B, Supermercado, Minimercado*. Los selectores de clientes y productos muestran la jerarquía con `↳`.
+- Al crear un **usuario distribuidor** se le asigna automáticamente un camión disponible; al asignar un repartidor a otro usuario (o al preparar una carga) se hereda el vehículo de ese distribuidor.
+- Los usuarios tienen campo **WhatsApp**. Los botones *Enviar por WhatsApp* de catálogos, APK, boletas de sueldo y reportes abren un selector con **la lista de empleados** para elegir uno o varios destinatarios; se generan los links `wa.me` y se registra cada envío en la trazabilidad.
+
 ### Permisos detallados y catálogo PDF
 
 - **Administración → Roles y permisos:** 7 grupos (Operación, Logística, Gestión, Catálogo, Inventario, Análisis y Sistema) con **Ver / Crear / Editar / Eliminar** por módulo y sub-funciones específicas (registrar pedidos, cobranzas, entregas, objetivos propios, comprobantes enviados, reportes diarios, etc.).

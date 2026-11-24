@@ -25,6 +25,8 @@ export default function Inventario() {
   const [categorias, setCategorias] = useState([]);
   const [catalogo, setCatalogo] = useState({ categorias: [], marcas: [] });
   const [catNueva, setCatNueva] = useState('');
+  const [catPadre, setCatPadre] = useState('');
+  const [marcaPadre, setMarcaPadre] = useState('');
   const [marcaNueva, setMarcaNueva] = useState('');
   const [categoriasClientes, setCategoriasClientes] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
@@ -149,7 +151,7 @@ export default function Inventario() {
     const nombre = (tipo === 'categorias' ? catNueva : marcaNueva).trim();
     if (!nombre) return toast('Escribe un nombre.', 'error');
     try {
-      await api.post(`/producto-catalogo/${tipo}`, { nombre });
+      await api.post(`/producto-catalogo/${tipo}`, { nombre, padre_id: (tipo === 'categorias' ? catPadre : marcaPadre) || null });
       toast(tipo === 'categorias' ? 'Categoría creada' : 'Marca creada');
       if (tipo === 'categorias') setCatNueva(''); else setMarcaNueva('');
       await cargar();
@@ -329,13 +331,14 @@ export default function Inventario() {
               <div className="panel-body">
                 <div className="filters">
                   <input className="input" value={catNueva} onChange={(e) => setCatNueva(e.target.value)} placeholder="Ej. Bebidas" />
+                  <select className="select" value={catPadre} onChange={(e) => setCatPadre(e.target.value)}><option value="">Categoría principal</option>{(catalogo.categorias || []).filter((c) => !c.padre_id).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select>
                   <button className="btn btn-primary btn-sm" onClick={() => crearCatalogo('categorias')}><Plus size={13} /> Agregar</button>
                 </div>
                 <table className="data-table mt-12">
                   <thead><tr><th>Código</th><th>Categoría</th><th>Productos</th><th /></tr></thead>
                   <tbody>
                     {(catalogo.categorias || []).map((c) => (
-                      <tr key={c.id}><td className="cell-strong">{c.codigo}</td><td>{c.nombre}</td><td className="num">{c.productos}</td><td className="actions"><button className="icon-btn" onClick={() => eliminarCatalogo('categorias', c)}><Trash2 size={14} /></button></td></tr>
+                      <tr key={c.id}><td className="cell-strong">{c.codigo}</td><td>{c.padre_id ? `↳ ${c.nombre}` : <strong>{c.nombre}</strong>}<span className="cell-sub">{c.padre_nombre ? `Subcategoría de ${c.padre_nombre}` : ''}</span></td><td className="num">{c.productos}</td><td className="actions"><button className="icon-btn" onClick={() => eliminarCatalogo('categorias', c)}><Trash2 size={14} /></button></td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -346,13 +349,14 @@ export default function Inventario() {
               <div className="panel-body">
                 <div className="filters">
                   <input className="input" value={marcaNueva} onChange={(e) => setMarcaNueva(e.target.value)} placeholder="Ej. DADINI" />
+                  <select className="select" value={marcaPadre} onChange={(e) => setMarcaPadre(e.target.value)}><option value="">Marca principal</option>{(catalogo.marcas || []).filter((m) => !m.padre_id).map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}</select>
                   <button className="btn btn-primary btn-sm" onClick={() => crearCatalogo('marcas')}><Plus size={13} /> Agregar</button>
                 </div>
                 <table className="data-table mt-12">
                   <thead><tr><th>Código</th><th>Marca</th><th>Productos</th><th /></tr></thead>
                   <tbody>
                     {(catalogo.marcas || []).map((m) => (
-                      <tr key={m.id}><td className="cell-strong">{m.codigo}</td><td>{m.nombre}</td><td className="num">{m.productos}</td><td className="actions"><button className="icon-btn" onClick={() => eliminarCatalogo('marcas', m)}><Trash2 size={14} /></button></td></tr>
+                      <tr key={m.id}><td className="cell-strong">{m.codigo}</td><td>{m.padre_id ? `↳ ${m.nombre}` : <strong>{m.nombre}</strong>}<span className="cell-sub">{m.padre_nombre ? `Submarca de ${m.padre_nombre}` : ''}</span></td><td className="num">{m.productos}</td><td className="actions"><button className="icon-btn" onClick={() => eliminarCatalogo('marcas', m)}><Trash2 size={14} /></button></td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -433,8 +437,8 @@ export default function Inventario() {
             </div>
           </div>
           <div className="field-row">
-            <div className="field"><label>Categoría</label><select className="select" value={form.categoria_id || ''} onChange={(e) => { const c = (catalogo.categorias || []).find((x) => x.id === Number(e.target.value)); setForm({ ...form, categoria_id: e.target.value, categoria: c?.nombre || form.categoria }); }}><option value="">Seleccionar…</option>{(catalogo.categorias || []).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></div>
-            <div className="field"><label>Marca</label><select className="select" value={form.marca_id || ''} onChange={(e) => { const m = (catalogo.marcas || []).find((x) => x.id === Number(e.target.value)); setForm({ ...form, marca_id: e.target.value, marca: m?.nombre || '' }); }}><option value="">Sin marca</option>{(catalogo.marcas || []).map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}</select></div>
+            <div className="field"><label>Categoría</label><select className="select" value={form.categoria_id || ''} onChange={(e) => { const c = (catalogo.categorias || []).find((x) => x.id === Number(e.target.value)); setForm({ ...form, categoria_id: e.target.value, categoria: c?.nombre || form.categoria }); }}><option value="">Seleccionar…</option>{(catalogo.categorias || []).map((c) => <option key={c.id} value={c.id}>{c.padre_id ? `↳ ${c.nombre}` : c.nombre}</option>)}</select></div>
+            <div className="field"><label>Marca</label><select className="select" value={form.marca_id || ''} onChange={(e) => { const m = (catalogo.marcas || []).find((x) => x.id === Number(e.target.value)); setForm({ ...form, marca_id: e.target.value, marca: m?.nombre || '' }); }}><option value="">Sin marca</option>{(catalogo.marcas || []).map((m) => <option key={m.id} value={m.id}>{m.padre_id ? `↳ ${m.nombre}` : m.nombre}</option>)}</select></div>
             <div className="field"><label>Unidad</label><select className="select" value={form.unidad} onChange={(e) => setForm({ ...form, unidad: e.target.value })}><option value="unidad">Unidad</option><option value="caja">Caja</option><option value="paquete">Paquete</option></select></div>
           </div>
           <div className="field-row">

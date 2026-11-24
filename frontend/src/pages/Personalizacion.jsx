@@ -3,6 +3,7 @@ import { Cloud, Download, ImagePlus, Palette, RefreshCcw, Save, Share2, Smartpho
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { Badge, Modal, PageHeader, StatCard, useToast } from '../ui';
+import SelectorEmpleadosWhatsapp from '../components/SelectorEmpleadosWhatsapp';
 
 const VACIA = {
   logo: '', nombre: 'DADINI', color_primario: '#061C33', color_secundario: '#FF6500',
@@ -16,6 +17,7 @@ export default function Personalizacion() {
   const [branding, setBranding] = useState(VACIA);
   const [apk, setApk] = useState(null);
   const [apkArchivo, setApkArchivo] = useState(null);
+  const [selectorApk, setSelectorApk] = useState(false);
   const [apkVersion, setApkVersion] = useState('1.0.0');
   const [apkNotas, setApkNotas] = useState('');
   const [sync, setSync] = useState(null);
@@ -157,7 +159,7 @@ export default function Personalizacion() {
             <div className="field"><label>Notas de la versión</label><textarea className="textarea" value={apkNotas} onChange={(e) => setApkNotas(e.target.value)} /></div>
             <div className="inline">
               <button className="btn btn-primary" onClick={subirApk} disabled={busy || !apkArchivo}><UploadCloud size={14} /> Subir APK</button>
-              {apk && <button className="btn btn-green" onClick={compartirApk}><Share2 size={14} /> Compartir por WhatsApp</button>}
+              {apk && <button className="btn btn-green" onClick={() => setSelectorApk(true)}><Share2 size={14} /> Enviar APK por WhatsApp</button>}
               {apk && <a className="btn btn-outline" href={apk.url} download><Download size={14} /> Descargar</a>}
               {apk && <button className="btn btn-ghost" onClick={eliminarApk}>Eliminar</button>}
             </div>
@@ -185,6 +187,16 @@ export default function Personalizacion() {
       <Modal open={sqlModal} onClose={() => setSqlModal(false)} title="Tabla de réplica en Supabase" size="lg">
         <pre className="sql-block">{sync?.sql || 'Configura SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY para habilitar la réplica.'}</pre>
       </Modal>
+
+      <SelectorEmpleadosWhatsapp
+        open={selectorApk}
+        onClose={() => setSelectorApk(false)}
+        titulo="Enviar APK por WhatsApp"
+        tipo="otro"
+        tituloDocumento="APK DADINI SaaS"
+        urlAdjunto={apk?.url}
+        mensaje={`Hola, aquí tienes la APK actualizada de DADINI SaaS v${apk?.version || ''}:`}
+      />
     </>
   );
 }

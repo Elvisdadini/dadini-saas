@@ -10,7 +10,7 @@ import {
   Avatar, Badge, EmptyState, Estado, Fecha, Modal, Money, PageHeader, SkeletonRows, Tabs, useToast,
 } from '../ui';
 
-const USUARIO_VACIO = { nombre: '', email: '', usuario: '', pin: '', rol: 'ventas', cargo: '', telefono: '', password: 'Dadini2026!', repartidor_id: '', vehiculo_id: '', ruta_venta: 'R1', zona_venta: '', categoria_cliente_id: '', es_venta_directa: false, salario_base: 2500, comision_venta_pct: 0, comision_distribucion_pct: 0, bono_fijo: 0, descuento_fijo: 0, dias_visita: [1, 2, 3, 4, 5], activo: true, plantilla: '', permisos: [] };
+const USUARIO_VACIO = { nombre: '', email: '', usuario: '', pin: '', rol: 'ventas', cargo: '', telefono: '', whatsapp: '', password: 'Dadini2026!', repartidor_id: '', vehiculo_id: '', ruta_venta: 'R1', zona_venta: '', categoria_cliente_id: '', es_venta_directa: false, salario_base: 2500, comision_venta_pct: 0, comision_distribucion_pct: 0, bono_fijo: 0, descuento_fijo: 0, dias_visita: [1, 2, 3, 4, 5], activo: true, plantilla: '', permisos: [] };
 
 export default function Administracion() {
   const { user, refresh } = useAuth();
@@ -122,7 +122,7 @@ export default function Administracion() {
   const abrirUsuario = (u = null) => {
     setEditing(u);
     const modeloVendedor = (catalogos.plantillas || []).find((p) => p.id === 'vendedor');
-    setForm(u ? { nombre: u.nombre, email: u.email, usuario: u.usuario || '', pin: '', rol: u.rol, cargo: u.cargo, telefono: u.telefono, password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo, plantilla: u.plantilla_permisos || '', permisos: u.permisos || [] } : { ...USUARIO_VACIO, rol: 'preventista', plantilla: 'vendedor', permisos: [...(modeloVendedor?.permisos || [])], repartidor_id: repartidores.find((r) => r.activo !== false)?.id || '' });
+    setForm(u ? { nombre: u.nombre, email: u.email, usuario: u.usuario || '', pin: '', rol: u.rol, cargo: u.cargo, telefono: u.telefono, whatsapp: u.whatsapp || '', password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo, plantilla: u.plantilla_permisos || '', permisos: u.permisos || [] } : { ...USUARIO_VACIO, rol: 'preventista', plantilla: 'vendedor', permisos: [...(modeloVendedor?.permisos || [])], repartidor_id: repartidores.find((r) => r.activo !== false)?.id || '' });
     setModal(true);
   };
 
@@ -405,6 +405,7 @@ export default function Administracion() {
           <div className="field-row">
             <div className="field"><label>Correo <span className="req">*</span></label><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
             <div className="field"><label>Teléfono</label><input className="input" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} /></div>
+            <div className="field"><label>WhatsApp del empleado</label><input className="input" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="5917XXXXXXX" /><span className="hint">Aquí se enviarán catálogos, APK, boletas y reportes.</span></div>
           </div>
           <div className="field-row">
             <div className="field"><label>Usuario de acceso</label><input className="input" value={form.usuario} onChange={(e) => setForm({ ...form, usuario: e.target.value })} placeholder="Ej. admin · se genera solo si se deja vacío" /><span className="hint">El usuario ingresa con este nombre, sin correo.</span></div>
