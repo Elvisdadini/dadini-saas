@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Boxes, Plus, RefreshCcw, ShoppingCart, Truck, Undo2 } from 'lucide-react';
 import { api } from '../api';
+import { optimizarImagen } from '../imagen';
 import Mapa from '../components/Mapa';
 import { Badge, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
@@ -18,7 +19,7 @@ export default function MiCamion() {
   const [modal, setModal] = useState(false);
   const [devModal, setDevModal] = useState(false);
   const [form, setForm] = useState(VACIO);
-  const [devForm, setDevForm] = useState({ lineas: [], notas: '' });
+  const [devForm, setDevForm] = useState({ lineas: [], notas: '', foto: null });
   const [busy, setBusy] = useState(false);
 
   const cargar = useCallback(async () => {
@@ -50,7 +51,7 @@ export default function MiCamion() {
   };
 
   const abrirDevolucion = () => {
-    setDevForm({ lineas: (camion?.lineas || []).filter((l) => l.cantidad > 0).map((l) => ({ producto_id: l.producto_id, nombre: l.nombre, cantidad: l.cantidad, devolver: 0 })), notas: '' });
+    setDevForm({ lineas: (camion?.lineas || []).filter((l) => l.cantidad > 0).map((l) => ({ producto_id: l.producto_id, nombre: l.nombre, cantidad: l.cantidad, devolver: 0 })), notas: '', foto: null });
     setDevModal(true);
   };
 
@@ -60,7 +61,7 @@ export default function MiCamion() {
     try {
       await api.post('/devoluciones', {
         tipo: 'venta_directa', origen_tipo: 'almacen_movil', origen_id: camion.id,
-        lineas, notas: devForm.notas || 'Devolución de venta directa',
+        lineas, notas: devForm.notas || 'Devolución de venta directa', foto: devForm.foto,
       });
       toast('Devolución registrada. Almacén debe verificarla y reingresarla.');
       setDevModal(false);
@@ -150,7 +151,19 @@ export default function MiCamion() {
               </tbody>
             </table>
           </div>
-          <div className="field"><label>Notas</label><textarea className="textarea" value={devForm.notas} onChange={(e) => setDevForm({ ...devForm, notas: e.target.value })} /></div>
+          <div className="field"><label>Notas</label><textarea className="textarea" value={devForm.notas} onChange={(e) => setDevForm({ ...devForm, notas: e.target.value })} placeholder="Ej. producto en mal estado, cambio solicitado por el vendedor…" /></div>
+          <div className="field">
+            <label>Foto de comprobante (mal estado o cambio)</label>
+            <input type="file" accept="image/*" className="input" onChange={async (e) => {
+              const archivo = e.target.files?.[0];
+              if (!archivo) return;
+              try { setDevForm({ ...devForm, foto: await optimizarImagen(archivo) }); }
+              catch (error) { toast(error.message, 'error'); }
+              e.target.value = '';
+            }} />
+            {devForm.foto && <img src={devForm.foto} alt="Comprobante" style={{ width: 90, height: 70, objectFit: 'cover', borderRadius: 7, marginTop: 8 }} />}
+            <span className="hint">Se guarda como evidencia de la devolución.</span>
+          </div>
         </div>
       </Modal>
     </>

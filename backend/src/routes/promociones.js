@@ -55,13 +55,39 @@ function normalizar(body) {
     fecha_fin: body.fecha_fin || null,
     activa: body.activa !== false,
     prioridad: num(body.prioridad, 5),
+    imagenes: Array.isArray(body.imagenes) ? body.imagenes.slice(0, 2) : [],
   };
 }
 
-router.post('/', allow('admin', 'ventas', 'almacen'), (req, res) => {
+// Las imágenes llegan como dataURL optimizadas por el frontend. Se suben a
+// Supabase y se guarda solo la URL pública en la promoción.
+async function procesarImagenes(datos, anteriores = []) {
+  const resultado = [];
+  for (const imagen of datos.imagenes) {
+    if (typeof imagen === 'string' && imagen.startsWith('data:image/')) {
+      const { subirFoto } = require('../fotos');
+      const subida = await subirFoto(imagen, 'promocion');
+      resultado.push(subida.url);
+    } else if (typeof imagen === 'string' && imagen.startsWith('http')) {
+      resultado.push(imagen);
+    }
+  }
+  datos.imagenes = resultado.slice(0, 2);
+  for (const url of anteriores) {
+    if (url && !datos.imagenes.includes(url)) {
+      const { eliminarFoto } = require('../fotos');
+      await eliminarFoto(url).catch(() => {});
+    }
+  }
+  return datos;
+}
+
+router.post('/', allow('admin', 'ventas', 'almacen'), async (req, res) => {
   const db = load();
   const datos = normalizar(req.body || {});
   if (!datos.nombre) return res.status(400).json({ error: 'El nombre de la promoción es obligatorio.' });
+  try { await procesarImagenes(datos); }
+  catch (error) { return res.status(400).json({ error: error.message }); }
   const ahora = new Date().toISOString();
   const promo = {
     id: nextId(db.promociones),
@@ -76,11 +102,14 @@ router.post('/', allow('admin', 'ventas', 'almacen'), (req, res) => {
   return res.status(201).json({ promocion: resumen(promo) });
 });
 
-router.put('/:id', allow('admin', 'ventas', 'almacen'), (req, res) => {
+router.put('/:id', allow('admin', 'ventas', 'almacen'), async (req, res) => {
   const db = load();
   const promo = db.promociones.find((p) => p.id === Number(req.params.id));
   if (!promo) return res.status(404).json({ error: 'Promoción no encontrada.' });
-  Object.assign(promo, normalizar(req.body || {}), { updated_at: new Date().toISOString() });
+  const datos = normalizar(req.body || {});
+  try { await procesarImagenes(datos, promo.imagenes || []); }
+  catch (error) { return res.status(400).json({ error: error.message }); }
+  Object.assign(promo, datos, { updated_at: new Date().toISOString() });
   audit(db, req, 'Promoción actualizada', 'Inventario', promo.nombre);
   save();
   return res.json({ promocion: resumen(promo) });
@@ -96,11 +125,13 @@ router.patch('/:id/estado', allow('admin', 'ventas', 'almacen'), (req, res) => {
   return res.json({ promocion: resumen(promo) });
 });
 
-router.delete('/:id', allow('admin', 'almacen'), (req, res) => {
+router.delete('/:id', allow('admin', 'almacen'), async (req, res) => {
   const db = load();
   const promo = db.promociones.find((p) => p.id === Number(req.params.id));
   if (!promo) return res.status(404).json({ error: 'Promoción no encontrada.' });
   db.promociones = db.promociones.filter((p) => p.id !== promo.id);
+  const { eliminarFoto } = require('../fotos');
+  for (const url of promo.imagenes || []) await eliminarFoto(url).catch(() => {});
   audit(db, req, 'Promoción eliminada', 'Inventario', promo.nombre);
   save();
   return res.json({ ok: true });

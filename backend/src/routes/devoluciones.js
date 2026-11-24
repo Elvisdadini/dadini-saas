@@ -1,5 +1,6 @@
 const express = require('express');
 const { load, save } = require('../db');
+const { subirFoto } = require('../fotos');
 const { authRequired, allow } = require('../auth');
 const { nextId, nextCode, audit, num, round2 } = require('../utils');
 
@@ -71,9 +72,9 @@ router.get('/disponible', (req, res) => {
   });
 });
 
-router.post('/', allow('distribucion', 'vendedor_camion', 'ventas', 'almacen', 'admin', 'dueno'), (req, res) => {
+router.post('/', allow('distribucion', 'vendedor_camion', 'ventas', 'almacen', 'admin', 'dueno'), async (req, res) => {
   const db = load();
-  const { tipo, origen_tipo, origen_id, ruta_id, pedido_id, cliente_id, lineas, notas } = req.body || {};
+  const { tipo, origen_tipo, origen_id, ruta_id, pedido_id, cliente_id, lineas, notas, foto } = req.body || {};
   const items = (lineas || []).map((l) => ({
     producto_id: Number(l.producto_id),
     cantidad: Math.max(0, Math.round(num(l.cantidad))),
@@ -82,6 +83,11 @@ router.post('/', allow('distribucion', 'vendedor_camion', 'ventas', 'almacen', '
     reacomodado: false,
   })).filter((l) => l.producto_id && l.cantidad > 0);
   if (!items.length) return res.status(400).json({ error: 'No hay productos para devolver.' });
+  let fotoUrl = null;
+  if (typeof foto === 'string' && foto.startsWith('data:image/')) {
+    try { fotoUrl = (await subirFoto(foto, 'devolucion')).url; }
+    catch (error) { return res.status(400).json({ error: error.message }); }
+  }
   const dev = {
     id: nextId(db.devoluciones_movil),
     codigo: nextCode(db.devoluciones_movil, 'codigo', 'DEV', 1),
@@ -93,6 +99,7 @@ router.post('/', allow('distribucion', 'vendedor_camion', 'ventas', 'almacen', '
     cliente_id: cliente_id || null,
     lineas: items,
     notas: notas || '',
+    foto_url: fotoUrl,
     estado: 'pendiente',
     usuario_id: req.user.id,
     fecha: new Date().toISOString(),

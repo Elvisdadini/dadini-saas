@@ -108,7 +108,9 @@ export default function Devoluciones() {
               <tbody>
                 {data.devoluciones.map((d) => (
                   <tr key={d.id}>
-                    <td className="cell-strong">{d.codigo}<span className="cell-sub">{d.notas}</span></td>
+                    <td className="cell-strong">{d.codigo}<span className="cell-sub">{d.notas}</span>
+                      {d.foto_url && <a href={d.foto_url} target="_blank" rel="noreferrer" title="Ver foto de comprobante"><img src={d.foto_url} alt="Comprobante" style={{ width: 38, height: 28, objectFit: 'cover', borderRadius: 4, marginTop: 4 }} /></a>}
+                    </td>
                     <td><Fecha value={d.fecha} time /></td>
                     <td><Badge tone={d.tipo === 'venta_directa' ? 'orange' : 'purple'}>{d.tipo}</Badge></td>
                     <td>{d.usuario_nombre}</td>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Download, FileText, Printer, Share2 } from 'lucide-react';
+import { Download, FileText, Pencil, Printer, Share2, Trash2 } from 'lucide-react';
 import { api } from '../api';
-import { Badge, EmptyState, Fecha, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
+import { Badge, Confirm, EmptyState, Fecha, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 import SelectorEmpleadosWhatsapp from '../components/SelectorEmpleadosWhatsapp';
 
 const LIMITE_IMG = 16; // 4 x 4 por hoja carta
@@ -38,14 +38,21 @@ export default function Catalogo() {
   const [vistaOpen, setVistaOpen] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [selectorUrl, setSelectorUrl] = useState('');
+  const [nombreCatalogo, setNombreCatalogo] = useState('catalogo-dadini');
+  const [modo, setModo] = useState('productos');
+  const [promociones, setPromociones] = useState([]);
+  const [renombrar, setRenombrar] = useState(null);
+  const [nombreNuevo, setNombreNuevo] = useState('');
+  const [eliminarCatalogo, setEliminarCatalogo] = useState(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, h] = await Promise.all([api.get('/productos'), api.get('/catalogo-pdf')]);
+      const [p, h, pr] = await Promise.all([api.get('/productos'), api.get('/catalogo-pdf'), api.get('/promociones')]);
       setProductos(p.productos || []);
       setCategorias(p.categorias || []);
       setHistorial(h.catalogos || []);
+      setPromociones((pr.promociones || []).filter((x) => x.activa !== false));
     } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
   }, [toast]);
 
@@ -55,7 +62,72 @@ export default function Catalogo() {
   const porHoja = opciones.con_imagenes ? LIMITE_IMG : LIMITE_TEXTO;
   const paginas = Math.max(1, Math.ceil(seleccionados.length / porHoja));
 
+  const generarPromociones = async () => {
+    if (!promociones.length) return toast('No hay promociones activas para el catálogo.', 'error');
+    setBusy(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait', compress: true });
+      const porPagina = 4;
+      const paginas = Math.ceil(promociones.length / porPagina);
+      for (let pagina = 0; pagina < paginas; pagina++) {
+        if (pagina > 0) doc.addPage();
+        doc.setFillColor(6, 28, 51);
+        doc.rect(0, 0, 612, 54, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(17);
+        doc.text('DADINI · Catálogo de promociones', 24, 26);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${new Date().toLocaleDateString('es-BO')} · Página ${pagina + 1} de ${paginas}`, 24, 42);
+
+        const bloque = promociones.slice(pagina * porPagina, (pagina + 1) * porPagina);
+        for (let i = 0; i < bloque.length; i++) {
+          const p = bloque[i];
+          const x = 24 + (i % 2) * 294;
+          const y = 68 + Math.floor(i / 2) * 350;
+          doc.setDrawColor(220, 226, 234);
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(x, y, 282, 338, 5, 5, 'FD');
+          const imagenes = await Promise.all((p.imagenes || []).slice(0, 2).map((url) => (url ? aJpeg(url) : null)));
+          let cursor = y + 8;
+          imagenes.forEach((img, j) => {
+            if (!img) return;
+            try { doc.addImage(img, 'JPEG', x + 8 + j * 136, cursor, 132, 100, undefined, 'FAST'); } catch (e) { /* sin imagen */ }
+          });
+          if (imagenes.some(Boolean)) cursor += 108;
+          doc.setTextColor(255, 101, 0);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.text(String(p.codigo || ''), x + 8, cursor + 10);
+          doc.setTextColor(15, 31, 54);
+          doc.setFontSize(12);
+          const titulo = doc.splitTextToSize(String(p.nombre || '').toUpperCase(), 266).slice(0, 2);
+          doc.text(titulo, x + 8, cursor + 26);
+          cursor += 26 + titulo.length * 14;
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(90, 104, 124);
+          const descripcion = doc.splitTextToSize(String(p.descripcion || p.tipo_label || ''), 266).slice(0, 5);
+          doc.text(descripcion, x + 8, cursor);
+          cursor += descripcion.length * 11 + 6;
+          doc.setTextColor(6, 28, 51);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9);
+          doc.text(`Vigencia: ${p.fecha_inicio || '-'} al ${p.fecha_fin || 'sin fin'}`, x + 8, Math.min(cursor, y + 330));
+        }
+      }
+      const pdf = doc.output('datauristring');
+      const r = await api.post('/catalogo-pdf/guardar', { pdf, nombre: nombreCatalogo || 'catalogo-promociones' });
+      setResultado(r);
+      toast(`Catálogo de promociones generado · ${paginas} página(s)`);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
+
   const generar = async () => {
+    if (modo === 'promociones') return generarPromociones();
     if (!seleccionados.length) return toast('No hay productos para el catálogo.', 'error');
     setBusy(true);
     try {
@@ -126,7 +198,7 @@ export default function Catalogo() {
         });
       }
       const pdf = doc.output('datauristring');
-      const r = await api.post('/catalogo-pdf/guardar', { pdf, nombre: 'catalogo-dadini' });
+      const r = await api.post('/catalogo-pdf/guardar', { pdf, nombre: nombreCatalogo || 'catalogo-dadini' });
       setResultado(r);
       toast(`Catálogo generado · ${paginas} página(s) · ${Math.round(r.bytes / 1024)} KB`);
       await cargar();
@@ -138,6 +210,28 @@ export default function Catalogo() {
     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer');
   };
 
+  const guardarRenombre = async () => {
+    if (!renombrar || !nombreNuevo.trim()) return toast('Escribe el nuevo nombre.', 'error');
+    setBusy(true);
+    try {
+      await api.put('/catalogo-pdf/renombrar', { archivo: renombrar.nombre, nombre: nombreNuevo.trim() });
+      toast('Catálogo renombrado');
+      setRenombrar(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
+
+  const confirmarEliminacion = async () => {
+    if (!eliminarCatalogo) return;
+    setBusy(true);
+    try {
+      await api.del(`/catalogo-pdf/${encodeURIComponent(eliminarCatalogo.nombre)}`);
+      toast('Catálogo eliminado');
+      setEliminarCatalogo(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
+
   if (loading) return <><PageHeader eyebrow="Catálogo / Documentos" title="Generar catálogo" subtitle="Preparando productos…" /><div className="panel"><SkeletonRows rows={6} /></div></>;
 
   return (
@@ -146,7 +240,7 @@ export default function Catalogo() {
         eyebrow="Catálogo / Documentos"
         title="Generar catálogo"
         subtitle="Documento PDF tamaño carta, ligero y con varias imágenes por hoja, listo para compartir por WhatsApp."
-        actions={<button className="btn btn-primary" onClick={generar} disabled={busy || !seleccionados.length}><FileText size={14} /> {busy ? 'Generando…' : 'Generar catálogo PDF'}</button>}
+        actions={<button className="btn btn-primary" onClick={generar} disabled={busy || (modo === 'productos' ? !seleccionados.length : !promociones.length)}><FileText size={14} /> {busy ? 'Generando…' : 'Generar catálogo PDF'}</button>}
       />
 
       <div className="stat-grid mb-16" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>
@@ -160,7 +254,16 @@ export default function Catalogo() {
         <div className="panel">
           <div className="panel-head"><div><h3>Opciones del documento</h3><p>Activa o desactiva lo que debe aparecer en el PDF</p></div></div>
           <div className="panel-body">
-            <div className="grid grid-2" style={{ gap: 8 }}>
+            <div className="field"><label>Tipo de catálogo</label>
+              <div className="pill-group">
+                <button type="button" className={`chip ${modo === 'productos' ? 'active' : ''}`} onClick={() => setModo('productos')}>Productos</button>
+                <button type="button" className={`chip ${modo === 'promociones' ? 'active' : ''}`} onClick={() => setModo('promociones')}>Promociones</button>
+              </div>
+            </div>
+            <div className="field mt-12"><label>Nombre del catálogo</label><input className="input" value={nombreCatalogo} onChange={(e) => setNombreCatalogo(e.target.value)} placeholder="Ej. catalogo-2026" /><span className="hint">El nombre queda en el historial para diferenciar el catálogo antiguo del actual.</span></div>
+            {modo === 'productos' ? (
+            <>
+            <div className="grid grid-2 mt-12" style={{ gap: 8 }}>
               {[
                 ['con_imagenes', 'Incluir imágenes'],
                 ['con_nombres', 'Con nombres'],
@@ -171,7 +274,11 @@ export default function Catalogo() {
               ))}
             </div>
             <div className="field mt-12"><label>Categoría</label><select className="select" value={opciones.categoria} onChange={(e) => setOpciones({ ...opciones, categoria: e.target.value })}><option value="todas">Todas</option>{categorias.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
-            <div className="notice notice-info mt-12">Tamaño carta · imágenes JPEG comprimidas para que el archivo sea liviano y quepan más productos por hoja.</div>
+            </>
+            ) : (
+              <div className="notice notice-info mt-12">El catálogo de promociones incluye las promociones activas con sus imágenes, vigencia y descripción.</div>
+            )}
+            <div className="notice notice-info mt-12">Tamaño carta · imágenes JPEG comprimidas para que el archivo sea liviano.</div>
           </div>
         </div>
 
@@ -198,7 +305,17 @@ export default function Catalogo() {
           <div className="table-wrap">
             <table className="data-table">
               <thead><tr><th>Archivo</th><th className="num">Tamaño</th><th>Fecha</th><th /></tr></thead>
-              <tbody>{historial.map((h) => <tr key={h.nombre}><td className="cell-strong">{h.nombre}</td><td className="num">{Math.round(h.bytes / 1024)} KB</td><td><Fecha value={h.creado} /></td><td className="actions"><button className="btn btn-soft btn-sm" onClick={() => setVistaOpen(h.url)}>Ver</button><button className="btn btn-green btn-sm" onClick={() => { setSelectorUrl(h.url); setSelectorOpen(true); }}>Compartir</button></td></tr>)}</tbody>
+              <tbody>{historial.map((h) => <tr key={h.nombre}>
+                <td className="cell-strong">{h.nombre}</td>
+                <td className="num">{Math.round(h.bytes / 1024)} KB</td>
+                <td><Fecha value={h.creado} /></td>
+                <td className="actions">
+                  <button className="btn btn-soft btn-sm" onClick={() => setVistaOpen(h.url)}>Ver</button>
+                  <button className="btn btn-green btn-sm" onClick={() => { setSelectorUrl(h.url); setSelectorOpen(true); }}>Compartir</button>
+                  <button className="icon-btn" title="Cambiar nombre" onClick={() => { setRenombrar(h); setNombreNuevo(h.nombre.replace(/^\d+-/, '').replace(/\.pdf$/i, '')); }}><Pencil size={14} /></button>
+                  <button className="icon-btn danger" title="Eliminar catálogo" onClick={() => setEliminarCatalogo(h)}><Trash2 size={14} /></button>
+                </td>
+              </tr>)}</tbody>
             </table>
           </div>
         )}
@@ -219,6 +336,26 @@ export default function Catalogo() {
           ? <iframe src={vistaOpen} title="Catálogo PDF" style={{ width: '100%', height: 620, border: 0 }} />
           : <iframe src={resultado?.url} title="Catálogo PDF" style={{ width: '100%', height: 620, border: 0 }} />}
       </Modal>
+
+      <Modal open={Boolean(renombrar)} onClose={() => setRenombrar(null)} title="Cambiar nombre del catálogo"
+        subtitle={renombrar?.nombre || ''}
+        footer={<><button className="btn btn-ghost" onClick={() => setRenombrar(null)}>Cancelar</button><button className="btn btn-primary" onClick={guardarRenombre} disabled={busy}>{busy ? 'Guardando…' : 'Guardar nombre'}</button></>}
+      >
+        <div className="form-stack">
+          <div className="field"><label>Nuevo nombre</label><input className="input" value={nombreNuevo} onChange={(e) => setNombreNuevo(e.target.value)} placeholder="Ej. catalogo-2026" /></div>
+          <span className="hint">Se conserva el prefijo de fecha para mantener el orden del historial.</span>
+        </div>
+      </Modal>
+
+      <Confirm
+        open={Boolean(eliminarCatalogo)}
+        onClose={() => setEliminarCatalogo(null)}
+        onConfirm={confirmarEliminacion}
+        title="Eliminar catálogo"
+        message={`¿Eliminar "${eliminarCatalogo?.nombre || ''}"? El archivo se borrará de la nube y no se podrá recuperar.`}
+        danger
+        loading={busy}
+      />
     </>
   );
 }

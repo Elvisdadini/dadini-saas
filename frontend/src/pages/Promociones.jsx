@@ -5,6 +5,7 @@ import {
   Tag, Trash2, X,
 } from 'lucide-react';
 import { api } from '../api';
+import { optimizarImagen } from '../imagen';
 import { Badge, EmptyState, Fecha, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
 const TIPOS = [
@@ -23,7 +24,7 @@ const VACIA = {
   dos_por_uno: { paga: 2, gratis: 1 },
   bonificacion: { requiere_cantidad: 2, producto_id: '', cantidad: 1 },
   mixto: { items: [{ producto_id: '', cantidad: 1 }], descuento_porcentaje: 10, bonificacion_producto_id: '', bonificacion_cantidad: 0 },
-  fecha_inicio: hoy(), fecha_fin: en60(), activa: true, prioridad: 5,
+  fecha_inicio: hoy(), fecha_fin: en60(), activa: true, prioridad: 5, imagenes: [],
 };
 
 export default function Promociones() {
@@ -35,6 +36,7 @@ export default function Promociones() {
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState(VACIA);
   const [busy, setBusy] = useState(false);
+  const [imagenesPendientes, setImagenesPendientes] = useState([]);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -60,15 +62,28 @@ export default function Promociones() {
       bonificacion: promo.bonificacion || VACIA.bonificacion,
       mixto: promo.mixto || VACIA.mixto,
     } : VACIA);
+    setImagenesPendientes([]);
     setModal(true);
+  };
+
+  const seleccionarImagenes = async (evento) => {
+    const archivos = Array.from(evento.target.files || []).slice(0, 2 - (form.imagenes || []).length);
+    if (!archivos.length) return;
+    try {
+      const optimizadas = await Promise.all(archivos.map((a) => optimizarImagen(a)));
+      setImagenesPendientes((prev) => [...prev, ...optimizadas].slice(0, 2 - (form.imagenes || []).length));
+    } catch (error) { toast(error.message, 'error'); }
+    evento.target.value = '';
   };
 
   const guardar = async () => {
     if (!form.nombre.trim()) return toast('El nombre es obligatorio.', 'error');
     setBusy(true);
     try {
+      const imagenes = [...(form.imagenes || []), ...imagenesPendientes].slice(0, 2);
       const payload = {
         ...form,
+        imagenes,
         productos_ids: form.productos_ids.map(Number),
         categorias_clientes: form.categorias_clientes.map(Number),
         reglas: form.reglas.map((r) => ({ min: Number(r.min) || 0, max: r.max === '' || r.max === null ? null : Number(r.max), descuento_porcentaje: Number(r.descuento_porcentaje) || 0, descuento_fijo: Number(r.descuento_fijo) || 0 })),
@@ -147,7 +162,9 @@ export default function Promociones() {
                 {data.promociones.map((p) => (
                   <tr key={p.id}>
                     <td className="cell-strong">{p.codigo}</td>
-                    <td>{p.nombre}<span className="cell-sub">{p.descripcion}</span></td>
+                    <td>{p.nombre}<span className="cell-sub">{p.descripcion}</span>
+                      {!!p.imagenes?.length && <span className="inline" style={{ gap: 4, marginTop: 4 }}>{p.imagenes.slice(0, 2).map((url, i) => <img key={i} src={url} alt="" style={{ width: 34, height: 26, objectFit: 'cover', borderRadius: 4 }} />)}</span>}
+                    </td>
                     <td><Badge tone="purple">{p.tipo_label}</Badge></td>
                     <td className="nowrap"><Fecha value={p.fecha_inicio} short /> → {p.fecha_fin ? <Fecha value={p.fecha_fin} short /> : 'sin fin'}</td>
                     <td className="num">{p.prioridad}</td>
@@ -174,6 +191,22 @@ export default function Promociones() {
             <div className="field"><label>Tipo</label><select className="select" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>{TIPOS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
           </div>
           <div className="field"><label>Descripción</label><input className="input" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} /></div>
+          <div className="field">
+            <label>Imágenes de la promoción (máximo 2)</label>
+            <input type="file" accept="image/*" multiple className="input" onChange={seleccionarImagenes} disabled={(form.imagenes || []).length + imagenesPendientes.length >= 2} />
+            <div className="inline mt-8" style={{ gap: 8, flexWrap: 'wrap' }}>
+              {[...(form.imagenes || []), ...imagenesPendientes].map((url, i) => (
+                <span key={i} style={{ position: 'relative' }}>
+                  <img src={url} alt={`Promoción ${i + 1}`} style={{ width: 70, height: 55, objectFit: 'cover', borderRadius: 7, border: '1px solid var(--line)' }} />
+                  <button type="button" className="chip-del" title="Quitar imagen" onClick={() => {
+                    if (i < (form.imagenes || []).length) setForm({ ...form, imagenes: form.imagenes.filter((_, j) => j !== i) });
+                    else setImagenesPendientes((prev) => prev.filter((_, j) => j !== i - (form.imagenes || []).length));
+                  }}><X size={11} /></button>
+                </span>
+              ))}
+            </div>
+            <span className="hint">Se usan para generar el catálogo de promociones.</span>
+          </div>
           <div className="field-row">
             <div className="field"><label>Desde</label><input type="date" className="input" value={form.fecha_inicio} onChange={(e) => setForm({ ...form, fecha_inicio: e.target.value })} /></div>
             <div className="field"><label>Hasta</label><input type="date" className="input" value={form.fecha_fin} onChange={(e) => setForm({ ...form, fecha_fin: e.target.value })} /></div>

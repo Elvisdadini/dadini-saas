@@ -3,6 +3,7 @@ const { load, save } = require('../db');
 const { authRequired, allow } = require('../auth');
 const { nextId, audit } = require('../utils');
 const { esCoordenaValida, distanciaKm } = require('../geo');
+const { subirFoto } = require('../fotos');
 
 const router = express.Router();
 router.use(authRequired);
@@ -185,7 +186,7 @@ router.get('/agenda', (req, res) => {
 
 function round2Local(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 
-router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 'distribucion'), (req, res) => {
+router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 'distribucion'), async (req, res) => {
   const db = load();
   const body = req.body || {};
   if (!esCoordenaValida(body.latitud, body.longitud)) {
@@ -197,6 +198,29 @@ router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 
     if (cliente && !cliente.activo && tipo !== 'cobranza') {
       return res.status(403).json({ error: `Cliente bloqueado: ${cliente.motivo_bloqueo || 'sin motivo registrado'}. Solo se permiten visitas de cobranza.` });
     }
+  }
+  let fotoComprobante = null;
+  if (typeof body.foto === 'string' && body.foto.startsWith('data:image/')) {
+    try { fotoComprobante = (await subirFoto(body.foto, 'visita')).url; }
+    catch (error) { return res.status(400).json({ error: error.message }); }
+  }
+  const cambios = [];
+  for (const cambio of (Array.isArray(body.cambios) ? body.cambios : [])) {
+    const item = {
+      producto_id: Number(cambio.producto_id) || null,
+      nombre_producto: String(cambio.nombre_producto || ''),
+      cantidad: Math.max(1, Math.round(Number(cambio.cantidad) || 1)),
+      motivo: String(cambio.motivo || ''),
+      detalle: String(cambio.detalle || ''),
+      lote: String(cambio.lote || ''),
+      fecha_vencimiento: String(cambio.fecha_vencimiento || '').slice(0, 10) || null,
+      foto_url: null,
+    };
+    if (typeof cambio.foto === 'string' && cambio.foto.startsWith('data:image/')) {
+      try { item.foto_url = (await subirFoto(cambio.foto, 'cambio')).url; }
+      catch (error) { return res.status(400).json({ error: error.message }); }
+    }
+    cambios.push(item);
   }
   const ahora = new Date().toISOString();
   const visita = {
@@ -210,6 +234,9 @@ router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 
     estado: body.estado || 'en_curso',
     resultado: body.resultado || null,
     motivo: body.motivo || null,
+    detalle: String(body.detalle || ''),
+    foto_url: fotoComprobante,
+    cambios,
     pedido_id: body.pedido_id ? Number(body.pedido_id) : null,
     ruta_id: body.ruta_id ? Number(body.ruta_id) : null,
     ruta_venta: body.ruta_venta || req.user.ruta_venta || null,

@@ -35,6 +35,46 @@ router.post('/guardar', requirePermiso('catalogo.generar_pdf', 'catalogo.crear')
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
 
+function nombreArchivo(nombre) {
+  const limpio = String(nombre || 'catalogo').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-_]+/g, '-').replace(/^-|-$/g, '') || 'catalogo';
+  return limpio;
+}
+
+router.delete('/:archivo', requirePermiso('catalogo.eliminar', 'catalogo.crear'), async (req, res) => {
+  const archivo = String(req.params.archivo || '');
+  if (!archivo.endsWith('.pdf')) return res.status(400).json({ error: 'El archivo no es un catálogo PDF.' });
+  try {
+    await asegurarBucket();
+    const storage = cliente().storage;
+    const { error } = await storage.from(BUCKET).remove([archivo]);
+    if (error) return res.status(400).json({ error: error.message });
+    audit(req.db, req, 'Catálogo PDF eliminado', 'Catálogo', archivo);
+    return res.json({ ok: true });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+router.put('/renombrar', requirePermiso('catalogo.editar', 'catalogo.crear'), async (req, res) => {
+  const archivo = String(req.body?.archivo || '');
+  const nombreNuevo = String(req.body?.nombre || '').trim();
+  if (!archivo.endsWith('.pdf')) return res.status(400).json({ error: 'El archivo no es un catálogo PDF.' });
+  if (!nombreNuevo) return res.status(400).json({ error: 'Escribe el nuevo nombre del catálogo.' });
+  try {
+    await asegurarBucket();
+    const storage = cliente().storage;
+    const { data: contenido, error: lectura } = await storage.from(BUCKET).download(archivo);
+    if (lectura) return res.status(400).json({ error: lectura.message });
+    const prefijo = archivo.match(/^\d+-/)?.[0] || `${Date.now()}-`;
+    const destino = `${prefijo}${nombreArchivo(nombreNuevo)}.pdf`;
+    if (destino === archivo) return res.json({ ok: true, archivo });
+    const { error: subida } = await storage.from(BUCKET).upload(destino, contenido, { contentType: 'application/pdf', cacheControl: '3600' });
+    if (subida) return res.status(400).json({ error: subida.message });
+    await storage.from(BUCKET).remove([archivo]);
+    audit(req.db, req, 'Catálogo PDF renombrado', 'Catálogo', `${archivo} → ${destino}`);
+    return res.json({ ok: true, archivo: destino, url: storage.from(BUCKET).getPublicUrl(destino).data.publicUrl });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
 router.get('/', async (req, res) => {
   try {
     const storage = cliente().storage;
