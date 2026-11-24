@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   BadgePercent, Bell, BarChart3, Building2, ChevronDown, ClipboardList, Crown, LayoutDashboard, LogOut, Menu, Palette, Receipt, Tag, Target, TrendingUp, Undo2,
   MapPin, Package, PackageCheck, Search, Settings, ShoppingCart, Truck, Users, Wallet, X, UserRound, Lock,
-  FileText, ArrowUpRight, CheckCircle2, AlertTriangle, RefreshCw,
+  FileText, ArrowUpRight, CheckCircle2, AlertTriangle, RefreshCw, Crosshair,
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth, puede, ROL_LABEL } from '../auth';
@@ -20,6 +20,7 @@ const NAV = [
 
       { to: '/ventas/agenda', label: 'Mi agenda de visitas', icon: MapPin, key: 'ventas', roles: ['preventista'] },
       { to: '/ventas/rutas', label: 'Rutas y zonas de venta', icon: MapPin, key: 'rutas_venta' },
+      { to: '/ventas/zonas-mapa', label: 'Mapa de zonas', icon: Crosshair, key: 'rutas_venta' },
       { to: '/ventas/objetivos', label: 'Generar objetivos', icon: Target, key: 'objetivos' },
       { to: '/mi-camion', label: 'Mi camión', icon: Truck, key: 'mi_camion', roles: ['vendedor_camion', 'admin', 'dueno'] },
       { to: '/clientes', label: 'Clientes', icon: Users, key: 'clientes' },
@@ -68,6 +69,7 @@ const PAGE_TITLES = {
   '/inventario/preparado': ['Preparado de carga', 'Cierre y carga de camión'],
   '/ventas/agenda': ['Mi agenda de visitas', 'Preventa por ruta y día'],
   '/ventas/rutas': ['Rutas y zonas de venta', 'Días de visita, vendedores y distribuidores'],
+  '/ventas/zonas-mapa': ['Mapa de zonas', 'Cuadrantes, clientes fuera de zona y reasignación'],
   '/ventas/objetivos': ['Generar objetivos', 'Metas mensuales'],
   '/mi-camion': ['Mi camión', 'Stock, solicitudes y devoluciones'],
   '/clientes': ['Clientes', 'Cartera comercial'],

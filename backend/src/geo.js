@@ -50,6 +50,26 @@ function distanciaMetros(a, b) {
   return Math.round(2 * R * Math.asin(Math.sqrt(h)));
 }
 
+// Ray casting: determina si un punto cae dentro de un polígono de vértices
+// { latitud, longitud }. Se usa para los cuadrantes dibujados por zona.
+function puntoDentroPoligono(punto, poligono) {
+  if (!esCoordenaValida(punto?.latitud, punto?.longitud)) return false;
+  if (!Array.isArray(poligono) || poligono.length < 3) return false;
+  const x = Number(punto.longitud);
+  const y = Number(punto.latitud);
+  let dentro = false;
+  for (let i = 0, j = poligono.length - 1; i < poligono.length; j = i++) {
+    const xi = Number(poligono[i]?.longitud);
+    const yi = Number(poligono[i]?.latitud);
+    const xj = Number(poligono[j]?.longitud);
+    const yj = Number(poligono[j]?.latitud);
+    if (![xi, yi, xj, yj].every(Number.isFinite)) return false;
+    const intersecta = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+    if (intersecta) dentro = !dentro;
+  }
+  return dentro;
+}
+
 // Valida las dos geocercas posibles:
 //  - de ZONA: el vendedor debe estar dentro del círculo de la zona.
 //  - de USUARIO: el vendedor debe estar a <= radio del cliente (tienda).
@@ -77,7 +97,14 @@ function validarGeocerca(db, req, cliente, body = {}, accion = 'registrar') {
     };
   }
 
-  if (activaZona && esCoordenaValida(geoZona.latitud, geoZona.longitud)) {
+  if (activaZona && Array.isArray(geoZona.poligono) && geoZona.poligono.length >= 3) {
+    if (!puntoDentroPoligono(posicion, geoZona.poligono)) {
+      return {
+        aplica: true, dentro: false, tipo: 'zona_poligono',
+        motivo: `Tu ubicación está fuera del cuadrante de la zona "${zona.nombre}". No puedes registrar la operación desde ahí.`,
+      };
+    }
+  } else if (activaZona && esCoordenaValida(geoZona.latitud, geoZona.longitud)) {
     const radio = Math.max(1, Number(geoZona.radio_m) || 50);
     const distanciaZona = distanciaMetros(posicion, { latitud: geoZona.latitud, longitud: geoZona.longitud });
     if (distanciaZona > radio) {
@@ -109,5 +136,6 @@ function validarGeocerca(db, req, cliente, body = {}, accion = 'registrar') {
 }
 
 module.exports = {
-  esCoordenaValida, distanciaKm, distanciaMetros, distanciaAcumulada, centroYDistanza, validarGeocerca,
+  esCoordenaValida, distanciaKm, distanciaMetros, distanciaAcumulada, centroYDistanza,
+  puntoDentroPoligono, validarGeocerca,
 };

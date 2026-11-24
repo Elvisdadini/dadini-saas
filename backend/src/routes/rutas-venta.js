@@ -229,6 +229,7 @@ function aplicarGeocerca(zona, body) {
     latitud: zona.geocerca_latitud === '' || zona.geocerca_latitud === null ? null : Number(zona.geocerca_latitud),
     longitud: zona.geocerca_longitud === '' || zona.geocerca_longitud === null ? null : Number(zona.geocerca_longitud),
     radio_m: Math.max(1, Number(zona.geocerca_radio_m) || 50),
+    poligono: Array.isArray(zona.geocerca?.poligono) ? zona.geocerca.poligono : [],
   };
   return zona;
 }
@@ -282,6 +283,29 @@ router.patch('/zonas/:id/estado', allow(...GESTION), (req, res) => {
   const zona = (db.zonas || []).find((z) => z.id === Number(req.params.id));
   if (!zona) return res.status(404).json({ error: 'Zona no encontrada.' });
   zona.activa = Boolean(req.body?.activa);
+  save();
+  return res.json({ zona });
+});
+
+// Guarda el cuadrante dibujado en el mapa (vértices {latitud, longitud}).
+router.put('/zonas/:id/poligono', allow(...GESTION, 'almacen'), (req, res) => {
+  const db = load();
+  const zona = (db.zonas || []).find((z) => z.id === Number(req.params.id));
+  if (!zona) return res.status(404).json({ error: 'Zona no encontrada.' });
+  const vertices = Array.isArray(req.body?.poligono) ? req.body.poligono : [];
+  const validos = vertices
+    .map((v) => ({ latitud: Number(v?.latitud), longitud: Number(v?.longitud) }))
+    .filter((v) => Number.isFinite(v.latitud) && Number.isFinite(v.longitud)
+      && Math.abs(v.latitud) <= 90 && Math.abs(v.longitud) <= 180);
+  if (validos.length < 3) return res.status(400).json({ error: 'El cuadrante necesita al menos 3 vértices válidos.' });
+  zona.geocerca = {
+    ...(zona.geocerca || {}),
+    activa: zona.geocerca?.activa !== false,
+    poligono: validos.slice(0, 12),
+  };
+  zona.poligono = validos.slice(0, 12);
+  zona.updated_at = new Date().toISOString();
+  audit(db, req, 'Cuadrante de zona actualizado', 'Rutas de venta', `${zona.nombre} · ${validos.length} vértices`);
   save();
   return res.json({ zona });
 });

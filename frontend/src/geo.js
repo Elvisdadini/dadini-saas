@@ -39,6 +39,24 @@ export function obtenerUbicacion(opciones = {}) {
   });
 }
 
+export function puntoDentroPoligono(punto, poligono) {
+  if (!esCoordenaValida(punto?.latitud, punto?.longitud)) return false;
+  if (!Array.isArray(poligono) || poligono.length < 3) return false;
+  const x = Number(punto.longitud);
+  const y = Number(punto.latitud);
+  let dentro = false;
+  for (let i = 0, j = poligono.length - 1; i < poligono.length; j = i++) {
+    const xi = Number(poligono[i]?.longitud);
+    const yi = Number(poligono[i]?.latitud);
+    const xj = Number(poligono[j]?.longitud);
+    const yj = Number(poligono[j]?.latitud);
+    if (![xi, yi, xj, yj].every(Number.isFinite)) return false;
+    const intersecta = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+    if (intersecta) dentro = !dentro;
+  }
+  return dentro;
+}
+
 export function abrirEnMapas(latitud, longitud) {
   if (!esCoordenaValida(latitud, longitud)) return;
   window.open(`https://www.google.com/maps?q=${latitud},${longitud}`, '_blank', 'noopener,noreferrer');

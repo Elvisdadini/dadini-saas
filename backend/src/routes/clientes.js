@@ -153,11 +153,11 @@ router.patch('/:id/bloqueo', allow('admin', 'dueno', 'cobranzas'), (req, res) =>
   return res.json({ cliente });
 });
 
-router.patch('/:id/reasignar', allow('admin', 'dueno'), (req, res) => {
+router.patch('/:id/reasignar', allow('admin', 'dueno', 'supervisor'), (req, res) => {
   const db = load();
   const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
-  const { vendedor_id, ruta_venta, zona, reasignar_pedidos } = req.body || {};
+  const { vendedor_id, ruta_venta, zona, zona_id, reasignar_pedidos } = req.body || {};
   const vendedor = vendedor_id ? db.usuarios.find((u) => u.id === Number(vendedor_id)) : null;
   if (vendedor_id && !vendedor) return res.status(400).json({ error: 'Vendedor no encontrado.' });
   if (vendedor) {
@@ -170,6 +170,15 @@ router.patch('/:id/reasignar', allow('admin', 'dueno'), (req, res) => {
   }
   if (ruta_venta) cliente.ruta_venta = ruta_venta;
   if (zona) cliente.zona = zona;
+  const zonaDestino = zona_id
+    ? (db.zonas || []).find((z) => z.id === Number(zona_id))
+    : zona ? (db.zonas || []).find((z) => String(z.nombre).toLowerCase() === String(zona).toLowerCase()) : null;
+  if (zonaDestino) {
+    cliente.zona = zonaDestino.nombre;
+    cliente.zona_id = zonaDestino.id;
+  }
+  const rutaDestino = (db.rutas_venta || []).find((r) => r.codigo === cliente.ruta_venta);
+  cliente.ruta_venta_id = rutaDestino?.id || null;
   let pedidos = 0;
   if (reasignar_pedidos && vendedor) {
     db.pedidos.forEach((p) => {
