@@ -32,6 +32,9 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Aplicación Android de DADINI SaaS.
  *
@@ -42,6 +45,7 @@ import android.widget.TextView;
 public class MainActivity extends Activity {
 
     private static final String SITE_URL = "https://dadini-saas.onrender.com";
+    private static final String SITE_HOST = "dadini-saas.onrender.com";
     private static final int FILE_CHOOSER_REQUEST = 4321;
     private static final int PERMISOS_REQUEST = 1001;
 
@@ -78,6 +82,9 @@ public class MainActivity extends Activity {
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
+        // Los window.open() del SaaS (WhatsApp, mapas) se abren dentro del mismo
+        // WebView y se interceptan en shouldOverrideUrlLoading → abrirUrlExterna:
+        // ninguna ventana emergente puede mostrar un origen que no sea el SaaS.
         settings.setJavaScriptCanOpenWindowsAutomatically(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setLoadWithOverviewMode(true);
@@ -88,7 +95,7 @@ public class MainActivity extends Activity {
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setRenderPriority(WebSettings.RenderPriority.HIGH);
         settings.setGeolocationEnabled(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " DadiniSaasApp/21.0.1");
+        settings.setUserAgentString(settings.getUserAgentString() + " DadiniSaasApp/21.0.5");
 
         CookieManager.getInstance().setAcceptCookie(true);
         if (Build.VERSION.SDK_INT >= 21) {
@@ -225,15 +232,26 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
-                // Cámara y micrófono para el escáner de códigos del conteo.
-                request.grant(request.getResources());
+                String origin = request.getOrigin() == null ? "" : request.getOrigin().toString();
+                if (!esOrigenPermitido(origin)) {
+                    request.deny();
+                    return;
+                }
+                // Solo se concede la cámara, que es lo que usa el escáner.
+                Set<String> concedidos = new HashSet<>();
+                for (String recurso : request.getResources()) {
+                    if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(recurso)) {
+                        concedidos.add(recurso);
+                    }
+                }
+                if (concedidos.isEmpty()) request.deny();
+                else request.grant(concedidos.toArray(new String[0]));
             }
 
             @Override
             public void onGeolocationPermissionsShowPrompt(final String origin,
                                                            final GeolocationPermissions.Callback callback) {
-                // Los permisos ya fueron aprobados por el usuario al abrir la app.
-                callback.invoke(origin, true, false);
+                callback.invoke(origin, esOrigenPermitido(origin), false);
             }
 
             @Override
@@ -293,6 +311,17 @@ public class MainActivity extends Activity {
         return getResources().getIdentifier("splash_logo", "drawable", getPackageName());
     }
 
+    private boolean esDelSitio(String url) {
+        if (url == null) return false;
+        Uri uri = Uri.parse(url);
+        return "https".equalsIgnoreCase(uri.getScheme())
+            && SITE_HOST.equalsIgnoreCase(uri.getHost() == null ? "" : uri.getHost());
+    }
+
+    private boolean esOrigenPermitido(String origin) {
+        return esDelSitio(origin);
+    }
+
     /** Mantiene el SaaS dentro de la app y abre WhatsApp/teléfono/correo en su app nativa. */
     private boolean abrirUrlExterna(String url) {
         if (url == null) return false;
@@ -301,7 +330,7 @@ public class MainActivity extends Activity {
         String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
 
         if ("http".equals(scheme) || "https".equals(scheme)) {
-            if (host.endsWith("onrender.com")) return false;
+            if (SITE_HOST.equals(host)) return false;
             try {
                 startActivity(new Intent(Intent.ACTION_VIEW, uri));
             } catch (Exception ignored) {

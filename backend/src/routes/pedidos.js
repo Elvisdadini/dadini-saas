@@ -6,6 +6,7 @@ const { pedidoResumen, recalcularCliente, buscarPedidos, stockEn } = require('..
 const { config: configCredito, vencimientoDe, diasCredito, normalizarConfig, interesDe } = require('../credito');
 const { esCoordenaValida } = require('../geo');
 const { evaluar: evaluarPromociones } = require('../promociones');
+const { buildIndices, porId } = require('../indexes');
 
 const router = express.Router();
 router.use(authRequired);
@@ -78,29 +79,32 @@ router.get('/:id', (req, res) => {
 
 router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 'vendedor_camion'), (req, res) => {
   const db = load();
+  const indices = buildIndices(db);
   const { cliente_id, items, canal, forma_pago, almacen_id, descuento, envio, notas, entrega_direccion, vendedor_id, dias_credito: diasSolicitados, latitud, longitud, precision, almacen_movil_id, whatsapp_cliente } = req.body || {};
-  const cliente = db.clientes.find((c) => c.id === Number(cliente_id));
+  const cliente = indices.clientes.get(Number(cliente_id));
   if (!cliente) return res.status(400).json({ error: 'Selecciona un cliente válido.' });
   if (cliente.bloqueado_por_deuda || !cliente.activo) return res.status(403).json({ error: `Cliente bloqueado: ${cliente.motivo_bloqueo || 'cuenta pendiente con la empresa'}. Regulariza la deuda para venderle.` });
   if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'Agrega al menos un producto a la venta.' });
   if (!CANALES.includes(canal)) return res.status(400).json({ error: 'Canal de venta inválido.' });
   if (!FORMAS.includes(forma_pago)) return res.status(400).json({ error: 'Forma de pago inválida.' });
-  const almacen = db.almacenes.find((a) => a.id === Number(almacen_id) && a.activo);
+  const almacen = indices.almacenes.get(Number(almacen_id));
+  if (almacen && !almacen.activo) return res.status(400).json({ error: 'Selecciona un almacén válido.' });
   if (!almacen) return res.status(400).json({ error: 'Selecciona un almacén válido.' });
   const almacenMovil = almacen_movil_id ? db.almacenes_moviles?.find((a) => a.id === Number(almacen_movil_id) && a.estado === 'activo') : null;
   if (almacen_movil_id && !almacenMovil) return res.status(400).json({ error: 'El almacén móvil seleccionado no está activo.' });
 
   const consolidado = new Map();
   for (const raw of items) {
-    const producto = db.productos.find((p) => p.id === Number(raw.producto_id) && p.activo);
+    const producto = indices.productos.get(Number(raw.producto_id));
     const cantidad = Math.round(num(raw.cantidad));
-    if (!producto || cantidad <= 0) return res.status(400).json({ error: 'Hay un producto o cantidad inválida en el carrito.' });
+    if (!producto || !producto.activo || cantidad <= 0) return res.status(400).json({ error: 'Hay un producto o cantidad inválida en el carrito.' });
     const permitido = !producto.categorias_clientes?.length || producto.categorias_clientes.map(Number).includes(Number(cliente.categoria_cliente_id));
     if (!permitido) return res.status(400).json({ error: `El producto ${producto.nombre} no está disponible para la categoría del cliente.` });
     const prev = consolidado.get(producto.id) || { producto, cantidad: 0, precio: null };
     prev.cantidad += cantidad;
-    if (raw.precio !== undefined && num(raw.precio) > 0) prev.precio = round2(num(raw.precio));
-    else if (!prev.precio) prev.precio = precioParaCliente(db, producto, cliente);
+    // El precio SIEMPRE lo calcula el servidor: Ignoramos cualquier `precio`
+    // enviado por el cliente para evitar manipulación de montos.
+    if (!prev.precio) prev.precio = precioParaCliente(db, producto, cliente);
     consolidado.set(producto.id, prev);
   }
 
@@ -160,12 +164,23 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
   const diasCreditoVenta = forma_pago === 'credito'
     ? Math.max(1, Math.round(num(diasSolicitados) || diasCredito(db, {})))
     : null;
+  // Un vendedor común no puede imputar la venta a otro usuario: solo roles
+  // directivos pueden elegir vendedor explícitamente.
+  const puedeAsignarVendedor = ['admin', 'dueno'].includes(req.user.rol);
+  let vendedorAsignado = req.user.id;
+  if (vendedor_id && Number(vendedor_id) !== req.user.id) {
+    if (!puedeAsignarVendedor) return res.status(403).json({ error: 'No tienes permiso para asignar la venta a otro vendedor.' });
+    const destino = indices.usuarios.get(Number(vendedor_id));
+    if (!destino || !destino.activo) return res.status(400).json({ error: 'El vendedor seleccionado no es válido.' });
+    vendedorAsignado = destino.id;
+  }
+
   const pedido = {
     id: nextId(db.pedidos),
     codigo: nextCode(db.pedidos, 'codigo', 'VTA', 1001),
     cliente_id: cliente.id,
     whatsapp_cliente: String(whatsapp_cliente || '').replace(/\D/g, '') || cliente.whatsapp || cliente.telefono || null,
-    vendedor_id: vendedor_id ? Number(vendedor_id) : req.user.id,
+    vendedor_id: vendedorAsignado,
     canal,
     estado: 'pendiente',
     estado_pago: forma_pago === 'credito' ? 'pendiente' : 'pagado',
@@ -193,7 +208,7 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
     ruta_id: null,
   };
   if (diasCreditoVenta) pedido.fecha_vencimiento = vencimientoDe(db, pedido);
-  const vendedor = db.usuarios.find((u) => u.id === pedido.vendedor_id);
+  const vendedor = indices.usuarios.get(Number(pedido.vendedor_id));
   const esPreventa = vendedor?.rol === 'preventista' || req.body?.prevenir === true;
   if (esPreventa) {
     pedido.es_preventa = true;
@@ -233,7 +248,7 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
       if (lineaMovil) lineaMovil.cantidad = Math.max(0, lineaMovil.cantidad - l.cantidad);
       almacenMovil.updated_at = ahora;
     } else {
-      const actual = stockEn(db, l.producto_id, almacen.id);
+      const actual = stockEn(db, l.producto_id, almacen.id, indices);
       setStock(db, l.producto_id, almacen.id, actual - l.cantidad);
     }
     db.movimientos.unshift({
@@ -284,7 +299,7 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
   recalcularCliente(db, cliente.id);
   audit(db, req, 'Venta registrada', 'Ventas', `${pedido.codigo} · ${cliente.nombre} · Bs ${total.toFixed(2)}${evaluacion.aplicadas.length ? ` · Promos: ${evaluacion.aplicadas.map((p) => p.codigo).join(', ')}` : ''}`);
   save();
-  return res.status(201).json({ pedido: pedidoResumen(db, pedido, true) });
+  return res.status(201).json({ pedido: pedidoResumen(db, pedido, true, indices) });
 });
 
 router.patch('/:id/estado', allow('ventas', 'preventista', 'distribucion'), (req, res) => {

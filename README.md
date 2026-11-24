@@ -374,7 +374,7 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 - Comparativa en pantalla: sistema congelado vs. físico contado, diferencia, estado y progreso.
 - Vista independiente de **congelamiento** y **historial** de conteos.
 - Al finalizar se puede **ajustar el stock** a lo contado, generando movimientos y auditoría.
-- La APK 21.0.4 otorga el permiso de cámara al WebView para el escáner.
+- La APK 21.0.5 otorga el permiso de cámara al WebView para el escáner.
 
 ### Manifiesto de preparación de carga
 
@@ -411,7 +411,7 @@ Para producción: definir `JWT_SECRET`, `CORS_ORIGIN`, credenciales Supabase, se
 
 ### APK DADINI SaaS v21
 
-- **APK actual:** `DADINI-SaaS-21.0.3.apk` (carga optimizada y permisos de cámara, ubicación, contactos y galería), independiente de la APK de preventa anterior (que se conserva intacta).
+- **APK actual:** `DADINI-SaaS-21.0.5.apk` (carga optimizada y permisos de cámara, ubicación, contactos y galería), independiente de la APK de preventa anterior (que se conserva intacta).
 - Muestra el SaaS publicado dentro de un WebView seguro: misma interfaz, módulos, roles y permisos.
 - Incluye el logo DADINI sin marca de agua como ícono y en la pantalla de inicio; el mismo logo aparece en miniatura en la web.
 - Código de la app y script de compilación en `android/`; llave de firma en `android/dadini-app/signing/` (no versionada).

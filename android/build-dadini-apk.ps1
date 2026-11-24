@@ -13,8 +13,8 @@
 # ============================================================
 param(
   [string]$OutputPath = '',
-  [string]$VersionName = '21.0.4',
-  [int]$VersionCode = 5
+  [string]$VersionName = '21.0.5',
+  [int]$VersionCode = 6
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,7 +26,7 @@ $classesDir = Join-Path $buildDir 'classes'
 $dexDir = Join-Path $buildDir 'dex'
 
 if (-not $OutputPath) {
-  $OutputPath = Join-Path $PSScriptRoot '..\backend\assets\apk\DADINI-SaaS-21.0.4.apk'
+  $OutputPath = Join-Path $PSScriptRoot '..\backend\assets\apk\DADINI-SaaS-21.0.5.apk'
 }
 $OutputPath = [System.IO.Path]::GetFullPath($OutputPath)
 

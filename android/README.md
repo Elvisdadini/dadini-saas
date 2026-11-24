@@ -5,10 +5,10 @@ Aplicación Android nueva e independiente de la APK de preventa anterior. Muestr
 seguro que carga https://dadini-saas.onrender.com.
 
 - Paquete: `bo.dadini.saas.app`
-- Versión: `21.0.4` (versionCode 5, cámara habilitada para escáner de códigos)
+- Versión: `21.0.5` (versionCode 6, cámara habilitada para escáner de códigos)
 - Android mínimo: 7.0 (API 24)
 - Ícono y pantalla de inicio: logo DADINI sin marca de agua.
-- Salida: `backend/assets/apk/DADINI-SaaS-21.0.4.apk`
+- Salida: `backend/assets/apk/DADINI-SaaS-21.0.5.apk`
 - Permisos solicitados al abrir: ubicación, cámara, contactos y galería (imágenes).
 
 ## Compilar
@@ -28,7 +28,7 @@ defecto `dadini-saas-2026`, configurable con `DADINI_APK_PASSWORD`.
 
 1. Activa **Depuración USB** en el teléfono y conéctalo por cable.
 2. Verifica: `adb devices` (debe aparecer el equipo como `device`).
-3. Instala: `adb install -r backend/assets/apk/DADINI-SaaS-21.0.3.apk`.
+3. Instala: `adb install -r backend/assets/apk/DADINI-SaaS-21.0.5.apk`.
 4. Abre la app desde el teléfono o con:
    `adb shell monkey -p bo.dadini.saas.app -c android.intent.category.LAUNCHER 1`.
 5. Ver logs: `adb logcat` y filtra por `bo.dadini.saas.app` o `DADINI_WV`.

@@ -3,6 +3,7 @@ const { load, save } = require('../db');
 const { authRequired, allow } = require('../auth');
 const { nextId, nextCode, audit, num, round2 } = require('../utils');
 const { pedidoResumen } = require('../services');
+const { buildIndices } = require('../indexes');
 
 const router = express.Router();
 router.use(authRequired);
@@ -28,11 +29,11 @@ function cajas(clase, upc) {
   };
 }
 
-function generarLineas(db, pedidos) {
+function generarLineas(db, pedidos, indices) {
   const mapa = new Map();
   pedidos.forEach((pedido) => {
     (pedido.items || []).forEach((item) => {
-      const producto = db.productos.find((p) => p.id === item.producto_id);
+      const producto = indices ? indices.productos.get(Number(item.producto_id)) : db.productos.find((p) => p.id === item.producto_id);
       if (!producto) return;
       const prev = mapa.get(producto.id) || {
         producto_id: producto.id,
@@ -51,7 +52,7 @@ function generarLineas(db, pedidos) {
   return [...mapa.values()].map((linea) => ({
     ...linea,
     cantidad_unidades: Math.round(linea.cantidad_unidades),
-    ...cajas(linea.cantidad_unidades, db.productos.find((p) => p.id === linea.producto_id)?.unidades_por_caja),
+    ...cajas(linea.cantidad_unidades, (indices ? indices.productos.get(Number(linea.producto_id)) : db.productos.find((p) => p.id === linea.producto_id))?.unidades_por_caja),
   })).sort((a, b) => b.cantidad_unidades - a.cantidad_unidades);
 }
 
@@ -65,13 +66,14 @@ function entregadoPorProducto(pedidos) {
   return mapa;
 }
 
-function resumenCarga(db, carga) {
-  const vendedor = db.usuarios.find((u) => u.id === carga.vendedor_id);
-  const repartidor = db.repartidores.find((r) => r.id === carga.repartidor_id);
-  const vehiculo = db.vehiculos.find((v) => v.id === carga.vehiculo_id);
-  const almacen = db.almacenes.find((a) => a.id === carga.almacen_id);
-  const ruta = db.rutas.find((r) => r.id === carga.ruta_id);
-  const pedidos = db.pedidos.filter((p) => carga.pedidos_ids.includes(p.id));
+function resumenCarga(db, carga, indices) {
+  const vendedor = indices ? indices.usuarios.get(Number(carga.vendedor_id)) : db.usuarios.find((u) => u.id === carga.vendedor_id);
+  const repartidor = indices ? indices.repartidores.get(Number(carga.repartidor_id)) : db.repartidores.find((r) => r.id === carga.repartidor_id);
+  const vehiculo = indices ? indices.vehiculos.get(Number(carga.vehiculo_id)) : db.vehiculos.find((v) => v.id === carga.vehiculo_id);
+  const almacen = indices ? indices.almacenes.get(Number(carga.almacen_id)) : db.almacenes.find((a) => a.id === carga.almacen_id);
+  const ruta = indices ? indices.rutas.get(Number(carga.ruta_id)) : db.rutas.find((r) => r.id === carga.ruta_id);
+  const ids = new Set((carga.pedidos_ids || []).map(Number));
+  const pedidos = db.pedidos.filter((p) => ids.has(Number(p.id)));
   const entregado = entregadoPorProducto(pedidos);
   const lineas = (carga.lineas || []).map((linea) => {
     const ya = entregado.get(linea.producto_id) || 0;
@@ -104,7 +106,7 @@ function resumenCarga(db, carga) {
     ruta_estado: ruta?.estado || null,
     lineas,
     totales,
-    pedidos_detalle: pedidos.map((p) => pedidoResumen(db, p)),
+    pedidos_detalle: pedidos.map((p) => pedidoResumen(db, p, false, indices)),
   };
 }
 
@@ -120,8 +122,9 @@ function pedidosElegibles(db, fecha, vendedorId, almacenId) {
 
 router.get('/', (req, res) => {
   const db = load();
+  const indices = buildIndices(db);
   const { estado, fecha, vendedor_id } = req.query;
-  let cargas = db.cargas.map((c) => resumenCarga(db, c));
+  let cargas = db.cargas.map((c) => resumenCarga(db, c, indices));
   if (estado && estado !== 'todas') cargas = cargas.filter((c) => c.estado === estado);
   if (fecha) cargas = cargas.filter((c) => c.fecha === fecha);
   if (vendedor_id) cargas = cargas.filter((c) => c.vendedor_id === Number(vendedor_id));
@@ -153,25 +156,28 @@ router.get('/', (req, res) => {
 
 router.get('/preparar', (req, res) => {
   const db = load();
+  const indices = buildIndices(db);
   const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
   const vendedorId = req.query.vendedor_id ? Number(req.query.vendedor_id) : null;
   const almacenId = req.query.almacen_id ? Number(req.query.almacen_id) : null;
   const pedidos = pedidosElegibles(db, fecha, vendedorId, almacenId);
   const vendedores = [...new Set(pedidos.map((p) => p.vendedor_id))]
-    .map((id) => db.usuarios.find((u) => u.id === id))
+    .map((id) => indices.usuarios.get(Number(id)))
     .filter(Boolean)
     .map((u) => ({
       id: u.id,
       nombre: u.nombre,
-      pedidos: pedidos.filter((p) => p.vendedor_id === u.id).length,
+      pedidos: porVendedor.get(u.id) || 0,
       repartidor_id: u.repartidor_id || null,
       vehiculo_id: u.vehiculo_id || null,
     }));
   const primeraSugerencia = vendedores.find((v) => v.repartidor_id) || null;
-  const lineas = generarLineas(db, pedidos);
+  const lineas = generarLineas(db, pedidos, indices);
+  const porVendedor = new Map();
+  pedidos.forEach((p) => porVendedor.set(p.vendedor_id, (porVendedor.get(p.vendedor_id) || 0) + 1));
   return res.json({
     fecha,
-    pedidos: pedidos.map((p) => pedidoResumen(db, p)),
+    pedidos: pedidos.map((p) => pedidoResumen(db, p, false, indices)),
     lineas,
     totales: {
       pedidos: pedidos.length,
@@ -192,33 +198,31 @@ router.get('/preparar', (req, res) => {
   });
 });
 
-function resolverDistribuidor(db, pedido) {
+function resolverDistribuidor(db, pedido, indices) {
+  const rep = (id) => indices ? indices.repartidores.get(Number(id)) : db.repartidores.find((r) => r.id === Number(id));
   if (pedido.repartidor_asignado_id) {
-    const rep = db.repartidores.find((r) => r.id === Number(pedido.repartidor_asignado_id));
-    if (rep) return rep;
+    const encontrado = rep(pedido.repartidor_asignado_id);
+    if (encontrado) return encontrado;
   }
-  const ruta = pedido.ruta_id ? db.rutas.find((r) => r.id === pedido.ruta_id) : null;
+  const ruta = pedido.ruta_id ? (indices ? indices.rutas.get(Number(pedido.ruta_id)) : db.rutas.find((r) => r.id === pedido.ruta_id)) : null;
   if (ruta?.repartidor_id) {
-    const rep = db.repartidores.find((r) => r.id === ruta.repartidor_id);
-    if (rep) return rep;
+    const encontrado = rep(ruta.repartidor_id);
+    if (encontrado) return encontrado;
   }
-  const vendedor = db.usuarios.find((u) => u.id === pedido.vendedor_id);
+  const vendedor = indices ? indices.usuarios.get(Number(pedido.vendedor_id)) : db.usuarios.find((u) => u.id === pedido.vendedor_id);
   if (vendedor?.repartidor_id) {
-    const rep = db.repartidores.find((r) => r.id === vendedor.repartidor_id);
-    if (rep) return rep;
+    const encontrado = rep(vendedor.repartidor_id);
+    if (encontrado) return encontrado;
   }
-  const cliente = db.clientes.find((c) => c.id === pedido.cliente_id);
-  if (cliente?.distribuidor_id) {
-    const rep = db.repartidores.find((r) => r.id === cliente.distribuidor_id);
-    if (rep) return rep;
-  }
+  const cliente = indices ? indices.clientes.get(Number(pedido.cliente_id)) : db.clientes.find((c) => c.id === pedido.cliente_id);
+  if (cliente?.distribuidor_id) return rep(cliente.distribuidor_id) || null;
   return null;
 }
 
-function lineasDePedido(db, pedido) {
+function lineasDePedido(db, pedido, indices) {
   const mapa = new Map();
   (pedido.items || []).forEach((item) => {
-    const producto = db.productos.find((p) => p.id === item.producto_id);
+    const producto = indices ? indices.productos.get(Number(item.producto_id)) : db.productos.find((p) => p.id === item.producto_id);
     if (!producto) return;
     const prev = mapa.get(producto.id) || {
       producto_id: producto.id,
@@ -246,6 +250,7 @@ function lineasDePedido(db, pedido) {
 // con sus vendedores, y lista de pedidos/clientes con los totales de la carga.
 router.get('/manifiesto', (req, res) => {
   const db = load();
+  const indices = buildIndices(db);
   const fecha = String(req.query.fecha || new Date().toISOString().slice(0, 10));
   const distribuidorId = req.query.distribuidor_id ? Number(req.query.distribuidor_id) : null;
   const estado = req.query.estado && req.query.estado !== 'todos' ? req.query.estado : null;
@@ -255,13 +260,13 @@ router.get('/manifiesto', (req, res) => {
   if (estado) pedidos = pedidos.filter((p) => p.estado === estado);
 
   const enriquecidos = pedidos.map((p) => {
-    const base = pedidoResumen(db, p);
-    const dist = resolverDistribuidor(db, p);
-    const vendedor = db.usuarios.find((u) => u.id === p.vendedor_id);
-    const lineas = lineasDePedido(db, p);
+    const base = pedidoResumen(db, p, false, indices);
+    const dist = resolverDistribuidor(db, p, indices);
+    const vendedor = indices.usuarios.get(Number(p.vendedor_id));
+    const lineas = lineasDePedido(db, p, indices);
     const unidades = lineas.reduce((s, l) => s + l.cantidad_unidades, 0);
     const cajasTotal = lineas.reduce((s, l) => s + l.cajas_a_preparar, 0);
-    const peso = lineas.reduce((s, l) => s + l.cantidad_unidades * num(db.productos.find((x) => x.id === l.producto_id)?.peso_kg, 0.25), 0);
+    const peso = lineas.reduce((s, l) => s + l.cantidad_unidades * num(indices.productos.get(Number(l.producto_id))?.peso_kg, 0.25), 0);
     return {
       ...base,
       distribuidor_id: dist?.id || null,

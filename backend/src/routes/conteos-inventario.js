@@ -2,6 +2,7 @@ const express = require('express');
 const { load, save } = require('../db');
 const { authRequired, allow } = require('../auth');
 const { nextId, nextCode, audit, num, round2 } = require('../utils');
+const { buildIndices } = require('../indexes');
 
 const router = express.Router();
 router.use(authRequired, allow('admin', 'dueno', 'almacen', 'supervisor'));
@@ -170,18 +171,25 @@ router.post('/:id/contar', (req, res) => {
   const { producto_id, codigo, busqueda, cantidad, almacen_id } = req.body || {};
   const valor = num(cantidad, -1);
   if (valor < 0) return res.status(400).json({ error: 'Ingresa una cantidad válida (0 o mayor).' });
-  let producto = producto_id ? db.productos.find((p) => p.id === Number(producto_id)) : null;
+  const indices = buildIndices(db);
+  let producto = producto_id ? indices.productos.get(Number(producto_id)) : null;
   const termino = String(codigo || busqueda || '').trim().toLowerCase();
   if (!producto && termino) {
-    producto = db.productos.find((p) =>
-      String(p.sku || '').toLowerCase() === termino
-      || String(p.codigo || '').toLowerCase() === termino
-      || String(p.nombre || '').toLowerCase() === termino);
+    // Búsqueda exacta O(1) por sku/código (y nombre normalizado) en vez de
+    // recorrer todo el catálogo en cada escaneo.
+    producto = indices.productosPorSku.get(termino);
+    if (!producto) producto = indices.nombresProductos.get(termino);
     if (!producto) producto = db.productos.find((p) => String(p.nombre || '').toLowerCase().includes(termino));
   }
   if (!producto) return res.status(404).json({ error: 'Producto no encontrado por código o nombre.' });
-  let linea = conteo.lineas.find((l) => l.producto_id === producto.id && (!almacen_id || l.almacen_id === Number(almacen_id)));
-  if (!linea && !almacen_id) linea = conteo.lineas.find((l) => l.producto_id === producto.id);
+  const lineasPorProducto = new Map();
+  conteo.lineas.forEach((l) => {
+    if (!lineasPorProducto.has(l.producto_id)) lineasPorProducto.set(l.producto_id, []);
+    lineasPorProducto.get(l.producto_id).push(l);
+  });
+  const candidatas = lineasPorProducto.get(producto.id) || [];
+  let linea = candidatas.find((l) => !almacen_id || l.almacen_id === Number(almacen_id));
+  if (!linea && !almacen_id) linea = candidatas[0];
   if (!linea) return res.status(404).json({ error: 'Ese producto no está en el inventario congelado de este conteo.' });
   linea.conteo = round2(valor);
   linea.contado_por = req.user.id;

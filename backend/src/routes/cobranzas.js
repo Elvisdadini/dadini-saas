@@ -2,14 +2,21 @@ const express = require('express');
 const { load } = require('../db');
 const { authRequired } = require('../auth');
 const { pedidoResumen, rangoFechas, sincronizarCobros } = require('../services');
+const { save } = require('../db');
 const { round2, daysBetween } = require('../utils');
 
 const router = express.Router();
 router.use(authRequired);
 
+// Un GET ya no muta: el job periódico mantiene los responsables y bloqueos.
+router.post('/sincronizar', (req, res) => {
+  const db = load();
+  const resultado = sincronizarCobros(db);
+  return res.json({ ok: true, ...resultado });
+});
+
 router.get('/', (req, res) => {
   const db = load();
-  sincronizarCobros(db);
   const { cliente_id, search, vencidas } = req.query;
   const rol = req.user.rol;
   let pedidos = db.pedidos

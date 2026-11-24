@@ -122,8 +122,13 @@ app.use((req, res) => res.status(404).json({ error: 'Ruta de API no encontrada.'
 
 // eslint-disable-next-line no-unused-vars
 app.use((error, req, res, next) => {
-  console.error('[api]', error);
-  res.status(500).json({ error: error.message || 'Error interno del servidor.' });
+  const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  console.error(`[api][${requestId}]`, error);
+  const publico = error.status || error.statusCode || 500;
+  const mensaje = config.nodeEnv === 'production'
+    ? 'Error interno del servidor. Intenta de nuevo o contacta al administrador.'
+    : (error.message || 'Error interno del servidor.');
+  res.status(publico).json({ error: mensaje, request_id: requestId });
 });
 
 async function arrancar() {
@@ -133,6 +138,12 @@ async function arrancar() {
     syncRemote.iniciarSincronizacionPeriodica(load, save);
     console.log(`  Supabase sync activa · tabla ${config.supabase.table}`);
   }
+  // Cobranzas se recalcula en segundo plano para que ningún GET tenga efectos
+  // secundarios (antes lo hacía /api/dashboard en cada navegación).
+  const { sincronizarCobros } = require('./services');
+  setInterval(() => {
+    try { sincronizarCobros(load()); } catch (error) { console.error('[cobranzas]', error.message); }
+  }, 5 * 60 * 1000).unref();
   const servidor = app.listen(PORT, () => {
     console.log(`\n  DADINI SaaS API escuchando en http://localhost:${PORT}`);
     console.log(`  Motor de datos: ${motor()} · ${base()}`);

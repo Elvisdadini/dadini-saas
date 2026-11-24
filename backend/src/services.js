@@ -1,21 +1,24 @@
 const { hoy, round2, daysBetween, normalize } = require('./utils');
 const { vencimientoDe, interesDe, config: configCredito } = require('./credito');
+const { buildIndices } = require('./indexes');
 
 function fechaCorta(isoString) {
   return String(isoString || '').slice(0, 10);
 }
 
-function stockDe(db, productoId) {
+function stockDe(db, productoId, indices) {
+  if (indices) return indices.stockPorProducto.get(Number(productoId)) || 0;
   return db.stock.filter((s) => s.producto_id === productoId).reduce((sum, s) => sum + s.cantidad, 0);
 }
 
-function stockEn(db, productoId, almacenId) {
+function stockEn(db, productoId, almacenId, indices) {
+  if (indices) return indices.stockPorClave.get(`${Number(productoId)}:${Number(almacenId)}`) || 0;
   const row = db.stock.find((s) => s.producto_id === productoId && s.almacen_id === Number(almacenId));
   return row ? row.cantidad : 0;
 }
 
-function productoResumen(db, producto) {
-  const total = stockDe(db, producto.id);
+function productoResumen(db, producto, indices) {
+  const total = stockDe(db, producto.id, indices);
   return {
     ...producto,
     stock_total: total,
@@ -23,25 +26,27 @@ function productoResumen(db, producto) {
     stock_por_almacen: db.almacenes.map((a) => ({
       almacen_id: a.id,
       almacen: a.nombre,
-      cantidad: stockEn(db, producto.id, a.id),
+      cantidad: stockEn(db, producto.id, a.id, indices),
     })),
   };
 }
 
-function pedidoResumen(db, pedido, detalle = false) {
-  const cliente = db.clientes.find((c) => c.id === pedido.cliente_id);
-  const vendedor = db.usuarios.find((u) => u.id === pedido.vendedor_id);
-  const almacen = db.almacenes.find((a) => a.id === pedido.almacen_id);
-  const ruta = db.rutas.find((r) => r.id === pedido.ruta_id);
+function pedidoResumen(db, pedido, detalle = false, indices) {
+  const cliente = indices ? indices.clientes.get(Number(pedido.cliente_id)) : db.clientes.find((c) => c.id === pedido.cliente_id);
+  const vendedor = indices ? indices.usuarios.get(Number(pedido.vendedor_id)) : db.usuarios.find((u) => u.id === pedido.vendedor_id);
+  const almacen = indices ? indices.almacenes.get(Number(pedido.almacen_id)) : db.almacenes.find((a) => a.id === pedido.almacen_id);
+  const ruta = indices ? indices.rutas.get(Number(pedido.ruta_id)) : db.rutas.find((r) => r.id === pedido.ruta_id);
   const dias = daysBetween(pedido.created_at);
   const vencimiento = vencimientoDe(db, pedido);
   const credito = interesDe(db, pedido);
   const cfgCobro = configCredito(db);
   const diasVencidoCalc = pedido.saldo > 0 ? daysBetween(vencimiento) : 0;
   const enMora = pedido.saldo > 0 && diasVencidoCalc > Number(cfgCobro.dias_gracia || 0);
-  const cobradorId = (db.configuracion?.cobranza?.cobrador_id && Number(db.configuracion.cobranza.cobrador_id))
-    || db.usuarios.find((u) => u.rol === 'cobranzas' && u.activo)?.id
-    || null;
+  const cobradorId = indices
+    ? indices.cobradorId
+    : ((db.configuracion?.cobranza?.cobrador_id && Number(db.configuracion.cobranza.cobrador_id))
+      || db.usuarios.find((u) => u.rol === 'cobranzas' && u.activo)?.id
+      || null);
   const responsableCobroId = enMora ? (cobradorId || pedido.vendedor_id) : pedido.vendedor_id;
   const base = {
     ...pedido,
@@ -56,14 +61,14 @@ function pedidoResumen(db, pedido, detalle = false) {
     almacen_nombre: almacen?.nombre || '—',
     ruta_codigo: ruta?.codigo || null,
     carga_id: pedido.carga_id || null,
-    carga_codigo: db.cargas?.find((c) => c.id === pedido.carga_id)?.codigo || null,
+    carga_codigo: indices ? indices.cargas.get(Number(pedido.carga_id))?.codigo || null : db.cargas?.find((c) => c.id === pedido.carga_id)?.codigo || null,
     dias_desde_venta: dias,
     vencimiento,
     vencido: pedido.saldo > 0 && vencimiento < hoy(),
     dias_vencido: diasVencidoCalc,
     en_mora: enMora,
     responsable_cobro_id: responsableCobroId,
-    responsable_cobro_nombre: db.usuarios.find((u) => u.id === responsableCobroId)?.nombre || 'Sin asignar',
+    responsable_cobro_nombre: (indices ? indices.usuarios.get(Number(responsableCobroId)) : db.usuarios.find((u) => u.id === responsableCobroId))?.nombre || 'Sin asignar',
     cobrador_id: enMora ? cobradorId : null,
     migrado_cobranzas_en: pedido.migrado_cobranzas_en || null,
     dias_credito: credito.dias_credito,
@@ -83,7 +88,8 @@ function pedidoResumen(db, pedido, detalle = false) {
     origen_devolucion_id: pedido.origen_devolucion_id || null,
   };
   if (!detalle) return base;
-  const pagos = db.pagos.filter((p) => p.pedido_id === pedido.id).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  const pagos = (indices ? indices.pagosPorPedido.get(Number(pedido.id)) || [] : db.pagos.filter((p) => p.pedido_id === pedido.id))
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
   return { ...base, pagos, cliente: cliente || null, vendedor: vendedor || null };
 }
 
@@ -104,6 +110,7 @@ function rangoFechas(desde, hasta) {
 }
 
 function dashboard(db, periodo = '30d') {
+  const indices = buildIndices(db);
   const hoyISO = hoy();
   const ayerISO = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   const ventas = db.pedidos.filter((p) => p.estado !== 'cancelado');
@@ -123,18 +130,27 @@ function dashboard(db, periodo = '30d') {
   const totalAnterior = round2(anterior.reduce((s, p) => s + p.total, 0));
   const variacion = totalAnterior > 0 ? round2(((totalPeriodo - totalAnterior) / totalAnterior) * 100) : 0;
 
+  // Un único reparto por fecha: antes se filtraban todas las ventas 2× por día.
+  const porFecha = new Map();
+  ventas.forEach((p) => {
+    const f = fechaCorta(p.created_at);
+    const prev = porFecha.get(f) || { total: 0, pedidos: 0 };
+    prev.total += p.total || 0;
+    prev.pedidos += 1;
+    porFecha.set(f, prev);
+  });
   const serieDias = [];
   const serieLen = periodo === '7d' ? 7 : periodo === '90d' ? 30 : 14;
   for (let i = serieLen - 1; i >= 0; i--) {
     const fecha = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-    const dia = ventas.filter((p) => fechaCorta(p.created_at) === fecha);
     const fechaAnterior = new Date(Date.now() - (i + (periodo === '90d' ? 30 : serieLen)) * 86400000).toISOString().slice(0, 10);
-    const diaAnterior = ventas.filter((p) => fechaCorta(p.created_at) === fechaAnterior);
+    const dia = porFecha.get(fecha) || { total: 0, pedidos: 0 };
+    const diaAnterior = porFecha.get(fechaAnterior) || { total: 0, pedidos: 0 };
     serieDias.push({
       fecha,
-      total: round2(dia.reduce((s, p) => s + p.total, 0)),
-      pedidos: dia.length,
-      anterior: round2(diaAnterior.reduce((s, p) => s + p.total, 0)),
+      total: round2(dia.total),
+      pedidos: dia.pedidos,
+      anterior: round2(diaAnterior.total),
     });
   }
 
@@ -157,11 +173,11 @@ function dashboard(db, periodo = '30d') {
   const vencidas = db.pedidos.filter((p) => p.saldo > 0 && p.estado !== 'cancelado' && new Date(new Date(p.created_at).getTime() + (db.configuracion.empresa.dias_credito || 15) * 86400000).toISOString().slice(0, 10) < hoyISO);
   const pendientes = db.pedidos.filter((p) => ['pendiente', 'preparando'].includes(p.estado));
   const enRuta = db.pedidos.filter((p) => p.estado === 'enviado');
-  const stockBajo = db.productos.filter((p) => p.activo && stockDe(db, p.id) <= p.stock_minimo).map((p) => ({ ...p, stock_total: stockDe(db, p.id) }));
+  const stockBajo = db.productos.filter((p) => p.activo && stockDe(db, p.id, indices) <= p.stock_minimo).map((p) => ({ ...p, stock_total: stockDe(db, p.id, indices) }));
 
   const rutas = db.rutas.filter((r) => r.fecha === hoyISO);
   const rutasActivas = rutas.map((r) => {
-    const repartidor = db.repartidores.find((x) => x.id === r.repartidor_id);
+    const repartidor = indices.repartidores.get(Number(r.repartidor_id));
     const totalParadas = r.paradas.length;
     const entregadas = r.paradas.filter((p) => p.estado === 'entregada').length;
     return {
@@ -179,7 +195,7 @@ function dashboard(db, periodo = '30d') {
   const recientes = [...db.pedidos]
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     .slice(0, 6)
-    .map((p) => pedidoResumen(db, p));
+    .map((p) => pedidoResumen(db, p, false, indices));
 
   const ticketPromedio = delPeriodo.length ? round2(totalPeriodo / delPeriodo.length) : 0;
 
@@ -215,6 +231,7 @@ function dashboard(db, periodo = '30d') {
 }
 
 function reporte(db, desde, hasta) {
+  const indices = buildIndices(db);
   const [inicio, fin] = rangoFechas(desde, hasta);
   const ventas = db.pedidos.filter((p) => {
     const f = fechaCorta(p.created_at);
@@ -233,7 +250,7 @@ function reporte(db, desde, hasta) {
   const prodMap = new Map();
   const catMap = new Map();
   ventas.forEach((p) => (p.items || []).forEach((it) => {
-    const prod = db.productos.find((x) => x.id === it.producto_id);
+    const prod = indices.productos.get(Number(it.producto_id));
     const prev = prodMap.get(it.producto_id) || { producto_id: it.producto_id, nombre: it.nombre, emoji: it.emoji, categoria: prod?.categoria || '—', cantidad: 0, total: 0, margen: 0 };
     prev.cantidad += it.cantidad;
     prev.total = round2(prev.total + it.subtotal);
@@ -248,7 +265,7 @@ function reporte(db, desde, hasta) {
   const canalMap = new Map();
   const clienteMap = new Map();
   ventas.forEach((p) => {
-    const v = db.usuarios.find((u) => u.id === p.vendedor_id);
+    const v = indices.usuarios.get(Number(p.vendedor_id));
     const prev = vendedorMap.get(p.vendedor_id) || { vendedor: v?.nombre || 'Sin asignar', total: 0, pedidos: 0 };
     prev.total = round2(prev.total + p.total);
     prev.pedidos += 1;
@@ -257,7 +274,7 @@ function reporte(db, desde, hasta) {
     c.total = round2(c.total + p.total);
     c.pedidos += 1;
     canalMap.set(p.canal, c);
-    const cl = db.clientes.find((x) => x.id === p.cliente_id);
+    const cl = indices.clientes.get(Number(p.cliente_id));
     const pc = clienteMap.get(p.cliente_id) || { cliente: cl?.nombre || '—', zona: cl?.zona || '—', total: 0, pedidos: 0, saldo: 0 };
     pc.total = round2(pc.total + p.total);
     pc.pedidos += 1;
@@ -285,6 +302,7 @@ function reporte(db, desde, hasta) {
 }
 
 function buscarPedidos(db, filtros = {}) {
+  const indices = buildIndices(db);
   let items = [...db.pedidos];
   const { estado, estado_pago, canal, cliente_id, vendedor_id, desde, hasta, search, ruta_id, sin_ruta } = filtros;
   if (estado && estado !== 'todos') items = items.filter((p) => p.estado === estado);
@@ -296,7 +314,7 @@ function buscarPedidos(db, filtros = {}) {
   if (sin_ruta === 'true') items = items.filter((p) => !p.ruta_id && ['pendiente', 'preparando', 'enviado'].includes(p.estado));
   if (desde) items = items.filter((p) => fechaCorta(p.created_at) >= desde);
   if (hasta) items = items.filter((p) => fechaCorta(p.created_at) <= hasta);
-  let resumen = items.map((p) => pedidoResumen(db, p));
+  let resumen = items.map((p) => pedidoResumen(db, p, false, indices));
   if (search) {
     const q = normalize(search);
     resumen = resumen.filter((p) => normalize(`${p.codigo} ${p.cliente_nombre} ${p.cliente_zona} ${p.vendedor_nombre}`).includes(q));
@@ -305,12 +323,13 @@ function buscarPedidos(db, filtros = {}) {
 }
 
 function sincronizarCobros(db) {
+  const indices = buildIndices(db);
   let cambios = 0;
   const ahora = new Date().toISOString();
   const cobradores = db.usuarios.filter((u) => u.rol === 'cobranzas' && u.activo);
   db.pedidos.forEach((pedido) => {
     if (pedido.estado === 'cancelado' || !(pedido.saldo > 0)) return;
-    const r = pedidoResumen(db, pedido);
+    const r = pedidoResumen(db, pedido, false, indices);
     const responsable = r.en_mora ? (r.responsable_cobro_id || pedido.vendedor_id) : pedido.vendedor_id;
     if (responsable !== pedido.responsable_cobro_id) {
       pedido.responsable_cobro_id = responsable;
@@ -322,7 +341,7 @@ function sincronizarCobros(db) {
   const cfgCobranza = db.configuracion?.cobranza || {};
   if (cfgCobranza.bloquear_clientes_con_mora) {
     const conMora = new Set(db.pedidos
-      .filter((p) => p.saldo > 0 && p.estado !== 'cancelado' && pedidoResumen(db, p).en_mora)
+      .filter((p) => p.saldo > 0 && p.estado !== 'cancelado' && pedidoResumen(db, p, false, indices).en_mora)
       .map((p) => p.cliente_id));
     db.clientes.forEach((cliente) => {
       const debe = conMora.has(cliente.id);
