@@ -19,7 +19,8 @@ function conUso(db, cat) {
 
 router.get('/', (req, res) => {
   const db = load();
-  const categorias = db.cliente_categorias.map((c) => conUso(db, c));
+  const todas = (db.cliente_categorias || []).map((c) => conUso(db, c));
+  const categorias = req.query.todos === 'true' ? todas : todas.filter((c) => c.activa !== false);
   return res.json({ categorias, total: categorias.length });
 });
 
@@ -80,6 +81,26 @@ router.patch('/:id/estado', allow('admin'), (req, res) => {
   categoria.activa = Boolean(req.body?.activa);
   save();
   return res.json({ categoria: conUso(db, categoria) });
+});
+
+router.delete('/:id', allow('admin', 'dueno'), (req, res) => {
+  const db = load();
+  const categoria = db.cliente_categorias.find((c) => c.id === Number(req.params.id));
+  if (!categoria) return res.status(404).json({ error: 'Categoría no encontrada.' });
+  const usos = conUso(db, categoria);
+  const hijas = db.cliente_categorias.filter((c) => c.padre_id === categoria.id).length;
+  const bloqueos = [];
+  if (usos.clientes) bloqueos.push(`${usos.clientes} clientes`);
+  if (usos.vendedores) bloqueos.push(`${usos.vendedores} vendedores`);
+  if (usos.promociones) bloqueos.push(`${usos.promociones} promociones`);
+  if (hijas) bloqueos.push(`${hijas} subcategorías`);
+  if (bloqueos.length) {
+    return res.status(400).json({ error: `No se puede eliminar: la categoría está en uso por ${bloqueos.join(', ')}.` });
+  }
+  db.cliente_categorias = db.cliente_categorias.filter((c) => c.id !== categoria.id);
+  audit(db, req, 'Categoría de cliente eliminada', 'Clientes', categoria.nombre);
+  save();
+  return res.json({ ok: true });
 });
 
 module.exports = router;

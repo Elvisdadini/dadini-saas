@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, MapPin, Pencil, Plus, RefreshCcw, Route, ShieldCheck, Trash2, Users } from 'lucide-react';
 import { api } from '../api';
-import { Badge, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
+import { Badge, Confirm, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
 const DIAS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const VACIA = { codigo: '', nombre: '', zona: '', zona_ids: [], dia_visita: 1, vendedor_id: '', distribuidor_id: '', activa: true };
@@ -17,12 +17,14 @@ export default function RutasVenta() {
   const [zonaNueva, setZonaNueva] = useState('');
   const [tipoNuevo, setTipoNuevo] = useState('');
   const [tipoPadre, setTipoPadre] = useState('');
+  const [eliminarItem, setEliminarItem] = useState(null);
+  const [busyEliminar, setBusyEliminar] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [r, c] = await Promise.all([api.get('/rutas-venta'), api.get('/clientes')]);
+      const [r, c] = await Promise.all([api.get('/rutas-venta?todos=true'), api.get('/clientes')]);
       setData({ ...r, clientes: c.clientes || [] });
     } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
   }, [toast]);
@@ -99,6 +101,20 @@ export default function RutasVenta() {
     } catch (error) { toast(error.message, 'error'); }
   };
 
+  const confirmarEliminacion = async () => {
+    if (!eliminarItem) return;
+    setBusyEliminar(true);
+    try {
+      const path = eliminarItem.tipo === 'zona'
+        ? `/rutas-venta/zonas/${eliminarItem.item.id}`
+        : `/rutas-venta/tipos/${eliminarItem.item.id}`;
+      await api.del(path);
+      toast(`${eliminarItem.tipo === 'zona' ? 'Zona' : 'Tipo'} eliminado`);
+      setEliminarItem(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusyEliminar(false); }
+  };
+
   const nombreDistribuidor = (id) => (data?.distribuidores || []).find((d) => d.id === id)?.nombre || 'Sin asignar';
   const nombreVendedor = (id) => (data?.vendedores || []).find((v) => v.id === id)?.nombre || 'Sin asignar';
   const clientesDe = (codigo) => (data?.clientes || []).filter((c) => c.ruta_venta === codigo).length;
@@ -169,7 +185,12 @@ export default function RutasVenta() {
               <button className="btn btn-primary btn-sm" onClick={crearZona}><Plus size={13} /> Agregar</button>
             </div>
             <div className="pill-group mt-12">
-              {(data?.zonas || []).map((z) => <span key={z.id} className="chip active">{z.nombre}</span>)}
+              {(data?.zonas || []).map((z) => (
+                <span key={z.id} className="chip active">
+                  {z.nombre}
+                  <button className="chip-del" title="Eliminar zona" onClick={() => setEliminarItem({ tipo: 'zona', item: z })}><Trash2 size={11} /></button>
+                </span>
+              ))}
             </div>
           </div>
         </div>
@@ -186,7 +207,10 @@ export default function RutasVenta() {
             </div>
             <div className="pill-group mt-12">
               {(data?.tipos_cliente_ordenados || data?.tipos_cliente || []).map((t) => (
-                <span key={t.id} className={`chip ${t.activo === false ? '' : 'active'}`}>{t.nivel ? '↳ ' : ''}{t.nombre}</span>
+                <span key={t.id} className="chip active">
+                  {t.nivel ? '↳ ' : ''}{t.nombre}
+                  <button className="chip-del" title="Eliminar tipo" onClick={() => setEliminarItem({ tipo: 'tipo', item: t })}><Trash2 size={11} /></button>
+                </span>
               ))}
             </div>
           </div>
@@ -230,6 +254,16 @@ export default function RutasVenta() {
           <label className="check"><input type="checkbox" checked={form.activa} onChange={(e) => setForm({ ...form, activa: e.target.checked })} /> Ruta activa</label>
         </div>
       </Modal>
+
+      <Confirm
+        open={Boolean(eliminarItem)}
+        onClose={() => setEliminarItem(null)}
+        onConfirm={confirmarEliminacion}
+        title={`Eliminar ${eliminarItem?.tipo === 'zona' ? 'zona' : 'tipo de cliente'}`}
+        message={`¿Eliminar "${eliminarItem?.item?.nombre || ''}"? Si está en uso por clientes, rutas o vendedores, el sistema lo impedirá.`}
+        danger
+        loading={busyEliminar}
+      />
     </>
   );
 }

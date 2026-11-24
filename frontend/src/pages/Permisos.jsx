@@ -12,6 +12,7 @@ export default function Permisos() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [vista, setVista] = useState('usuario');
+  const [soloActivas, setSoloActivas] = useState(true);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -96,6 +97,7 @@ export default function Permisos() {
             </select>
           </div>
           {seleccionado && <div className="inline mt-8"><Badge tone={ROL_COLOR[seleccionado.rol] || 'gray'}>{ROL_LABEL[seleccionado.rol] || seleccionado.rol}</Badge><span className="small muted">{activas.length} funciones activas</span>{esAdmin && <Badge tone="green">Acceso total</Badge>}</div>}
+          <label className="check mt-8"><input type="checkbox" checked={soloActivas} onChange={(e) => setSoloActivas(e.target.checked)} /> Mostrar solo funciones activas</label>
         </div>
       </div>
 
@@ -138,14 +140,14 @@ export default function Permisos() {
                             <button className={`btn btn-sm ${completo ? 'btn-soft' : 'btn-ghost'}`} onClick={() => alternarModulo(modulo)} disabled={busy}>{completo ? 'Quitar todo' : 'Marcar todo'}</button>
                           </div>
                           <div className="pill-group mt-8">
-                            {(cat?.crud || []).map((c) => {
+                            {(cat?.crud || []).filter((c) => !soloActivas || activas.includes(`${modulo.base}.${c.codigo}`)).map((c) => {
                               const codigo = `${modulo.base}.${c.codigo}`;
                               return <label key={codigo} className="chip"><input type="checkbox" checked={activas.includes(codigo)} onChange={() => alternar(codigo)} disabled={busy} /> {c.etiqueta}</label>;
                             })}
                           </div>
                           {modulo.sub.length > 0 && (
                             <div className="mt-8" style={{ display: 'grid', gap: 4 }}>
-                              {modulo.sub.map((s) => (
+                              {modulo.sub.filter((s) => !soloActivas || activas.includes(s.codigo)).map((s) => (
                                 <label key={s.codigo} className="check small"><input type="checkbox" checked={activas.includes(s.codigo)} onChange={() => alternar(s.codigo)} disabled={busy} /> {s.etiqueta}</label>
                               ))}
                             </div>

@@ -41,6 +41,8 @@ const GESTION = ['admin', 'dueno', 'supervisor', 'ventas', 'preventista'];
 
 router.get('/', (req, res) => {
   const db = load();
+  const todos = req.query.todos === 'true';
+  const activas = (lista, campo = 'activa') => todos ? lista : lista.filter((x) => x?.[campo] !== false);
   const vendedores = db.usuarios
     .filter((u) => ['ventas', 'preventista', 'vendedor_camion'].includes(u.rol) && u.activo)
     .map((u) => ({
@@ -49,11 +51,11 @@ router.get('/', (req, res) => {
       repartidor_id: u.repartidor_id || null, categoria_cliente_id: u.categoria_cliente_id || null,
     }));
   return res.json({
-    rutas: [...(db.rutas_venta || [])].sort((a, b) => a.codigo.localeCompare(b.codigo)),
-    zonas: db.zonas || [],
-    tipos_cliente: db.tipos_cliente || [],
-    tipos_cliente_ordenados: tiposClienteOrdenados(db),
-    categorias: db.cliente_categorias || [],
+    rutas: activas([...(db.rutas_venta || [])].sort((a, b) => a.codigo.localeCompare(b.codigo))),
+    zonas: activas(db.zonas || []),
+    tipos_cliente: activas(db.tipos_cliente || [], 'activo'),
+    tipos_cliente_ordenados: tiposClienteOrdenados(db).filter((t) => todos || t.activo !== false),
+    categorias: activas(db.cliente_categorias || []),
     vendedores,
     distribuidores: (db.repartidores || []).filter((r) => r.activo),
   });
@@ -180,6 +182,58 @@ router.post('/tipos', allow(...GESTION), (req, res) => {
   audit(db, req, 'Tipo de cliente creado', 'Rutas de venta', `${padreId ? '↳ ' : ''}${tipo.nombre}`);
   save();
   return res.status(201).json({ tipo });
+});
+
+router.patch('/zonas/:id/estado', allow(...GESTION), (req, res) => {
+  const db = load();
+  const zona = (db.zonas || []).find((z) => z.id === Number(req.params.id));
+  if (!zona) return res.status(404).json({ error: 'Zona no encontrada.' });
+  zona.activa = Boolean(req.body?.activa);
+  save();
+  return res.json({ zona });
+});
+
+router.delete('/zonas/:id', allow('admin', 'dueno'), (req, res) => {
+  const db = load();
+  const zona = (db.zonas || []).find((z) => z.id === Number(req.params.id));
+  if (!zona) return res.status(404).json({ error: 'Zona no encontrada.' });
+  const clientes = (db.clientes || []).filter((c) => Number(c.zona_id) === zona.id || c.zona === zona.nombre).length;
+  const rutas = (db.rutas_venta || []).filter((r) => Number(r.zona_id) === zona.id || (r.zona_ids || []).map(Number).includes(zona.id) || r.zona === zona.nombre).length;
+  const vendedores = (db.usuarios || []).filter((u) => u.zona_venta === zona.nombre).length;
+  const usos = [];
+  if (clientes) usos.push(`${clientes} clientes`);
+  if (rutas) usos.push(`${rutas} rutas`);
+  if (vendedores) usos.push(`${vendedores} vendedores`);
+  if (usos.length) return res.status(400).json({ error: `No se puede eliminar: la zona está en uso por ${usos.join(', ')}.` });
+  db.zonas = db.zonas.filter((z) => z.id !== zona.id);
+  audit(db, req, 'Zona eliminada', 'Rutas de venta', zona.nombre);
+  save();
+  return res.json({ ok: true });
+});
+
+router.patch('/tipos/:id/estado', allow(...GESTION), (req, res) => {
+  const db = load();
+  const tipo = (db.tipos_cliente || []).find((t) => t.id === Number(req.params.id));
+  if (!tipo) return res.status(404).json({ error: 'Tipo de cliente no encontrado.' });
+  tipo.activo = Boolean(req.body?.activo);
+  save();
+  return res.json({ tipo });
+});
+
+router.delete('/tipos/:id', allow('admin', 'dueno'), (req, res) => {
+  const db = load();
+  const tipo = (db.tipos_cliente || []).find((t) => t.id === Number(req.params.id));
+  if (!tipo) return res.status(404).json({ error: 'Tipo de cliente no encontrado.' });
+  const clientes = (db.clientes || []).filter((c) => Number(c.tipo_cliente_id) === tipo.id || String(c.tipo || '').toLowerCase() === tipo.nombre.toLowerCase()).length;
+  const hijos = (db.tipos_cliente || []).filter((t) => Number(t.padre_id) === tipo.id).length;
+  const usos = [];
+  if (clientes) usos.push(`${clientes} clientes`);
+  if (hijos) usos.push(`${hijos} subtipos`);
+  if (usos.length) return res.status(400).json({ error: `No se puede eliminar: el tipo está en uso por ${usos.join(', ')}.` });
+  db.tipos_cliente = db.tipos_cliente.filter((t) => t.id !== tipo.id);
+  audit(db, req, 'Tipo de cliente eliminado', 'Rutas de venta', tipo.nombre);
+  save();
+  return res.json({ ok: true });
 });
 
 // Crea o completa zonas y tipos que falten, y vuelve a derivar el

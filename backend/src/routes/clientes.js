@@ -40,17 +40,20 @@ router.get('/', (req, res) => {
     if (req.user.zona_venta) clientes = clientes.filter((c) => c.zona === req.user.zona_venta || c.ruta_venta === req.user.ruta_venta);
     else if (req.user.ruta_venta) clientes = clientes.filter((c) => c.ruta_venta === req.user.ruta_venta);
   }
-  const zonas = [...new Set([...(db.zonas || []).map((z) => z.nombre), ...db.clientes.map((c) => c.zona)].filter(Boolean))].sort();
+  const zonasActivas = (db.zonas || []).filter((z) => z.activa !== false);
+  const zonas = [...new Set([...zonasActivas.map((z) => z.nombre), ...db.clientes.map((c) => c.zona)].filter(Boolean))].sort();
+  const tiposActivos = (db.tipos_cliente || []).filter((t) => t.activo !== false);
+  const rutasActivas = (db.rutas_venta || []).filter((r) => r.activa !== false);
   return res.json({
     clientes: clientes.sort((a, b) => b.comprado - a.comprado),
     zonas,
-    zonasCatalogo: db.zonas || [],
-    tiposCliente: db.tipos_cliente || [],
-    tiposClienteOrdenados: tiposClienteOrdenados(db),
-    rutasVenta: db.rutas_venta || [],
-    vendedores: db.usuarios.filter((u) => ['ventas', 'preventista', 'vendedor_camion'].includes(u.rol)).map((u) => ({ id: u.id, nombre: u.nombre, ruta_venta: u.ruta_venta, zona_venta: u.zona_venta, repartidor_id: u.repartidor_id })),
-    distribuidores: db.repartidores || [],
-    categorias: db.cliente_categorias || [],
+    zonasCatalogo: zonasActivas,
+    tiposCliente: tiposActivos,
+    tiposClienteOrdenados: tiposClienteOrdenados(db).filter((t) => t.activo !== false),
+    rutasVenta: rutasActivas,
+    vendedores: db.usuarios.filter((u) => u.activo && ['ventas', 'preventista', 'vendedor_camion'].includes(u.rol)).map((u) => ({ id: u.id, nombre: u.nombre, ruta_venta: u.ruta_venta, zona_venta: u.zona_venta, repartidor_id: u.repartidor_id })),
+    distribuidores: (db.repartidores || []).filter((r) => r.activo !== false),
+    categorias: (db.cliente_categorias || []).filter((c) => c.activa !== false),
     resumen: {
       total: db.clientes.filter((c) => c.activo).length,
       mayoristas: db.clientes.filter((c) => c.tipo === 'mayorista' && c.activo).length,

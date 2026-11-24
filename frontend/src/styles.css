@@ -205,6 +205,8 @@ button.sidebar-brand:focus-visible { box-shadow: inset 0 0 0 2px var(--orange); 
   border: 1px solid transparent; background: transparent; color: #536a7e; border-radius: 10px;
 }
 .icon-btn:hover { background: var(--surface-2); border-color: var(--line); color: var(--text); }
+.icon-btn.danger { color: var(--red); }
+.icon-btn.danger:hover { background: var(--red-soft); border-color: var(--red); color: var(--red); }
 .topbar-avatar { display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 4px 5px 4px 8px; border-radius: 10px; margin-left: 4px; }
 .topbar-avatar:hover { background: var(--surface-2); }
 .topbar-avatar .avatar-copy { text-align: left; display: none; }
@@ -727,6 +729,8 @@ button.sidebar-brand:focus-visible { box-shadow: inset 0 0 0 2px var(--orange); 
 .chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: #fff; border-radius: 20px; padding: 5px 10px; font-size: 11px; font-weight: 550; color: var(--muted); }
 .chip.active { background: var(--orange-soft); border-color: #ffc8a3; color: var(--orange-dark); }
 .chip:hover { border-color: #ffc29a; }
+.chip-del { display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; vertical-align: middle; }
+.chip-del:hover { color: var(--red); }
 .divider { height: 1px; background: var(--line); margin: 15px 0; }
 .inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mt-8 { margin-top: 8px; } .mt-12 { margin-top: 12px; } .mt-16 { margin-top: 16px; } .mt-20 { margin-top: 20px; }

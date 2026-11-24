@@ -24,7 +24,7 @@ export default function ActualizarPrecios() {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await api.get('/productos?todos=true');
+      const r = await api.get('/productos');
       setProductos(r.productos || []);
       setCambios({});
     } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }

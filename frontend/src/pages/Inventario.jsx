@@ -10,7 +10,7 @@ import { api, qs } from '../api';
 import { optimizarImagen, pesoDeDataUrl, skuDeArchivo } from '../imagen';
 import { useAuth } from '../auth';
 import {
-  Badge, EmptyState, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, Tabs, useToast,
+  Badge, Confirm, EmptyState, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, Tabs, useToast,
 } from '../ui';
 
 const PRODUCTO_VACIO = { nombre: '', categoria: '', categoria_id: '', marca: '', marca_id: '', imagen_url: '', precio: '', costo: '', unidad: 'unidad', unidades_por_caja: 24, unidades_por_paquete: 12, presentacion: 'unidad', vender_por: ['unidad', 'caja', 'paquete'], categorias_clientes: [], peso_kg: 0.25, stock_minimo: 10, stock_inicial: 0, emoji: '📦', color: '#FF6500', activo: true };
@@ -57,6 +57,7 @@ export default function Inventario() {
   const [loteArchivos, setLoteArchivos] = useState([]);
   const [loteProgreso, setLoteProgreso] = useState(0);
   const [loteResultado, setLoteResultado] = useState(null);
+  const [productoEliminar, setProductoEliminar] = useState(null);
   const [almacenCerrar, setAlmacenCerrar] = useState(null);
   const [resultadoCierre, setResultadoCierre] = useState(null);
 
@@ -70,7 +71,7 @@ export default function Inventario() {
         api.get(`/productos${qs({ search, categoria, bajo_stock: bajo ? 'true' : '', estado: estadoProducto })}`),
         api.get('/almacenes'),
         api.get('/categorias'),
-        api.get('/producto-catalogo'),
+        api.get('/producto-catalogo?todos=true'),
       ]);
       setProductos(p.productos);
       setCategorias(p.categorias);
@@ -225,6 +226,17 @@ export default function Inventario() {
     } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
   };
 
+  const confirmarEliminarProducto = async () => {
+    if (!productoEliminar) return;
+    setBusy(true);
+    try {
+      const r = await api.del(`/productos/${productoEliminar.id}?permanente=true`);
+      toast(r.eliminado === 'permanente' ? 'Producto eliminado permanentemente' : 'Producto desactivado');
+      setProductoEliminar(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
+
   const cerrarAlmacen = async () => {
     if (!almacenCerrar) return;
     setBusy(true);
@@ -343,6 +355,7 @@ export default function Inventario() {
                           {puedeEditar && <button className="icon-btn" title="Ajustar stock" onClick={() => abrirAjuste(p)}><ArrowDownToLine size={14} /></button>}
                           {puedeEditar && <button className="icon-btn" title="Transferir" onClick={() => abrirTransferencia(p)}><ArrowLeftRight size={14} /></button>}
                           {puedeEditar && <button className="icon-btn" title="Editar" onClick={() => abrirProducto(p)}><Pencil size={14} /></button>}
+                          {puedeEditar && <button className="icon-btn danger" title="Eliminar producto" onClick={() => setProductoEliminar(p)}><Trash2 size={14} /></button>}
                         </td>
                       </tr>
                     ))}
@@ -635,6 +648,16 @@ export default function Inventario() {
           )}
         </div>
       </Modal>
+
+      <Confirm
+        open={Boolean(productoEliminar)}
+        onClose={() => setProductoEliminar(null)}
+        onConfirm={confirmarEliminarProducto}
+        title="Eliminar producto"
+        message={`¿Eliminar "${productoEliminar?.nombre || ''}" permanentemente? Si tiene ventas registradas, solo podrás desactivarlo.`}
+        danger
+        loading={busy}
+      />
     </>
   );
 }

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, BadgePercent, Pencil, Plus, RefreshCcw, Tag, Users } from 'lucide-react';
+import { ArrowLeft, BadgePercent, Pencil, Plus, RefreshCcw, Tag, Trash2, Users } from 'lucide-react';
 import { api } from '../api';
-import { Badge, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
+import { Badge, Confirm, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
 const VACIA = { nombre: '', descripcion: '', padre_id: '', descuento_porcentaje: 0, descuento_fijo: 0, precios: [], activa: true };
 
@@ -15,17 +15,29 @@ export default function CategoriasClientes() {
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState(VACIA);
   const [busy, setBusy] = useState(false);
+  const [eliminarCat, setEliminarCat] = useState(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [c, p] = await Promise.all([api.get('/categorias'), api.get('/productos')]);
+      const [c, p] = await Promise.all([api.get('/categorias?todos=true'), api.get('/productos')]);
       setData(c);
       setProductos(p.productos || []);
     } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
   }, [toast]);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  const confirmarEliminacion = async () => {
+    if (!eliminarCat) return;
+    setBusy(true);
+    try {
+      await api.del(`/categorias/${eliminarCat.id}`);
+      toast('Categoría eliminada');
+      setEliminarCat(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
 
   const abrir = (cat = null) => {
     setEditando(cat);
@@ -85,7 +97,10 @@ export default function CategoriasClientes() {
                     <td className="num">{c.clientes}</td>
                     <td>{c.precios?.length || 0} productos</td>
                     <td><Badge tone={c.activa ? 'green' : 'gray'}>{c.activa ? 'Activa' : 'Inactiva'}</Badge></td>
-                    <td className="actions"><button className="icon-btn" onClick={() => abrir(c)}><Pencil size={14} /></button></td>
+                    <td className="actions">
+                      <button className="icon-btn" title="Editar" onClick={() => abrir(c)}><Pencil size={14} /></button>
+                      <button className="icon-btn danger" title="Eliminar" onClick={() => setEliminarCat(c)}><Trash2 size={14} /></button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -117,6 +132,16 @@ export default function CategoriasClientes() {
           <label className="check"><input type="checkbox" checked={form.activa} onChange={(e) => setForm({ ...form, activa: e.target.checked })} /> Categoría activa</label>
         </div>
       </Modal>
+
+      <Confirm
+        open={Boolean(eliminarCat)}
+        onClose={() => setEliminarCat(null)}
+        onConfirm={confirmarEliminacion}
+        title="Eliminar categoría"
+        message={`¿Eliminar "${eliminarCat?.nombre || ''}"? Si tiene clientes, vendedores, promociones o subcategorías, el sistema lo impedirá.`}
+        danger
+        loading={busy}
+      />
     </>
   );
 }

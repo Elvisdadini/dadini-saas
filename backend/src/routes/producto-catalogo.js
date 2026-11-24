@@ -73,9 +73,11 @@ function eliminar(db, req, res, clave) {
 
 router.get('/', (req, res) => {
   const db = load();
+  const todos = req.query.todos === 'true';
+  const activas = (lista) => todos ? lista : lista.filter((x) => x.activa !== false);
   return res.json({
-    categorias: listar(db, 'producto_categorias'),
-    marcas: listar(db, 'producto_marcas'),
+    categorias: activas(listar(db, 'producto_categorias')),
+    marcas: activas(listar(db, 'producto_marcas')),
   });
 });
 

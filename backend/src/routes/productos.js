@@ -37,7 +37,10 @@ router.get('/', (req, res) => {
     productos: productos.sort((a, b) => a.nombre.localeCompare(b.nombre)),
     categorias,
     marcas,
-    catalogo: { categorias: db.producto_categorias || [], marcas: db.producto_marcas || [] },
+    catalogo: {
+      categorias: (db.producto_categorias || []).filter((c) => c.activa !== false),
+      marcas: (db.producto_marcas || []).filter((m) => m.activa !== false),
+    },
     resumen: {
       total: indices.productosActivos.size,
       inactivos: db.productos.filter((p) => p.activo === false).length,
@@ -309,10 +312,32 @@ router.delete('/:id', requirePermiso('inventario.eliminar'), allow(), (req, res)
   const db = load();
   const producto = db.productos.find((p) => p.id === Number(req.params.id));
   if (!producto) return res.status(404).json({ error: 'Producto no encontrado.' });
+  const permanente = req.query.permanente === 'true';
+
+  if (permanente) {
+    const enPedidos = db.pedidos.some((p) => (p.items || []).some((i) => Number(i.producto_id) === producto.id));
+    if (enPedidos) return res.status(400).json({ error: 'No se puede eliminar: el producto aparece en ventas registradas. Desactívalo en su lugar.' });
+    db.productos = db.productos.filter((p) => p.id !== producto.id);
+    db.stock = (db.stock || []).filter((s) => Number(s.producto_id) !== producto.id);
+    db.movimientos = (db.movimientos || []).filter((m) => Number(m.producto_id) !== producto.id);
+    (db.promociones || []).forEach((promo) => {
+      promo.productos_ids = (promo.productos_ids || []).filter((id) => Number(id) !== producto.id);
+    });
+    (db.cliente_categorias || []).forEach((cat) => {
+      cat.precios = (cat.precios || []).filter((p) => Number(p.producto_id) !== producto.id);
+    });
+    (db.almacenes_moviles || []).forEach((almacen) => {
+      almacen.lineas = (almacen.lineas || []).filter((l) => Number(l.producto_id) !== producto.id);
+    });
+    audit(db, req, 'Producto eliminado permanentemente', 'Inventario', producto.nombre);
+    save();
+    return res.json({ ok: true, eliminado: 'permanente' });
+  }
+
   producto.activo = false;
   audit(db, req, 'Producto desactivado', 'Inventario', producto.nombre);
   save();
-  return res.json({ ok: true });
+  return res.json({ ok: true, eliminado: 'logico' });
 });
 
 router.post('/:id/ajuste', allow('almacen'), (req, res) => {

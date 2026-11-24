@@ -53,9 +53,10 @@ export function puede(user, modulo) {
   if (Array.isArray(user.permisos)) {
     if (user.permisos.includes(modulo)) return true;
     // Misma compatibilidad que el backend: el permiso de módulo otorga sus
-    // sub-funciones (ej. "inventario" habilita "inventario.ver").
+    // sub-funciones (ej. "inventario" habilita "inventario.ver") y cualquier
+    // sub-función activa habilita el módulo en el menú.
     if (modulo && modulo.includes('.')) return user.permisos.includes(modulo.split('.')[0]);
-    return false;
+    return user.permisos.some((p) => p.startsWith(`${modulo}.`));
   }
   return (PERMISOS[modulo] || []).includes(user.rol);
 }

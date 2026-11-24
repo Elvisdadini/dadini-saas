@@ -36,6 +36,7 @@ export default function Administracion() {
   const [auditSearch, setAuditSearch] = useState('');
   const [auditAccion, setAuditAccion] = useState('todas');
   const [busy, setBusy] = useState(false);
+  const [soloFuncionesActivas, setSoloFuncionesActivas] = useState(true);
   const [reset, setReset] = useState(null);
   const [bloqueo, setBloqueo] = useState(null);
   const [motivoBloqueo, setMotivoBloqueo] = useState('');
@@ -466,11 +467,16 @@ export default function Administracion() {
             <div className="notice notice-info"><ShieldCheck size={15} /> Administradores y dueños tienen todas las funciones activas.</div>
           ) : (
             <>
-              <span className="small muted">Funciones activas ({(form.permisos || []).length}):</span>
+              <div className="inline" style={{ justifyContent: 'space-between' }}>
+                <span className="small muted">Funciones activas ({(form.permisos || []).length}):</span>
+                <label className="check"><input type="checkbox" checked={soloFuncionesActivas} onChange={(e) => setSoloFuncionesActivas(e.target.checked)} /> Solo activas</label>
+              </div>
               <div className="grid grid-3" style={{ gap: 8 }}>
-                {[...(catalogos.modulos || []), ...(catalogos.acciones || [])].map((permiso) => (
-                  <label key={permiso.codigo} className="check"><input type="checkbox" checked={(form.permisos || []).includes(permiso.codigo)} onChange={() => alternarPermiso(permiso.codigo)} /> {permiso.etiqueta}</label>
-                ))}
+                {[...(catalogos.modulos || []), ...(catalogos.acciones || [])]
+                  .filter((permiso) => !soloFuncionesActivas || (form.permisos || []).includes(permiso.codigo))
+                  .map((permiso) => (
+                    <label key={permiso.codigo} className="check"><input type="checkbox" checked={(form.permisos || []).includes(permiso.codigo)} onChange={() => alternarPermiso(permiso.codigo)} /> {permiso.etiqueta}</label>
+                  ))}
               </div>
               <span className="hint">Los cambios aparecen o desaparecen para el usuario al cerrar sesión y volver a ingresar.</span>
             </>

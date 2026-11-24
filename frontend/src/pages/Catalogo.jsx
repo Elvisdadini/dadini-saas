@@ -42,7 +42,7 @@ export default function Catalogo() {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, h] = await Promise.all([api.get('/productos?todos=true'), api.get('/catalogo-pdf')]);
+      const [p, h] = await Promise.all([api.get('/productos'), api.get('/catalogo-pdf')]);
       setProductos(p.productos || []);
       setCategorias(p.categorias || []);
       setHistorial(h.catalogos || []);
