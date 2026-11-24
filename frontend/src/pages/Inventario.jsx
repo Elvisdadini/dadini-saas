@@ -611,12 +611,12 @@ export default function Inventario() {
             <>
               <div className="notice notice-warn"><AlertTriangle size={15} /> Se moverán todas las unidades de este almacén al central. La acción quedará registrada con movimientos de transferencia. Podrás reabrir el almacén cuando quieras.</div>
               <div className="inline" style={{ justifyContent: 'space-between' }}>
-                <span className="small muted">Unidades a transferir</span>
-                <strong>{(almacenCerrar?.unidades || 0).toLocaleString()}</strong>
+                <span className="small muted">Unidades a transferir (incluye inactivos)</span>
+                <strong>{((almacenCerrar?.unidades_fisicas ?? almacenCerrar?.unidades) || 0).toLocaleString()}</strong>
               </div>
               <div className="inline" style={{ justifyContent: 'space-between' }}>
                 <span className="small muted">Productos con stock</span>
-                <strong>{almacenCerrar?.productos || 0}</strong>
+                <strong>{(almacenCerrar?.productos_fisicos ?? almacenCerrar?.productos) || 0}</strong>
               </div>
             </>
           ) : (

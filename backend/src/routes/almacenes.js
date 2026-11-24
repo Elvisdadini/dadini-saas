@@ -25,7 +25,8 @@ router.get('/', (req, res) => {
   const activos = productosActivos(db);
   const central = centralDe(db);
   const almacenes = db.almacenes.map((a) => {
-    const filas = db.stock.filter((s) => s.almacen_id === a.id && activos.has(Number(s.producto_id)) && s.cantidad > 0);
+    const todas = db.stock.filter((s) => s.almacen_id === a.id && s.cantidad > 0);
+    const filas = todas.filter((s) => activos.has(Number(s.producto_id)));
     const unidades = filas.reduce((s, f) => s + f.cantidad, 0);
     const valor = filas.reduce((s, f) => s + f.cantidad * (indices.productos.get(Number(f.producto_id))?.costo || 0), 0);
     return {
@@ -34,6 +35,10 @@ router.get('/', (req, res) => {
       unidades,
       valor: round2(valor),
       productos: filas.length,
+      // Métricas físicas: incluyen productos inactivos (que no cuentan para
+      // valor/ stock) pero que SÍ se transfieren al cerrar el almacén.
+      unidades_fisicas: todas.reduce((s, f) => s + f.cantidad, 0),
+      productos_fisicos: todas.length,
     };
   });
   return res.json({ almacenes, central_id: central?.id || null });
