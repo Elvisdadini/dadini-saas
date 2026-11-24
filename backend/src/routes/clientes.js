@@ -4,7 +4,7 @@ const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, audit, num, round2, matches } = require('../utils');
 const { pedidoResumen } = require('../services');
 const { esCoordenaValida } = require('../geo');
-const { asignarCliente, distribuidorDeVendedor } = require('../asignacion');
+const { asignarCliente, distribuidorDeVendedor, tiposClienteOrdenados } = require('../asignacion');
 
 const router = express.Router();
 router.use(authRequired);
@@ -46,6 +46,7 @@ router.get('/', (req, res) => {
     zonas,
     zonasCatalogo: db.zonas || [],
     tiposCliente: db.tipos_cliente || [],
+    tiposClienteOrdenados: tiposClienteOrdenados(db),
     rutasVenta: db.rutas_venta || [],
     vendedores: db.usuarios.filter((u) => ['ventas', 'preventista', 'vendedor_camion'].includes(u.rol)).map((u) => ({ id: u.id, nombre: u.nombre, ruta_venta: u.ruta_venta, zona_venta: u.zona_venta, repartidor_id: u.repartidor_id })),
     distribuidores: db.repartidores || [],

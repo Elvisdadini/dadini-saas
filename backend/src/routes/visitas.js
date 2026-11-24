@@ -80,10 +80,30 @@ router.get('/agenda', (req, res) => {
   const hoyDia = diaSemana > 5 ? 1 : diaSemana;
   const dia = Number(req.query.dia) || hoyDia;
   const ruta = req.query.ruta_venta || usuario?.ruta_venta || null;
+  const zonaExplicita = Boolean(req.query.zona);
   const zona = req.query.zona || usuario?.zona_venta || null;
   const vendedorId = req.query.vendedor_id
     ? Number(req.query.vendedor_id)
     : (esAdmin ? null : req.user.id);
+
+  // Todas las zonas que el vendedor visita ese día (una ruta puede tener
+  // varias). Se usan para que la agenda no omita clientes de esas zonas.
+  const rutasDelDia = (db.rutas_venta || []).filter((r) => r.activa !== false
+    && Number(r.vendedor_id) === Number(vendedorId || req.user.id)
+    && Number(r.dia_visita) === dia);
+  const zonasDelDia = new Set();
+  rutasDelDia.forEach((r) => {
+    (r.zona_ids || (r.zona_id ? [r.zona_id] : [])).forEach((id) => zonasDelDia.add(Number(id)));
+    (r.zonas || (r.zona ? [r.zona] : [])).forEach((nombre) => zonasDelDia.add(String(nombre).toLowerCase()));
+  });
+  if (usuario?.zona_venta) zonasDelDia.add(String(usuario.zona_venta).toLowerCase());
+  const pasaZona = (cliente) => {
+    if (zonaExplicita) return cliente.zona === zona || cliente.ruta_venta === ruta;
+    if (!zonasDelDia.size) return true;
+    return zonasDelDia.has(String(cliente.zona || '').toLowerCase())
+      || zonasDelDia.has(Number(cliente.zona_id))
+      || cliente.ruta_venta === ruta;
+  };
   const vendedor = vendedorId ? db.usuarios.find((u) => u.id === vendedorId) : null;
   const distribuidorId = vendedor?.repartidor_id || usuario?.repartidor_id || null;
   const hoyISO = new Date().toISOString().slice(0, 10);
@@ -91,7 +111,7 @@ router.get('/agenda', (req, res) => {
   const aplicaFiltros = (cliente) => cliente.activo
     && cliente.dia_visita === dia
     && (!ruta || cliente.ruta_venta === ruta)
-    && (!zona || cliente.zona === zona || cliente.ruta_venta === ruta)
+    && pasaZona(cliente)
     && (!vendedorId || cliente.vendedor_id === vendedorId || cliente.vendedor_id === req.user.id);
 
   const clientes = db.clientes
@@ -126,6 +146,7 @@ router.get('/agenda', (req, res) => {
     dia,
     ruta_venta: ruta,
     zona,
+    zonas_del_dia: [...zonasDelDia].filter((z) => typeof z === 'string'),
     vendedor_id: vendedorId,
     vendedor_nombre: vendedor?.nombre || usuario?.nombre || '—',
     distribuidor_id: distribuidorId,
@@ -147,7 +168,7 @@ router.get('/agenda', (req, res) => {
       dia: d,
       total: db.clientes.filter((c) => c.activo && c.dia_visita === d
         && (!ruta || c.ruta_venta === ruta)
-        && (!zona || c.zona === zona || c.ruta_venta === ruta)
+        && pasaZona(c)
         && (!vendedorId || c.vendedor_id === vendedorId)).length,
     })),
   });

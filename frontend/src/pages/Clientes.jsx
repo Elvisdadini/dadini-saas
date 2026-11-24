@@ -11,7 +11,7 @@ import Mapa from '../components/Mapa';
 import { abrirEnMapas, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, EmptyState, Estado, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
-const VACIO = { nombre: '', tipo: 'minorista', zona: 'Centro', direccion: '', telefono: '', whatsapp: '', email: '', limite_credito: 0, contacto: '', notas: '', activo: true, latitud: '', longitud: '', precision: null, ruta_venta: '', dia_visita: '', categoria_cliente_id: '', vendedor_id: '' };
+const VACIO = { nombre: '', tipo: 'minorista', tipo_cliente_id: '', zona: '', direccion: '', telefono: '', whatsapp: '', email: '', limite_credito: 0, contacto: '', notas: '', activo: true, latitud: '', longitud: '', precision: null, ruta_venta: '', dia_visita: '', categoria_cliente_id: '', vendedor_id: '' };
 
 export default function Clientes() {
   const { user } = useAuth();
@@ -71,10 +71,40 @@ export default function Clientes() {
   const puedeCrear = useMemo(() => puede(user, 'clientes_crear'), [user]);
   const puedeAsignar = useMemo(() => puede(user, 'clientes_editar'), [user]);
 
+  // Día de la preventa: el elegido o, si está en "automático", el día actual.
+  const diaHoy = (() => { const d = new Date().getDay() || 7; return d > 5 ? 1 : d; })();
+  const diaEfectivo = Number(form.dia_visita) || diaHoy;
+  const vendedorFormId = Number(form.vendedor_id) || user?.id;
+  const zonasDelDia = useMemo(() => {
+    const ids = new Set();
+    const nombres = new Set();
+    (data?.rutasVenta || []).forEach((r) => {
+      if (r.activa === false) return;
+      if (Number(r.vendedor_id) !== Number(vendedorFormId)) return;
+      if (Number(r.dia_visita) !== Number(diaEfectivo)) return;
+      (r.zona_ids || (r.zona_id ? [r.zona_id] : [])).forEach((id) => ids.add(Number(id)));
+      (r.zonas || (r.zona ? [r.zona] : [])).forEach((z) => nombres.add(z));
+    });
+    const catalogo = data?.zonasCatalogo || [];
+    const resultado = catalogo.filter((z) => ids.has(Number(z.id)) || nombres.has(z.nombre));
+    if (!resultado.length) {
+      catalogo.filter((z) => nombres.has(z.nombre)).forEach((z) => resultado.push(z));
+    }
+    return resultado;
+  }, [data, vendedorFormId, diaEfectivo]);
+
+  useEffect(() => {
+    if (!formOpen || !zonasDelDia.length) return;
+    if (!zonasDelDia.some((z) => z.nombre === form.zona)) {
+      setForm((f) => ({ ...f, zona: zonasDelDia[0].nombre }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formOpen, zonasDelDia.map((z) => z.id).join(','), diaEfectivo, vendedorFormId]);
+
   const abrirNuevo = () => { setEditando(null); setForm(VACIO); setFormOpen(true); };
   const abrirEditar = (c) => {
     setEditando(c);
-    setForm({ nombre: c.nombre, tipo: c.tipo, zona: c.zona, direccion: c.direccion, telefono: c.telefono, whatsapp: c.whatsapp || '', email: c.email, limite_credito: c.limite_credito, contacto: c.contacto, notas: c.notas, activo: c.activo, latitud: c.latitud ?? '', longitud: c.longitud ?? '', precision: c.precision ?? null, ruta_venta: c.ruta_venta || '', dia_visita: c.dia_visita || '', categoria_cliente_id: c.categoria_cliente_id || '', vendedor_id: c.vendedor_id || '' });
+    setForm({ nombre: c.nombre, tipo: c.tipo, tipo_cliente_id: c.tipo_cliente_id || '', zona: c.zona, direccion: c.direccion, telefono: c.telefono, whatsapp: c.whatsapp || '', email: c.email, limite_credito: c.limite_credito, contacto: c.contacto, notas: c.notas, activo: c.activo, latitud: c.latitud ?? '', longitud: c.longitud ?? '', precision: c.precision ?? null, ruta_venta: c.ruta_venta || '', dia_visita: c.dia_visita || '', categoria_cliente_id: c.categoria_cliente_id || '', vendedor_id: c.vendedor_id || '' });
     setFormOpen(true);
   };
 
@@ -342,14 +372,33 @@ export default function Clientes() {
           <div className="field"><label>Nombre o razón social <span className="req">*</span></label><input className="input" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej. Minimarket La Recoleta" /></div>
           <div className="field-row">
             <div className="field"><label>Vendedor asignado</label><select className="select" value={form.vendedor_id} onChange={(e) => setForm({ ...form, vendedor_id: e.target.value })}><option value="">Automático (quien crea el cliente)</option>{(data?.vendedores || []).map((v) => <option key={v.id} value={v.id}>{v.nombre}</option>)}</select><span className="hint">La ruta, zona, día, categoría y distribuidor se derivan de este vendedor.</span></div>
-            <div className="field"><label>Tipo de cliente</label><select className="select" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>{(data?.tipos_cliente || []).map((t) => <option key={t.id} value={t.nombre.toLowerCase()}>{t.nombre}</option>)}</select></div>
+            <div className="field"><label>Tipo de cliente</label>
+              <select className="select" value={form.tipo_cliente_id || ''} onChange={(e) => {
+                const t = (data?.tiposCliente || []).find((x) => x.id === Number(e.target.value));
+                setForm({ ...form, tipo_cliente_id: e.target.value, tipo: (t?.nombre || 'minorista').toLowerCase() });
+              }}>
+                <option value="">Seleccionar…</option>
+                {(data?.tiposClienteOrdenados || data?.tiposCliente || []).map((t) => (
+                  <option key={t.id} value={t.id}>{t.nivel ? '↳ ' : ''}{t.nombre}</option>
+                ))}
+              </select>
+              <span className="hint">Incluye los subtipos creados para cada negocio.</span>
+            </div>
           </div>
           <div className="field-row">
-            <div className="field"><label>Zona / barrio</label><select className="select" value={form.zona} onChange={(e) => setForm({ ...form, zona: e.target.value })}><option value="">Automática según vendedor</option>{(data?.zonas || []).map((z) => <option key={z} value={z}>{z}</option>)}</select></div>
+            <div className="field"><label>Zona / barrio</label>
+              <select className="select" value={form.zona || ''} onChange={(e) => setForm({ ...form, zona: e.target.value })}>
+                <option value="">Automática según vendedor</option>
+                {(zonasDelDia.length ? zonasDelDia.map((z) => z.nombre) : (data?.zonas || [])).map((z) => <option key={z} value={z}>{z}</option>)}
+              </select>
+              <span className="hint">{zonasDelDia.length
+                ? `Zonas que ${vendedorFormId ? 'el vendedor' : 'tu'} visita el ${['', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'][diaEfectivo]}: ${zonasDelDia.map((z) => z.nombre).join(', ')}`
+                : 'No hay zonas programadas para ese día; se muestran todas.'}</span>
+            </div>
             <div className="field"><label>Ruta de preventa</label><select className="select" value={form.ruta_venta} onChange={(e) => setForm({ ...form, ruta_venta: e.target.value })}><option value="">Automática según vendedor</option>{(data?.rutasVenta || []).map((r) => <option key={r.id} value={r.codigo}>{r.codigo} · {r.zona}</option>)}</select></div>
           </div>
           <div className="field-row">
-            <div className="field"><label>Día de visita</label><select className="select" value={form.dia_visita} onChange={(e) => setForm({ ...form, dia_visita: e.target.value })}><option value="">Automático según vendedor</option>{[1, 2, 3, 4, 5, 6, 7].map((d) => <option key={d} value={d}>{['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][d]}</option>)}</select></div>
+            <div className="field"><label>Día de visita</label><select className="select" value={form.dia_visita} onChange={(e) => setForm({ ...form, dia_visita: e.target.value })}><option value="">Hoy / automático según vendedor</option>{[1, 2, 3, 4, 5, 6, 7].map((d) => <option key={d} value={d}>{['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][d]}</option>)}</select><span className="hint">Hoy es {['', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'][diaHoy]}. Las zonas del selector se filtran por este día.</span></div>
             <div className="field"><label>Categoría de cliente</label><select className="select" value={form.categoria_cliente_id} onChange={(e) => setForm({ ...form, categoria_cliente_id: e.target.value })}><option value="">Automática según vendedor</option>{(data?.categorias || []).map((c) => <option key={c.id} value={c.id}>{c.padre_id ? `↳ ${c.nombre}` : c.nombre} · {c.descuento_porcentaje}%</option>)}</select></div>
           </div>
           <div className="notice notice-info"><ShieldCheck size={15} /> Si falta una ruta, zona, tipo o categoría, el sistema la crea automáticamente y asigna el distribuidor del vendedor para evitar errores al guardar.</div>

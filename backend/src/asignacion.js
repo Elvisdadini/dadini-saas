@@ -28,23 +28,48 @@ function asegurarZona(db, nombre) {
   return { ...zona, creada };
 }
 
-function asegurarTipoCliente(db, tipo) {
-  const nombre = String(tipo || '').trim().toLowerCase() === 'mayorista' ? 'Mayorista' : 'Minorista';
-  let objeto = (db.tipos_cliente || []).find((t) => mismoTexto(t.nombre, nombre));
+function asegurarTipoCliente(db, tipo, padreId = null) {
+  const tipos = db.tipos_cliente || (db.tipos_cliente = []);
+  const nombre = String(tipo || '').trim();
+  if (!nombre) return asegurarTipoCliente(db, 'Minorista', padreId);
+  let objeto = tipos.find((t) => mismoTexto(t.nombre, nombre));
   let creado = false;
   if (!objeto) {
     objeto = {
-      id: nextId(db.tipos_cliente),
-      codigo: `TIP-${String(nextId(db.tipos_cliente)).padStart(4, '0')}`,
+      id: nextId(tipos),
+      codigo: `TIP-${String(nextId(tipos)).padStart(4, '0')}`,
       nombre,
       descripcion: `Clientes ${nombre.toLowerCase()}`,
+      padre_id: padreId ? Number(padreId) : null,
       activo: true,
       created_at: ahora(),
     };
-    db.tipos_cliente.push(objeto);
+    tipos.push(objeto);
     creado = true;
+  } else if (padreId && objeto.padre_id === undefined) {
+    objeto.padre_id = Number(padreId);
   }
   return { ...objeto, creado };
+}
+
+// Tipos ordenados padre → hijo, para los selectores jerárquicos.
+function tiposClienteOrdenados(db) {
+  const tipos = db.tipos_cliente || [];
+  const resultados = [];
+  const visitados = new Set();
+  const agregar = (padreId, nivel) => {
+    tipos.filter((t) => Number(t.padre_id || null) === Number(padreId || null))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+      .forEach((t) => {
+        if (visitados.has(t.id)) return;
+        visitados.add(t.id);
+        resultados.push({ ...t, nivel });
+        agregar(t.id, nivel + 1);
+      });
+  };
+  agregar(null, 0);
+  tipos.filter((t) => !visitados.has(t.id)).forEach((t) => resultados.push({ ...t, nivel: 0 }));
+  return resultados;
 }
 
 function asegurarCategoria(db, categoriaId) {
@@ -122,7 +147,12 @@ function asignarCliente(db, cliente, vendedor, body = {}) {
 
   const zona = asegurarZona(db, zonaNombre);
   if (zona.creada) creados.push(`zona ${zona.nombre}`);
-  const tipo = asegurarTipoCliente(db, body.tipo || cliente.tipo || 'minorista');
+  const tipoExistente = body.tipo_cliente_id
+    ? (db.tipos_cliente || []).find((t) => t.id === Number(body.tipo_cliente_id))
+    : null;
+  const tipo = tipoExistente
+    ? { ...tipoExistente, creado: false }
+    : asegurarTipoCliente(db, body.tipo || cliente.tipo || 'minorista');
   if (tipo.creado) creados.push(`tipo ${tipo.nombre}`);
   const categoria = asegurarCategoria(db, body.categoria_cliente_id || vendedor?.categoria_cliente_id);
   if (categoria.creada) creados.push(`categoría ${categoria.nombre}`);
@@ -177,6 +207,6 @@ function sincronizarAsignaciones(db) {
 }
 
 module.exports = {
-  asegurarZona, asegurarTipoCliente, asegurarCategoria, asegurarRutaVenta,
+  asegurarZona, asegurarTipoCliente, tiposClienteOrdenados, asegurarCategoria, asegurarRutaVenta,
   distribuidorDeVendedor, rutaDeVendedor, asignarCliente, sincronizarAsignaciones,
 };

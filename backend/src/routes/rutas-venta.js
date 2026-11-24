@@ -2,7 +2,37 @@ const express = require('express');
 const { load, save } = require('../db');
 const { authRequired, allow } = require('../auth');
 const { nextId, audit } = require('../utils');
-const { asegurarZona, asegurarTipoCliente, asignarCliente, sincronizarAsignaciones } = require('../asignacion');
+const { asegurarZona, asegurarTipoCliente, tiposClienteOrdenados, asignarCliente, sincronizarAsignaciones } = require('../asignacion');
+
+// Resuelve una lista de zonas (por id o por nombre) y conserva las que ya
+// existen. `zona` simple se mantiene por compatibilidad con el resto del sistema.
+function resolverZonas(db, body, vendedor) {
+  const candidatos = [];
+  const ids = Array.isArray(body?.zona_ids) ? body.zona_ids
+    : Array.isArray(body?.zonas_ids) ? body.zonas_ids
+      : Array.isArray(body?.zonas) ? body.zonas : [];
+  ids.forEach((id) => {
+    const zona = (db.zonas || []).find((z) => z.id === Number(id) || z.id === id);
+    if (zona) candidatos.push(zona.nombre);
+  });
+  (Array.isArray(body?.zonas_nombres) ? body.zonas_nombres : []).forEach((nombre) => {
+    if (nombre) candidatos.push(String(nombre));
+  });
+  if (body?.zona) candidatos.push(String(body.zona));
+  if (!candidatos.length && vendedor?.zona_venta) candidatos.push(vendedor.zona_venta);
+  if (!candidatos.length) candidatos.push('Centro');
+
+  const vistos = new Set();
+  const zonas = [];
+  candidatos.forEach((nombre) => {
+    const zona = asegurarZona(db, nombre);
+    const clave = zona.nombre.toLowerCase();
+    if (vistos.has(clave)) return;
+    vistos.add(clave);
+    zonas.push(zona);
+  });
+  return zonas;
+}
 
 const router = express.Router();
 router.use(authRequired);
@@ -22,6 +52,7 @@ router.get('/', (req, res) => {
     rutas: [...(db.rutas_venta || [])].sort((a, b) => a.codigo.localeCompare(b.codigo)),
     zonas: db.zonas || [],
     tipos_cliente: db.tipos_cliente || [],
+    tipos_cliente_ordenados: tiposClienteOrdenados(db),
     categorias: db.cliente_categorias || [],
     vendedores,
     distribuidores: (db.repartidores || []).filter((r) => r.activo),
@@ -30,11 +61,11 @@ router.get('/', (req, res) => {
 
 router.post('/', allow(...GESTION), (req, res) => {
   const db = load();
-  const { codigo, nombre, zona, dia_visita, vendedor_id, distribuidor_id, activa } = req.body || {};
+  const { codigo, nombre, zona, zona_ids, zonas_ids, zonas_nombres, dia_visita, vendedor_id, distribuidor_id, activa } = req.body || {};
   const vendedor = db.usuarios.find((u) => u.id === Number(vendedor_id));
   if (!vendedor) return res.status(400).json({ error: 'Selecciona un vendedor válido.' });
-  const zonaFinal = String(zona || vendedor.zona_venta || '').trim() || 'Centro';
-  const zonaObj = asegurarZona(db, zonaFinal);
+  const zonas = resolverZonas(db, { zona, zona_ids, zonas_ids, zonas_nombres }, vendedor);
+  const zonaObj = zonas[0];
   const distribuidor = distribuidor_id
     ? Number(distribuidor_id)
     : (vendedor.repartidor_id ? Number(vendedor.repartidor_id) : null);
@@ -49,6 +80,8 @@ router.post('/', allow(...GESTION), (req, res) => {
     nombre: String(nombre || '').trim() || `Ruta ${codigoFinal}`,
     zona: zonaObj.nombre,
     zona_id: zonaObj.id,
+    zona_ids: zonas.map((z) => z.id),
+    zonas: zonas.map((z) => z.nombre),
     dia_visita: dia,
     vendedor_id: vendedor.id,
     distribuidor_id: distribuidor,
@@ -60,17 +93,18 @@ router.post('/', allow(...GESTION), (req, res) => {
   if (!vendedor.ruta_venta) vendedor.ruta_venta = ruta.codigo;
   if (!vendedor.zona_venta) vendedor.zona_venta = ruta.zona;
   if (!vendedor.repartidor_id && distribuidor) vendedor.repartidor_id = distribuidor;
-  if (!(vendedor.dias_visita || []).length) vendedor.dias_visita = [dia];
-  audit(db, req, 'Ruta de venta creada', 'Rutas de venta', `${ruta.codigo} · ${ruta.zona} · día ${dia} · ${vendedor.nombre}`);
+  vendedor.dias_visita = [...new Set([...(vendedor.dias_visita || []).map(Number), dia])].sort((a, b) => a - b);
+  audit(db, req, 'Ruta de venta creada', 'Rutas de venta', `${ruta.codigo} · ${zonas.map((z) => z.nombre).join(', ')} · día ${dia} · ${vendedor.nombre}`);
   save();
-  return res.status(201).json({ ruta, automatico: { zona_creada: zonaObj.creada, distribuidor_id: distribuidor } });
+  return res.status(201).json({ ruta, automatico: { zonas_creadas: zonas.filter((z) => z.creada).length, distribuidor_id: distribuidor } });
 });
 
 router.put('/:id', allow(...GESTION), (req, res) => {
   const db = load();
   const ruta = (db.rutas_venta || []).find((r) => r.id === Number(req.params.id));
   if (!ruta) return res.status(404).json({ error: 'Ruta de venta no encontrada.' });
-  const { codigo, nombre, zona, dia_visita, vendedor_id, distribuidor_id, activa } = req.body || {};
+  const { codigo, nombre, zona, zona_ids, zonas_ids, zonas_nombres, dia_visita, vendedor_id, distribuidor_id, activa } = req.body || {};
+  const vendedorActual = db.usuarios.find((u) => u.id === Number(ruta.vendedor_id));
   if (vendedor_id) {
     const vendedor = db.usuarios.find((u) => u.id === Number(vendedor_id));
     if (!vendedor) return res.status(400).json({ error: 'Vendedor no encontrado.' });
@@ -79,12 +113,20 @@ router.put('/:id', allow(...GESTION), (req, res) => {
   }
   if (codigo !== undefined) ruta.codigo = String(codigo || ruta.codigo).trim();
   if (nombre !== undefined) ruta.nombre = nombre;
-  if (zona !== undefined) {
-    const zonaObj = asegurarZona(db, zona);
-    ruta.zona = zonaObj.nombre;
-    ruta.zona_id = zonaObj.id;
+  if (zona !== undefined || zona_ids !== undefined || zonas_ids !== undefined || zonas_nombres !== undefined) {
+    const zonas = resolverZonas(db, { zona, zona_ids, zonas_ids, zonas_nombres }, vendedorActual);
+    ruta.zona = zonas[0].nombre;
+    ruta.zona_id = zonas[0].id;
+    ruta.zona_ids = zonas.map((z) => z.id);
+    ruta.zonas = zonas.map((z) => z.nombre);
   }
-  if (dia_visita !== undefined) ruta.dia_visita = Number(dia_visita) || ruta.dia_visita;
+  if (dia_visita !== undefined) {
+    ruta.dia_visita = Number(dia_visita) || ruta.dia_visita;
+    const vendedorRuta = db.usuarios.find((u) => u.id === Number(ruta.vendedor_id));
+    if (vendedorRuta) {
+      vendedorRuta.dias_visita = [...new Set([...(vendedorRuta.dias_visita || []).map(Number), Number(ruta.dia_visita)])].sort((a, b) => a - b);
+    }
+  }
   if (distribuidor_id !== undefined) ruta.distribuidor_id = distribuidor_id ? Number(distribuidor_id) : null;
   if (activa !== undefined) ruta.activa = Boolean(activa);
   ruta.updated_at = new Date().toISOString();
@@ -128,10 +170,14 @@ router.post('/zonas', allow(...GESTION), (req, res) => {
 router.post('/tipos', allow(...GESTION), (req, res) => {
   const db = load();
   const nombre = String(req.body?.nombre || '').trim();
+  const padreId = req.body?.padre_id ? Number(req.body.padre_id) : null;
   if (!nombre) return res.status(400).json({ error: 'Escribe el nombre del tipo de cliente.' });
-  const tipo = asegurarTipoCliente(db, nombre);
+  if (padreId && !(db.tipos_cliente || []).some((t) => t.id === padreId)) {
+    return res.status(400).json({ error: 'El tipo padre seleccionado no existe.' });
+  }
+  const tipo = asegurarTipoCliente(db, nombre, padreId);
   if (!tipo.creado) return res.status(400).json({ error: 'Ese tipo de cliente ya existe.' });
-  audit(db, req, 'Tipo de cliente creado', 'Rutas de venta', tipo.nombre);
+  audit(db, req, 'Tipo de cliente creado', 'Rutas de venta', `${padreId ? '↳ ' : ''}${tipo.nombre}`);
   save();
   return res.status(201).json({ tipo });
 });
