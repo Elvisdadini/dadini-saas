@@ -263,6 +263,15 @@ Botón **Asistente AI** en la barra superior. Panel con chat, sugerencias y **al
 - Excepciones: administradores/dueños y quienes tengan `geocerca.excepcion_ventas` o `geocerca.excepcion_cobranzas` (permisos nuevos, independientes del módulo Ventas/Cobranzas).
 - Se corrigió `esCoordenaValida`: `null`/`''` ya no se cuentan como `(0,0)`, evitando visitas falsas y falsos "dentro de la zona".
 
+### Catálogos, fotos y cambios de preventa
+
+- **Catálogos:** el historial tiene **Renombrar** y **Eliminar**. El nombre se conserva en el prefijo de fecha para no perder el orden. También se puede escribir un **nombre** antes de generar, para diferenciar el catálogo antiguo del actual.
+- **Catálogo de promociones:** en Generar catálogo, el selector **Productos / Promociones** crea un PDF con las promociones activas, sus imágenes, vigencia y descripción.
+- **Promociones:** el formulario acepta **hasta 2 imágenes** optimizadas; se suben al bucket `comprobantes` y se guarda la URL pública en la promoción. Al eliminar la promoción se borran sus fotos.
+- **Devoluciones:** al generar una devolución desde Mi camión se puede adjuntar una **foto de comprobante** (mal estado o cambio solicitado). La miniatura se muestra en el listado de devoluciones.
+- **Preventa:** en "Registrar visita" y en la visita desde el mapa existe el motivo **Cambio de producto**, con producto, cantidad, motivo, detalles, **lote**, **fecha de vencimiento** y **foto de comprobante**. Todo queda en la visita (`detalle`, `foto_url`, `cambios[]`) y se muestra en la ficha del cliente.
+- Helper reutilizable `backend/src/fotos.js` (bucket `comprobantes`, máximo 2 MB por foto).
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.
