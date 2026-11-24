@@ -280,7 +280,7 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Panel "Clientes fuera del cuadrante" con selección múltiple y **Reasignar seleccionados**: elige la zona vecina y el vendedor de esa zona; se actualizan `zona`, `zona_id`, `ruta_venta`, `ruta_venta_id`, `vendedor_id`, `distribuidor_id` y `dia_visita`.
 - Endpoints: `PUT /api/rutas-venta/zonas/:id/poligono`, `GET /api/geo/zonas/:id/cobertura` y `POST /api/geo/zonas/:id/reasignar-fuera`.
 - Sin librerías nuevas: se usa `useMapEvents` + `Polygon` de react-leaflet y ray-casting propio (`puntoDentroPoligono`). `zonas`, `tipos_cliente` y `rutas_venta` se agregaron a `ENTIDADES` para sobrevivir en modo PostgreSQL.
-- Los mapas usan tiles de **CARTO** (sobre datos de OpenStreetMap) con su atribución, en el componente compartido `CapaMapa`. El servidor público de tiles de OpenStreetMap bloqueaba el acceso con HTTP 403 ("App is not following the tile usage policy"); con CARTO los tiles cargan correctamente en todos los mapas del sistema.
+- Los mapas usan tiles de **Esri World Street Map** sin API key, con su atribución visible, en el componente compartido `CapaMapa`. El servidor público de OpenStreetMap bloqueaba con 403 ("App is not following the tile usage policy") y CARTO empezó a exigir clave el 25/09/2026 ("API KEY REQUIRED"); con Esri los tiles cargan correctamente en todos los mapas del sistema.
 
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
