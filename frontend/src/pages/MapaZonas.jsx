@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Check, Crosshair, MapPin, Pencil, RefreshCcw, Save, Trash2, Users, X,
 } from 'lucide-react';
-import { MapContainer, Marker, Polygon, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, Marker, Polygon, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import CapaMapa from '../components/CapaMapa';
 import { api } from '../api';
 import { Badge, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 import { esCoordenaValida, formatoCoords } from '../geo';
@@ -192,7 +193,7 @@ export default function MapaZonas() {
             <div className="mapa-box mt-12" style={{ height: 480 }}>
               {!zonaId ? <div className="mapa-vacio">Selecciona una zona.</div> : (
                 <MapContainer center={[-17.3938, -66.1571]} zoom={13} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
-                  <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <CapaMapa />
                   <CapturadorClics activo={editando} onPunto={(p) => setVertices((v) => (v.length >= 12 ? v : [...v, p]))} />
                   {poligono.length >= 3 && (
                     <Polygon

@@ -1,8 +1,9 @@
 import { useEffect, useMemo } from 'react';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { esCoordenaValida, formatoCoords } from '../geo';
+import CapaMapa from './CapaMapa';
 
 const COLORES = {
   cliente: '#ff6500',
@@ -79,10 +80,7 @@ export default function Mapa({ puntos = [], linea = false, altura = 320, centro,
         <div className="mapa-vacio">Sin coordenadas para mostrar en el mapa.</div>
       ) : (
         <MapContainer center={posicionCentro} zoom={zoom} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <CapaMapa />
           {linea && validos.length > 1 && (
             <Polyline positions={validos.map((p) => [p.latitud, p.longitud])} pathOptions={{ color: '#ff6500', weight: 3, dashArray: '8 8' }} />
           )}
