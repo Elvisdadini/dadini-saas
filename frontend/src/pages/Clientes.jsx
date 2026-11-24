@@ -81,7 +81,17 @@ export default function Clientes() {
     (data?.rutasVenta || []).forEach((r) => {
       if (r.activa === false) return;
       if (Number(r.vendedor_id) !== Number(vendedorFormId)) return;
-      if (Number(r.dia_visita) !== Number(diaEfectivo)) return;
+      const dias = r.dias_visita || [r.dia_visita];
+      if (!dias.map(Number).includes(Number(diaEfectivo))) return;
+      const delDia = r.zonas_por_dia?.[diaEfectivo] ?? r.zonas_por_dia?.[String(diaEfectivo)];
+      if (Array.isArray(delDia)) {
+        delDia.forEach((id) => {
+          const zona = (data?.zonasCatalogo || []).find((z) => Number(z.id) === Number(id));
+          ids.add(Number(id));
+          if (zona) nombres.add(zona.nombre);
+        });
+        return;
+      }
       (r.zona_ids || (r.zona_id ? [r.zona_id] : [])).forEach((id) => ids.add(Number(id)));
       (r.zonas || (r.zona ? [r.zona] : [])).forEach((z) => nombres.add(z));
     });

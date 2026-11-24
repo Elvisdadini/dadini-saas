@@ -5,7 +5,10 @@ import { api } from '../api';
 import { Badge, Confirm, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
 const DIAS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-const VACIA = { codigo: '', nombre: '', zona: '', zona_ids: [], dia_visita: 1, vendedor_id: '', distribuidor_id: '', activa: true };
+const VACIA = {
+  codigo: '', nombre: '', zona: '', zona_ids: [], dia_visita: 1, dias_visita: [1],
+  zonas_por_dia: {}, tipos_cliente_ids: [], vendedor_id: '', distribuidor_id: '', activa: true,
+};
 
 export default function RutasVenta() {
   const toast = useToast();
@@ -17,6 +20,8 @@ export default function RutasVenta() {
   const [zonaNueva, setZonaNueva] = useState('');
   const [tipoNuevo, setTipoNuevo] = useState('');
   const [tipoPadre, setTipoPadre] = useState('');
+  const [diaActivo, setDiaActivo] = useState(1);
+  const [zonaElegida, setZonaElegida] = useState('');
   const [eliminarItem, setEliminarItem] = useState(null);
   const [busyEliminar, setBusyEliminar] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -33,11 +38,18 @@ export default function RutasVenta() {
 
   const abrir = (ruta = null) => {
     setEditando(ruta);
+    const dias = ruta?.dias_visita || [ruta?.dia_visita || 1];
+    const porDia = ruta?.zonas_por_dia || (ruta?.zona_id ? { [dias[0]]: [ruta.zona_id] } : {});
     setForm(ruta ? {
       ...VACIA, ...ruta,
+      dias_visita: dias.map(Number),
+      zonas_por_dia: porDia,
       zona_ids: ruta.zona_ids || (ruta.zona_id ? [ruta.zona_id] : []),
+      tipos_cliente_ids: ruta.tipos_cliente_ids || [],
       distribuidor_id: ruta.distribuidor_id || '',
     } : VACIA);
+    setDiaActivo(dias[0]);
+    setZonaElegida('');
     setModal(true);
   };
 
@@ -45,7 +57,16 @@ export default function RutasVenta() {
     if (!form.vendedor_id) return toast('Selecciona un vendedor.', 'error');
     setBusy(true);
     try {
-      const payload = { ...form, zona_ids: (form.zona_ids || []).map(Number), dia_visita: Number(form.dia_visita) || 1 };
+      const dias = (form.dias_visita || []).map(Number).length ? form.dias_visita.map(Number) : [1];
+      const zonasUnion = [...new Set(Object.values(form.zonas_por_dia || {}).flat().map(Number))];
+      const payload = {
+        ...form,
+        dias_visita: dias,
+        dia_visita: dias[0],
+        zonas_por_dia: form.zonas_por_dia || {},
+        zona_ids: zonasUnion,
+        tipos_cliente_ids: (form.tipos_cliente_ids || []).map(Number),
+      };
       if (editando) await api.put(`/rutas-venta/${editando.id}`, payload);
       else await api.post('/rutas-venta', payload);
       toast(editando ? 'Ruta actualizada' : 'Ruta creada con zona y distribuidor automáticos');
@@ -99,6 +120,42 @@ export default function RutasVenta() {
       setTipoPadre('');
       await cargar();
     } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const zonasDelDiaActivo = (form.zonas_por_dia?.[diaActivo] || []).map(Number);
+
+  const alternarDia = (dia) => {
+    const actuales = form.dias_visita || [];
+    const nuevas = actuales.includes(dia) ? actuales.filter((d) => d !== dia) : [...actuales, dia];
+    setForm({ ...form, dias_visita: nuevas.sort((a, b) => a - b) });
+    if (nuevas.length && !nuevas.includes(diaActivo)) setDiaActivo(nuevas[0]);
+  };
+
+  const agregarZona = () => {
+    if (!zonaElegida) return toast('Selecciona una zona de la lista.', 'error');
+    if (zonasDelDiaActivo.length >= 3) return toast('Máximo 3 zonas por día.', 'error');
+    const id = Number(zonaElegida);
+    if (zonasDelDiaActivo.includes(id)) return toast('Esa zona ya está agregada a este día.', 'error');
+    setForm({
+      ...form,
+      zonas_por_dia: { ...form.zonas_por_dia, [diaActivo]: [...zonasDelDiaActivo, id] },
+    });
+    setZonaElegida('');
+  };
+
+  const quitarZona = (id) => {
+    setForm({
+      ...form,
+      zonas_por_dia: { ...form.zonas_por_dia, [diaActivo]: zonasDelDiaActivo.filter((z) => z !== id) },
+    });
+  };
+
+  const alternarTipo = (id) => {
+    const actuales = form.tipos_cliente_ids || [];
+    setForm({
+      ...form,
+      tipos_cliente_ids: actuales.includes(id) ? actuales.filter((t) => t !== id) : [...actuales, id],
+    });
   };
 
   const confirmarEliminacion = async () => {
@@ -158,7 +215,7 @@ export default function RutasVenta() {
                     <td>
                       {(r.zonas || (r.zona ? [r.zona] : [])).map((z) => <span key={z} className="badge badge-gray" style={{ marginRight: 4 }}>{z}</span>)}
                     </td>
-                    <td>{DIAS[r.dia_visita] || '—'}</td>
+                    <td>{(r.dias_visita || [r.dia_visita]).filter(Boolean).map((d) => DIAS[d]).filter(Boolean).join(', ') || '—'}</td>
                     <td>{nombreVendedor(r.vendedor_id)}</td>
                     <td><Badge tone="purple">{nombreDistribuidor(r.distribuidor_id)}</Badge></td>
                     <td className="num">{clientesDe(r.codigo)}</td>
@@ -225,24 +282,68 @@ export default function RutasVenta() {
             <div className="field"><label>Nombre</label><input className="input" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej. Ruta R3 · Sacaba" /></div>
           </div>
           <div className="field">
-            <label>Zonas a visitar <span className="hint">puedes seleccionar varias; el mismo vendedor las atiende en ese día</span></label>
+            <label>Días de visita <span className="hint">selecciona todos los días en que el vendedor atiende esta ruta</span></label>
             <div className="pill-group">
-              {(data?.zonas || []).filter((z) => z.activa !== false).map((z) => {
-                const seleccionada = (form.zona_ids || []).map(Number).includes(Number(z.id));
+              {DIAS.map((d, i) => d && (
+                <button key={i} type="button" className={`chip ${(form.dias_visita || []).includes(i) ? 'active' : ''}`} onClick={() => alternarDia(i)}>
+                  {(form.dias_visita || []).includes(i) ? '✓ ' : ''}{d}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {(form.dias_visita || []).length > 0 && (
+            <div className="panel" style={{ boxShadow: 'none' }}>
+              <div className="panel-head">
+                <div><h3>Zonas de {DIAS[diaActivo]}</h3><p>Agrega hasta 3 zonas para este día y cambia de día con los botones.</p></div>
+                <Badge tone="orange">{zonasDelDiaActivo.length}/3</Badge>
+              </div>
+              <div className="panel-body">
+                <div className="pill-group mt-8">
+                  {(form.dias_visita || []).map((d) => (
+                    <button key={d} type="button" className={`chip ${diaActivo === d ? 'active' : ''}`} onClick={() => { setDiaActivo(d); setZonaElegida(''); }}>{DIAS[d]}</button>
+                  ))}
+                </div>
+                <div className="inline mt-12" style={{ gap: 6 }}>
+                  <select className="select" value={zonaElegida} onChange={(e) => setZonaElegida(e.target.value)}>
+                    <option value="">Seleccionar zona a asignar…</option>
+                    {(data?.zonas || []).filter((z) => z.activa !== false && !zonasDelDiaActivo.includes(Number(z.id))).map((z) => (
+                      <option key={z.id} value={z.id}>{z.nombre}</option>
+                    ))}
+                  </select>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={agregarZona}><Plus size={13} /> Agregar</button>
+                </div>
+                <div className="pill-group mt-12">
+                  {zonasDelDiaActivo.length === 0 && <span className="small muted">Sin zonas guardadas para este día.</span>}
+                  {zonasDelDiaActivo.map((id) => {
+                    const zona = (data?.zonas || []).find((z) => Number(z.id) === id);
+                    return (
+                      <span key={id} className="chip active">
+                        ✓ {zona?.nombre || id}
+                        <button type="button" className="chip-del" title="Quitar zona" onClick={() => quitarZona(id)}><Trash2 size={11} /></button>
+                      </span>
+                    );
+                  })}
+                </div>
+                <span className="hint">Las zonas se guardan por día. Máximo 3 zonas por día.</span>
+              </div>
+            </div>
+          )}
+
+          <div className="field">
+            <label>Tipos de cliente que atiende esta ruta</label>
+            <div className="pill-group">
+              {(data?.tipos_cliente || []).map((t) => {
+                const seleccionado = (form.tipos_cliente_ids || []).includes(t.id);
                 return (
-                  <button key={z.id} type="button" className={`chip ${seleccionada ? 'active' : ''}`} onClick={() => {
-                    const actuales = (form.zona_ids || []).map(Number);
-                    const nuevas = seleccionada ? actuales.filter((id) => id !== z.id) : [...actuales, z.id];
-                    setForm({ ...form, zona_ids: nuevas, zona: nuevas.length ? (data.zonas.find((x) => x.id === nuevas[0])?.nombre || '') : '' });
-                  }}>
-                    {seleccionada ? '✓ ' : ''}{z.nombre}
+                  <button key={t.id} type="button" className={`chip ${seleccionado ? 'active' : ''}`} onClick={() => alternarTipo(t.id)}>
+                    {seleccionado ? '✓ ' : ''}{t.nivel ? '↳ ' : ''}{t.nombre}
                   </button>
                 );
               })}
             </div>
-            <span className="hint">{(form.zona_ids || []).length} zonas seleccionadas. Si no seleccionas ninguna, se usa la zona del vendedor.</span>
+            <span className="hint">Ej. Caseta mayorista, Mayorista, Distribuidora. Se usan al registrar clientes en esta ruta.</span>
           </div>
-          <div className="field"><label>Día de visita</label><select className="select" value={form.dia_visita} onChange={(e) => setForm({ ...form, dia_visita: e.target.value })}>{DIAS.map((d, i) => d && <option key={i} value={i}>{d}</option>)}</select></div>
           <div className="field"><label>Vendedor asignado</label><select className="select" value={form.vendedor_id} onChange={(e) => setForm({ ...form, vendedor_id: e.target.value })}><option value="">Seleccionar…</option>{(data?.vendedores || []).map((v) => <option key={v.id} value={v.id}>{v.nombre} · {v.ruta_venta || 'sin ruta'}</option>)}</select></div>
           <div className="field"><label>Distribuidor</label>
             <select className="select" value={form.distribuidor_id || distribuidorCalculado || ''} onChange={(e) => setForm({ ...form, distribuidor_id: e.target.value })}>

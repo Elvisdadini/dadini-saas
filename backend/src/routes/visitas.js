@@ -90,9 +90,18 @@ router.get('/agenda', (req, res) => {
   // varias). Se usan para que la agenda no omita clientes de esas zonas.
   const rutasDelDia = (db.rutas_venta || []).filter((r) => r.activa !== false
     && Number(r.vendedor_id) === Number(vendedorId || req.user.id)
-    && Number(r.dia_visita) === dia);
+    && (r.dias_visita || [r.dia_visita]).map(Number).includes(dia));
   const zonasDelDia = new Set();
   rutasDelDia.forEach((r) => {
+    const delDia = r.zonas_por_dia?.[dia] ?? r.zonas_por_dia?.[String(dia)];
+    if (Array.isArray(delDia)) {
+      delDia.forEach((id) => {
+        const zona = (db.zonas || []).find((z) => z.id === Number(id));
+        zonasDelDia.add(Number(id));
+        if (zona) zonasDelDia.add(String(zona.nombre).toLowerCase());
+      });
+      return;
+    }
     (r.zona_ids || (r.zona_id ? [r.zona_id] : [])).forEach((id) => zonasDelDia.add(Number(id)));
     (r.zonas || (r.zona ? [r.zona] : [])).forEach((nombre) => zonasDelDia.add(String(nombre).toLowerCase()));
   });

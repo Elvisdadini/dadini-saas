@@ -34,6 +34,39 @@ function resolverZonas(db, body, vendedor) {
   return zonas;
 }
 
+// Normaliza la programación por día: máximo 3 zonas por día. Se guarda en
+// `zonas_por_dia` y se unifica en `zona_ids`/`zonas` para compatibilidad.
+function normalizarProgramacion(db, dias, zonasPorDia) {
+  const brutas = Array.isArray(dias) ? dias : [dias];
+  const diasFinales = [...new Set(brutas.map(Number).filter((d) => d >= 1 && d <= 7))].sort((a, b) => a - b);
+  const diasUtiles = diasFinales.length ? diasFinales : [1];
+  const porDia = {};
+  const todas = new Set();
+
+  diasUtiles.forEach((dia) => {
+    const valor = zonasPorDia?.[dia] ?? zonasPorDia?.[String(dia)] ?? [];
+    const lista = Array.isArray(valor) ? valor : [];
+    const ids = [];
+    lista.forEach((item) => {
+      if (ids.length >= 3) return;
+      const zona = (db.zonas || []).find((z) => z.id === Number(item) || z.id === item
+        || String(z.nombre || '').toLowerCase() === String(item || '').toLowerCase());
+      if (zona && !ids.includes(zona.id)) ids.push(zona.id);
+    });
+    porDia[dia] = ids;
+    ids.forEach((id) => todas.add(id));
+  });
+
+  const zonas = [...todas].map((id) => (db.zonas || []).find((z) => z.id === id)).filter(Boolean);
+  return { dias: diasUtiles, porDia, zonas };
+}
+
+function tiposValidos(db, ids) {
+  if (!Array.isArray(ids)) return [];
+  return [...new Set(ids.map(Number))]
+    .filter((id) => (db.tipos_cliente || []).some((t) => t.id === id && t.activo !== false));
+}
+
 const router = express.Router();
 router.use(authRequired);
 
@@ -63,10 +96,20 @@ router.get('/', (req, res) => {
 
 router.post('/', allow(...GESTION), (req, res) => {
   const db = load();
-  const { codigo, nombre, zona, zona_ids, zonas_ids, zonas_nombres, dia_visita, vendedor_id, distribuidor_id, activa } = req.body || {};
+  const {
+    codigo, nombre, zona, zona_ids, zonas_ids, zonas_nombres, dia_visita, dias_visita,
+    zonas_por_dia, tipos_cliente_ids, vendedor_id, distribuidor_id, activa,
+  } = req.body || {};
   const vendedor = db.usuarios.find((u) => u.id === Number(vendedor_id));
   if (!vendedor) return res.status(400).json({ error: 'Selecciona un vendedor válido.' });
-  const zonas = resolverZonas(db, { zona, zona_ids, zonas_ids, zonas_nombres }, vendedor);
+  const programacion = normalizarProgramacion(
+    db,
+    dias_visita || [dia_visita || Number(vendedor.dias_visita?.[0]) || 1],
+    zonas_por_dia,
+  );
+  const zonas = programacion.zonas.length
+    ? programacion.zonas
+    : resolverZonas(db, { zona, zona_ids, zonas_ids, zonas_nombres }, vendedor);
   const zonaObj = zonas[0];
   const distribuidor = distribuidor_id
     ? Number(distribuidor_id)
@@ -75,7 +118,7 @@ router.post('/', allow(...GESTION), (req, res) => {
   if ((db.rutas_venta || []).some((r) => String(r.codigo).toLowerCase() === codigoFinal.toLowerCase())) {
     return res.status(400).json({ error: 'Ya existe una ruta con ese código.' });
   }
-  const dia = Number(dia_visita) || Number(vendedor.dias_visita?.[0]) || 1;
+  const dia = programacion.dias[0];
   const ruta = {
     id: nextId(db.rutas_venta),
     codigo: codigoFinal,
@@ -85,6 +128,9 @@ router.post('/', allow(...GESTION), (req, res) => {
     zona_ids: zonas.map((z) => z.id),
     zonas: zonas.map((z) => z.nombre),
     dia_visita: dia,
+    dias_visita: programacion.dias,
+    zonas_por_dia: programacion.zonas.length ? programacion.porDia : { [dia]: zonas.map((z) => z.id) },
+    tipos_cliente_ids: tiposValidos(db, tipos_cliente_ids),
     vendedor_id: vendedor.id,
     distribuidor_id: distribuidor,
     activa: activa !== false,
@@ -95,8 +141,8 @@ router.post('/', allow(...GESTION), (req, res) => {
   if (!vendedor.ruta_venta) vendedor.ruta_venta = ruta.codigo;
   if (!vendedor.zona_venta) vendedor.zona_venta = ruta.zona;
   if (!vendedor.repartidor_id && distribuidor) vendedor.repartidor_id = distribuidor;
-  vendedor.dias_visita = [...new Set([...(vendedor.dias_visita || []).map(Number), dia])].sort((a, b) => a - b);
-  audit(db, req, 'Ruta de venta creada', 'Rutas de venta', `${ruta.codigo} · ${zonas.map((z) => z.nombre).join(', ')} · día ${dia} · ${vendedor.nombre}`);
+  vendedor.dias_visita = [...new Set([...(vendedor.dias_visita || []).map(Number), ...programacion.dias])].sort((a, b) => a - b);
+  audit(db, req, 'Ruta de venta creada', 'Rutas de venta', `${ruta.codigo} · ${zonas.map((z) => z.nombre).join(', ')} · días ${programacion.dias.join(', ')} · ${vendedor.nombre}`);
   save();
   return res.status(201).json({ ruta, automatico: { zonas_creadas: zonas.filter((z) => z.creada).length, distribuidor_id: distribuidor } });
 });
@@ -105,7 +151,10 @@ router.put('/:id', allow(...GESTION), (req, res) => {
   const db = load();
   const ruta = (db.rutas_venta || []).find((r) => r.id === Number(req.params.id));
   if (!ruta) return res.status(404).json({ error: 'Ruta de venta no encontrada.' });
-  const { codigo, nombre, zona, zona_ids, zonas_ids, zonas_nombres, dia_visita, vendedor_id, distribuidor_id, activa } = req.body || {};
+  const {
+    codigo, nombre, zona, zona_ids, zonas_ids, zonas_nombres, dia_visita, dias_visita,
+    zonas_por_dia, tipos_cliente_ids, vendedor_id, distribuidor_id, activa,
+  } = req.body || {};
   const vendedorActual = db.usuarios.find((u) => u.id === Number(ruta.vendedor_id));
   if (vendedor_id) {
     const vendedor = db.usuarios.find((u) => u.id === Number(vendedor_id));
@@ -122,13 +171,27 @@ router.put('/:id', allow(...GESTION), (req, res) => {
     ruta.zona_ids = zonas.map((z) => z.id);
     ruta.zonas = zonas.map((z) => z.nombre);
   }
-  if (dia_visita !== undefined) {
-    ruta.dia_visita = Number(dia_visita) || ruta.dia_visita;
+  if (dias_visita !== undefined || dia_visita !== undefined || zonas_por_dia !== undefined) {
+    const programacion = normalizarProgramacion(
+      db,
+      dias_visita !== undefined ? dias_visita : (ruta.dias_visita || [dia_visita || ruta.dia_visita || 1]),
+      zonas_por_dia || ruta.zonas_por_dia,
+    );
+    ruta.dias_visita = programacion.dias;
+    ruta.dia_visita = programacion.dias[0];
+    ruta.zonas_por_dia = programacion.porDia;
+    if (programacion.zonas.length) {
+      ruta.zona = programacion.zonas[0].nombre;
+      ruta.zona_id = programacion.zonas[0].id;
+      ruta.zona_ids = programacion.zonas.map((z) => z.id);
+      ruta.zonas = programacion.zonas.map((z) => z.nombre);
+    }
     const vendedorRuta = db.usuarios.find((u) => u.id === Number(ruta.vendedor_id));
     if (vendedorRuta) {
-      vendedorRuta.dias_visita = [...new Set([...(vendedorRuta.dias_visita || []).map(Number), Number(ruta.dia_visita)])].sort((a, b) => a - b);
+      vendedorRuta.dias_visita = [...new Set([...(vendedorRuta.dias_visita || []).map(Number), ...programacion.dias])].sort((a, b) => a - b);
     }
   }
+  if (tipos_cliente_ids !== undefined) ruta.tipos_cliente_ids = tiposValidos(db, tipos_cliente_ids);
   if (distribuidor_id !== undefined) ruta.distribuidor_id = distribuidor_id ? Number(distribuidor_id) : null;
   if (activa !== undefined) ruta.activa = Boolean(activa);
   ruta.updated_at = new Date().toISOString();
