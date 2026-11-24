@@ -53,7 +53,7 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const db = load();
-  const { nombre, email, usuario, rol, cargo, telefono, whatsapp, password, pin, repartidor_id, vehiculo_id, ruta_venta, dias_visita, zona_venta, categoria_cliente_id, es_venta_directa, almacen_movil_id, salario_base, comision_venta_pct, comision_distribucion_pct, bono_fijo, descuento_fijo, antiguedad_anios, permisos, plantilla } = req.body || {};
+  const { nombre, email, usuario, rol, cargo, telefono, whatsapp, password, pin, repartidor_id, vehiculo_id, ruta_venta, dias_visita, zona_venta, geocerca_activa, geocerca_radio_m, categoria_cliente_id, es_venta_directa, almacen_movil_id, salario_base, comision_venta_pct, comision_distribucion_pct, bono_fijo, descuento_fijo, antiguedad_anios, permisos, plantilla } = req.body || {};
   if (!nombre || !rol) return res.status(400).json({ error: 'Nombre y rol son obligatorios.' });
   if (!ROLES.includes(rol)) return res.status(400).json({ error: 'Rol inválido.' });
   const nombreUsuario = String(usuario || '').trim() || generarUsuario(db, nombre);
@@ -84,6 +84,12 @@ router.post('/', (req, res) => {
     ruta_venta: ruta_venta || null,
     dias_visita: Array.isArray(dias_visita) ? dias_visita.map(Number) : [],
     zona_venta: zona_venta || asignado?.zona || null,
+    geocerca: {
+      activa: geocerca_activa === true || geocerca_activa === 'true',
+      radio_m: Math.max(1, Number(geocerca_radio_m) || 50),
+    },
+    geocerca_activa: geocerca_activa === true || geocerca_activa === 'true',
+    geocerca_radio_m: Math.max(1, Number(geocerca_radio_m) || 50),
     categoria_cliente_id: categoria_cliente_id ? Number(categoria_cliente_id) : null,
     es_venta_directa: Boolean(es_venta_directa),
     almacen_movil_id: almacen_movil_id ? Number(almacen_movil_id) : null,
@@ -139,6 +145,15 @@ router.put('/:id', (req, res) => {
   if (req.body?.ruta_venta !== undefined) user.ruta_venta = req.body.ruta_venta || null;
   if (req.body?.dias_visita !== undefined) user.dias_visita = Array.isArray(req.body.dias_visita) ? req.body.dias_visita.map(Number) : [];
   if (req.body?.zona_venta !== undefined) user.zona_venta = req.body.zona_venta || null;
+  if (req.body?.geocerca_activa !== undefined || req.body?.geocerca_radio_m !== undefined) {
+    const activa = req.body?.geocerca_activa !== undefined
+      ? (req.body.geocerca_activa === true || req.body.geocerca_activa === 'true')
+      : Boolean(user.geocerca?.activa || user.geocerca_activa);
+    const radio = Math.max(1, Number(req.body?.geocerca_radio_m ?? user.geocerca?.radio_m ?? user.geocerca_radio_m) || 50);
+    user.geocerca = { activa, radio_m: radio };
+    user.geocerca_activa = activa;
+    user.geocerca_radio_m = radio;
+  }
   if (req.body?.categoria_cliente_id !== undefined) user.categoria_cliente_id = req.body.categoria_cliente_id ? Number(req.body.categoria_cliente_id) : null;
   if (req.body?.es_venta_directa !== undefined) user.es_venta_directa = Boolean(req.body.es_venta_directa);
   if (req.body?.almacen_movil_id !== undefined) user.almacen_movil_id = req.body.almacen_movil_id ? Number(req.body.almacen_movil_id) : null;

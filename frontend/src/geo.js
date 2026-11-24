@@ -1,7 +1,19 @@
 export function esCoordenaValida(lat, lon) {
+  if (lat === null || lat === undefined || lat === '' || lon === null || lon === undefined || lon === '') return false;
   const a = Number(lat);
   const b = Number(lon);
   return Number.isFinite(a) && Number.isFinite(b) && a >= -90 && a <= 90 && b >= -180 && b <= 180;
+}
+
+export function distanciaMetros(a, b) {
+  if (!a || !b || !esCoordenaValida(a.latitud, a.longitud) || !esCoordenaValida(b.latitud, b.longitud)) return null;
+  const R = 6371000;
+  const dLat = ((Number(b.latitud) - Number(a.latitud)) * Math.PI) / 180;
+  const dLon = ((Number(b.longitud) - Number(a.longitud)) * Math.PI) / 180;
+  const la1 = (Number(a.latitud) * Math.PI) / 180;
+  const la2 = (Number(b.latitud) * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)));
 }
 
 export function obtenerUbicacion(opciones = {}) {

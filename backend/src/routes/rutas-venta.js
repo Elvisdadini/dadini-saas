@@ -221,15 +221,45 @@ router.delete('/:id', allow('admin', 'dueno'), (req, res) => {
   return res.json({ ok: true });
 });
 
+function aplicarGeocerca(zona, body) {
+  const campos = ['geocerca_activa', 'geocerca_latitud', 'geocerca_longitud', 'geocerca_radio_m'];
+  campos.forEach((campo) => { if (body?.[campo] !== undefined) zona[campo] = body[campo]; });
+  zona.geocerca = {
+    activa: zona.geocerca_activa === true || zona.geocerca_activa === 'true',
+    latitud: zona.geocerca_latitud === '' || zona.geocerca_latitud === null ? null : Number(zona.geocerca_latitud),
+    longitud: zona.geocerca_longitud === '' || zona.geocerca_longitud === null ? null : Number(zona.geocerca_longitud),
+    radio_m: Math.max(1, Number(zona.geocerca_radio_m) || 50),
+  };
+  return zona;
+}
+
 router.post('/zonas', allow(...GESTION), (req, res) => {
   const db = load();
   const nombre = String(req.body?.nombre || '').trim();
   if (!nombre) return res.status(400).json({ error: 'Escribe el nombre de la zona.' });
   const zona = asegurarZona(db, nombre);
   if (!zona.creada) return res.status(400).json({ error: 'Esa zona ya existe.' });
+  aplicarGeocerca(zona, req.body);
   audit(db, req, 'Zona creada', 'Rutas de venta', zona.nombre);
   save();
   return res.status(201).json({ zona });
+});
+
+router.put('/zonas/:id', allow(...GESTION), (req, res) => {
+  const db = load();
+  const zona = (db.zonas || []).find((z) => z.id === Number(req.params.id));
+  if (!zona) return res.status(404).json({ error: 'Zona no encontrada.' });
+  if (req.body?.nombre !== undefined) {
+    const nombre = String(req.body.nombre).trim();
+    if (!nombre) return res.status(400).json({ error: 'El nombre de la zona es obligatorio.' });
+    zona.nombre = nombre;
+  }
+  if (req.body?.descripcion !== undefined) zona.descripcion = String(req.body.descripcion);
+  if (req.body?.activa !== undefined) zona.activa = Boolean(req.body.activa);
+  aplicarGeocerca(zona, req.body);
+  audit(db, req, 'Zona actualizada', 'Rutas de venta', zona.nombre);
+  save();
+  return res.json({ zona });
 });
 
 router.post('/tipos', allow(...GESTION), (req, res) => {

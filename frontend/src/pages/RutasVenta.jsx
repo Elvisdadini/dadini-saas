@@ -20,6 +20,8 @@ export default function RutasVenta() {
   const [zonaNueva, setZonaNueva] = useState('');
   const [tipoNuevo, setTipoNuevo] = useState('');
   const [tipoPadre, setTipoPadre] = useState('');
+  const [zonaGeo, setZonaGeo] = useState(null);
+  const [geoForm, setGeoForm] = useState({ activa: false, latitud: '', longitud: '', radio_m: 50 });
   const [diaActivo, setDiaActivo] = useState(1);
   const [zonaElegida, setZonaElegida] = useState('');
   const [eliminarItem, setEliminarItem] = useState(null);
@@ -123,6 +125,32 @@ export default function RutasVenta() {
   };
 
   const zonasDelDiaActivo = (form.zonas_por_dia?.[diaActivo] || []).map(Number);
+
+  const abrirGeoZona = (z) => {
+    setZonaGeo(z);
+    setGeoForm({
+      activa: z.geocerca?.activa === true || z.geocerca_activa === true,
+      latitud: z.geocerca?.latitud ?? z.geocerca_latitud ?? '',
+      longitud: z.geocerca?.longitud ?? z.geocerca_longitud ?? '',
+      radio_m: z.geocerca?.radio_m ?? z.geocerca_radio_m ?? 50,
+    });
+  };
+
+  const guardarGeoZona = async () => {
+    if (!zonaGeo) return;
+    setBusy(true);
+    try {
+      await api.put(`/rutas-venta/zonas/${zonaGeo.id}`, {
+        geocerca_activa: geoForm.activa,
+        geocerca_latitud: geoForm.latitud,
+        geocerca_longitud: geoForm.longitud,
+        geocerca_radio_m: Number(geoForm.radio_m) || 50,
+      });
+      toast(`Geocerca de ${zonaGeo.nombre} guardada`);
+      setZonaGeo(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
 
   const alternarDia = (dia) => {
     const actuales = form.dias_visita || [];
@@ -243,8 +271,9 @@ export default function RutasVenta() {
             </div>
             <div className="pill-group mt-12">
               {(data?.zonas || []).map((z) => (
-                <span key={z.id} className="chip active">
-                  {z.nombre}
+                <span key={z.id} className={`chip ${z.geocerca?.activa || z.geocerca_activa ? 'active' : ''}`}>
+                  {(z.geocerca?.activa || z.geocerca_activa) && '📍 '}{z.nombre}
+                  <button className="chip-del" title="Configurar geocerca" onClick={() => abrirGeoZona(z)}><Pencil size={11} /></button>
                   <button className="chip-del" title="Eliminar zona" onClick={() => setEliminarItem({ tipo: 'zona', item: z })}><Trash2 size={11} /></button>
                 </span>
               ))}
@@ -353,6 +382,20 @@ export default function RutasVenta() {
             <span className="hint">Automáticamente se usa el repartidor asignado al vendedor al crear su usuario.</span>
           </div>
           <label className="check"><input type="checkbox" checked={form.activa} onChange={(e) => setForm({ ...form, activa: e.target.checked })} /> Ruta activa</label>
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(zonaGeo)} onClose={() => setZonaGeo(null)} title={`Geocerca · ${zonaGeo?.nombre || ''}`}
+        subtitle="El vendedor deberá estar dentro de este círculo para operar en la zona"
+        footer={<><button className="btn btn-ghost" onClick={() => setZonaGeo(null)}>Cancelar</button><button className="btn btn-primary" onClick={guardarGeoZona} disabled={busy}>{busy ? 'Guardando…' : 'Guardar geocerca'}</button></>}
+      >
+        <div className="form-stack">
+          <label className="check"><input type="checkbox" checked={geoForm.activa} onChange={(e) => setGeoForm({ ...geoForm, activa: e.target.checked })} /> Activar geocerca para esta zona</label>
+          <div className="field-row">
+            <div className="field"><label>Latitud del centro</label><input className="input" type="number" step="0.000001" value={geoForm.latitud} onChange={(e) => setGeoForm({ ...geoForm, latitud: e.target.value })} placeholder="Ej. -17.3938" /></div>
+            <div className="field"><label>Longitud del centro</label><input className="input" type="number" step="0.000001" value={geoForm.longitud} onChange={(e) => setGeoForm({ ...geoForm, longitud: e.target.value })} placeholder="Ej. -66.1571" /></div>
+          </div>
+          <div className="field"><label>Radio en metros</label><input className="input" type="number" min="1" value={geoForm.radio_m} onChange={(e) => setGeoForm({ ...geoForm, radio_m: e.target.value })} /><span className="hint">Por defecto 50 m. Se usa para validar ventas y cobranzas.</span></div>
         </div>
       </Modal>
 

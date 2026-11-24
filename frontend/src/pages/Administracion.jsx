@@ -10,7 +10,7 @@ import {
   Avatar, Badge, EmptyState, Estado, Fecha, Modal, Money, PageHeader, SkeletonRows, Tabs, useToast,
 } from '../ui';
 
-const USUARIO_VACIO = { nombre: '', email: '', usuario: '', pin: '', rol: 'ventas', cargo: '', telefono: '', whatsapp: '', password: 'Dadini2026!', repartidor_id: '', vehiculo_id: '', ruta_venta: 'R1', zona_venta: '', categoria_cliente_id: '', es_venta_directa: false, salario_base: 2500, comision_venta_pct: 0, comision_distribucion_pct: 0, bono_fijo: 0, descuento_fijo: 0, dias_visita: [1, 2, 3, 4, 5], activo: true, plantilla: '', permisos: [] };
+const USUARIO_VACIO = { nombre: '', email: '', usuario: '', pin: '', rol: 'ventas', cargo: '', telefono: '', whatsapp: '', password: 'Dadini2026!', repartidor_id: '', vehiculo_id: '', ruta_venta: 'R1', zona_venta: '', geocerca_activa: false, geocerca_radio_m: 50, categoria_cliente_id: '', es_venta_directa: false, salario_base: 2500, comision_venta_pct: 0, comision_distribucion_pct: 0, bono_fijo: 0, descuento_fijo: 0, dias_visita: [1, 2, 3, 4, 5], activo: true, plantilla: '', permisos: [] };
 
 export default function Administracion() {
   const { user, refresh } = useAuth();
@@ -123,7 +123,7 @@ export default function Administracion() {
   const abrirUsuario = (u = null) => {
     setEditing(u);
     const modeloVendedor = (catalogos.plantillas || []).find((p) => p.id === 'vendedor');
-    setForm(u ? { nombre: u.nombre, email: u.email, usuario: u.usuario || '', pin: '', rol: u.rol, cargo: u.cargo, telefono: u.telefono, whatsapp: u.whatsapp || '', password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo, plantilla: u.plantilla_permisos || '', permisos: u.permisos || [] } : { ...USUARIO_VACIO, rol: 'preventista', plantilla: 'vendedor', permisos: [...(modeloVendedor?.permisos || [])], repartidor_id: repartidores.find((r) => r.activo !== false)?.id || '' });
+    setForm(u ? { nombre: u.nombre, email: u.email, usuario: u.usuario || '', pin: '', rol: u.rol, cargo: u.cargo, telefono: u.telefono, whatsapp: u.whatsapp || '', password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', geocerca_activa: u.geocerca?.activa === true || u.geocerca_activa === true, geocerca_radio_m: u.geocerca?.radio_m || u.geocerca_radio_m || 50, categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo, plantilla: u.plantilla_permisos || '', permisos: u.permisos || [] } : { ...USUARIO_VACIO, rol: 'preventista', plantilla: 'vendedor', permisos: [...(modeloVendedor?.permisos || [])], repartidor_id: repartidores.find((r) => r.activo !== false)?.id || '' });
     setModal(true);
   };
 
@@ -425,6 +425,11 @@ export default function Administracion() {
                   <>
                     <div className="field"><label>Ruta de preventa</label><select className="select" value={form.ruta_venta} onChange={(e) => setForm({ ...form, ruta_venta: e.target.value })}><option value="R1">R1</option><option value="R2">R2</option></select></div>
                     <div className="field"><label>Zona asignada</label><input className="input" value={form.zona_venta} onChange={(e) => setForm({ ...form, zona_venta: e.target.value })} placeholder="Ej. Centro, Quillacollo…" /></div>
+            <div className="field-row">
+              <label className="check"><input type="checkbox" checked={Boolean(form.geocerca_activa)} onChange={(e) => setForm({ ...form, geocerca_activa: e.target.checked })} /> Exigir geocerca a este usuario</label>
+              <div className="field"><label>Radio (m)</label><input className="input" type="number" min="1" value={form.geocerca_radio_m || 50} onChange={(e) => setForm({ ...form, geocerca_radio_m: e.target.value })} /></div>
+            </div>
+            <span className="hint">Si está activo, el vendedor solo podrá registrar ventas y cobranzas dentro del radio de la tienda (o de la zona configurada).</span>
                     <div className="field"><label>Categoría de clientes asignada</label><select className="select" value={form.categoria_cliente_id} onChange={(e) => setForm({ ...form, categoria_cliente_id: e.target.value })}><option value="">Sin asignar</option>{categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre} · {c.descuento_porcentaje}%</option>)}</select><span className="hint">Los clientes nuevos de este vendedor heredarán esta categoría.</span></div>
                     <label className="check"><input type="checkbox" checked={form.es_venta_directa} onChange={(e) => setForm({ ...form, es_venta_directa: e.target.checked })} /> Venta directa desde almacén móvil</label>
                     <div className="divider" />

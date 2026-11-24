@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, ArrowRight, CalendarDays, Check, CircleDollarSign, Clock3, CreditCard, Crosshair,
+  AlertTriangle, ArrowLeft, ArrowRight, CalendarDays, Check, CircleDollarSign, Clock3, CreditCard, Crosshair,
   MapPin, Navigation, Package, PackageCheck, Phone, Printer, Receipt, Truck, UserRound, Wallet, X,
 } from 'lucide-react';
 import { api } from '../api';
 import { puede, useAuth } from '../auth';
 import Mapa from '../components/Mapa';
 import BotonWhatsapp from '../components/BotonWhatsapp';
-import { formatoCoords, obtenerUbicacion } from '../geo';
+import { distanciaMetros, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, Confirm, Estado, Fecha, Modal, Money, PageHeader, SkeletonRows, useToast } from '../ui';
 
 const PASOS = ['pendiente', 'preparando', 'enviado', 'entregado'];
@@ -32,6 +32,7 @@ export default function PedidoDetalle() {
   const [visitas, setVisitas] = useState([]);
   const [ubicacion, setUbicacion] = useState(null);
   const [ubicando, setUbicando] = useState(false);
+  const [geocerca, setGeocerca] = useState({ aplica: false });
 
   const cargar = useCallback(async () => {
     try {
@@ -104,6 +105,24 @@ export default function PedidoDetalle() {
     } finally { setBusy(false); }
   };
 
+  useEffect(() => {
+    if (!pedido?.cliente_id) { setGeocerca({ aplica: false }); return; }
+    api.get(`/geo/geocerca?cliente_id=${pedido.cliente_id}&accion=cobranza`)
+      .then(setGeocerca)
+      .catch(() => setGeocerca({ aplica: false }));
+  }, [pedido?.cliente_id]);
+
+  const distanciaCliente = ubicacion && pedido
+    ? distanciaMetros(ubicacion, { latitud: pedido.cliente_latitud, longitud: pedido.cliente_longitud })
+    : null;
+
+  const capturarUbicacion = async () => {
+    setUbicando(true);
+    try { setUbicacion(await obtenerUbicacion()); toast('Ubicación capturada'); }
+    catch (error) { toast(error.message, 'error'); }
+    finally { setUbicando(false); }
+  };
+
   const abrirPago = () => {
     setUltimoPago(null);
     setPay({ monto: (pedido?.total_a_cobrar || pedido?.saldo || 0).toFixed(2), metodo: 'efectivo', nota: '', numero_comprobante: '', tipo_comprobante: 'recibo' });
@@ -111,9 +130,25 @@ export default function PedidoDetalle() {
   };
 
   const registrarPago = async () => {
+    let ubicacionFinal = ubicacion;
+    if (geocerca.aplica) {
+      if (!ubicacionFinal) {
+        try { ubicacionFinal = await obtenerUbicacion(); setUbicacion(ubicacionFinal); }
+        catch (error) { return toast(`Geocerca activa: ${error.message}`, 'error'); }
+      }
+      const distancia = distanciaMetros(ubicacionFinal, { latitud: pedido?.cliente_latitud, longitud: pedido?.cliente_longitud });
+      if (distancia === null) return toast('El cliente no tiene ubicación registrada; no se puede validar la geocerca.', 'error');
+      if (distancia > geocerca.radio_m) {
+        return toast(`Estás a ${distancia} m del cliente. Límite ${geocerca.radio_m} m; no se puede registrar el cobro.`, 'error');
+      }
+    }
     setBusy(true);
     try {
-      const data = await api.post(`/pedidos/${id}/pagos`, { monto: Number(pay.monto), metodo: pay.metodo, nota: pay.nota, numero_comprobante: pay.numero_comprobante, tipo_comprobante: pay.tipo_comprobante });
+      const data = await api.post(`/pedidos/${id}/pagos`, {
+        monto: Number(pay.monto), metodo: pay.metodo, nota: pay.nota,
+        numero_comprobante: pay.numero_comprobante, tipo_comprobante: pay.tipo_comprobante,
+        latitud: ubicacionFinal?.latitud, longitud: ubicacionFinal?.longitud, precision: ubicacionFinal?.precision,
+      });
       setPedido(data.pedido);
       setUltimoPago(data.pago);
       toast('Pago registrado. Envía el comprobante al WhatsApp del cliente.');
@@ -342,6 +377,16 @@ export default function PedidoDetalle() {
         )}
       >
         <div className="form-stack">
+          {geocerca.aplica && (
+            <div className={`notice ${distanciaCliente !== null && distanciaCliente > geocerca.radio_m ? 'notice-danger' : 'notice-warn'}`}>
+              <AlertTriangle size={14} />
+              Geocerca activa · límite {geocerca.radio_m} m
+              {distanciaCliente !== null ? ` · distancia ${distanciaCliente} m` : ' · captura tu ubicación'}
+              <button type="button" className="btn btn-soft btn-sm" onClick={capturarUbicacion} disabled={ubicando}>
+                <Crosshair size={13} /> {ubicando ? 'Ubicando…' : ubicacion ? 'Actualizar' : 'Capturar ubicación'}
+              </button>
+            </div>
+          )}
           <div className="field"><label>Monto a cobrar (Bs) <span className="req">*</span></label><input type="number" min="0.01" step="0.01" max={pedido.total_a_cobrar || pedido.saldo} className="input" value={pay.monto} onChange={(e) => setPay({ ...pay, monto: e.target.value })} /><span className="hint">Máximo: Bs {(pedido.total_a_cobrar || pedido.saldo).toFixed(2)} (incluye intereses)</span></div>
           <div className="field"><label>Método de pago</label>
             <select className="select" value={pay.metodo} onChange={(e) => setPay({ ...pay, metodo: e.target.value })}>

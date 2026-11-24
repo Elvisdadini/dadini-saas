@@ -4,7 +4,7 @@ const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, nextCode, audit, num, round2, hoy, addDaysISO } = require('../utils');
 const { pedidoResumen, recalcularCliente, buscarPedidos, stockEn } = require('../services');
 const { config: configCredito, vencimientoDe, diasCredito, normalizarConfig, interesDe } = require('../credito');
-const { esCoordenaValida } = require('../geo');
+const { esCoordenaValida, validarGeocerca } = require('../geo');
 const { evaluar: evaluarPromociones } = require('../promociones');
 const { buildIndices, porId } = require('../indexes');
 
@@ -84,6 +84,8 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
   const cliente = indices.clientes.get(Number(cliente_id));
   if (!cliente) return res.status(400).json({ error: 'Selecciona un cliente válido.' });
   if (cliente.bloqueado_por_deuda || !cliente.activo) return res.status(403).json({ error: `Cliente bloqueado: ${cliente.motivo_bloqueo || 'cuenta pendiente con la empresa'}. Regulariza la deuda para venderle.` });
+  const geocerca = validarGeocerca(db, req, cliente, req.body || {}, 'registrar la venta');
+  if (geocerca.aplica && !geocerca.dentro) return res.status(403).json({ error: geocerca.motivo, geocerca });
   if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'Agrega al menos un producto a la venta.' });
   if (!CANALES.includes(canal)) return res.status(400).json({ error: 'Canal de venta inválido.' });
   if (!FORMAS.includes(forma_pago)) return res.status(400).json({ error: 'Forma de pago inválida.' });
@@ -385,6 +387,10 @@ router.post('/:id/pagos', requirePermiso('cobranzas.registrar', 'ventas.registra
   const restanteInteres = round2(Math.max(0, credito.pendiente - aInteres));
   const metodo = req.body?.metodo || 'efectivo';
   const clienteCobro = db.clientes.find((c) => c.id === pedido.cliente_id);
+  const geocercaCobro = validarGeocerca(db, req, clienteCobro, req.body || {}, 'registrar la cobranza');
+  if (geocercaCobro.aplica && !geocercaCobro.dentro) {
+    return res.status(403).json({ error: geocercaCobro.motivo, geocerca: geocercaCobro });
+  }
   const conCuenta = Boolean(clienteCobro?.saldo > 0 || clienteCobro?.bloqueado_por_deuda || clienteCobro?.limite_credito > 0);
   const numeroComprobante = String(req.body?.numero_comprobante || '').trim();
   if ((metodo !== 'efectivo' || conCuenta) && !numeroComprobante) {

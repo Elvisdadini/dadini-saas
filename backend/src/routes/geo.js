@@ -2,9 +2,34 @@ const express = require('express');
 const { load } = require('../db');
 const { authRequired } = require('../auth');
 const { esCoordenaValida, centroYDistanza, distanciaKm } = require('../geo');
+const { tienePermiso } = require('../permisos');
 
 const router = express.Router();
 router.use(authRequired);
+
+// Configuración de geocerca que aplica al usuario actual sobre un cliente.
+// El frontend la usa para exigir GPS antes de enviar ventas o cobranzas.
+router.get('/geocerca', (req, res) => {
+  const db = load();
+  const cliente = (db.clientes || []).find((c) => c.id === Number(req.query.cliente_id));
+  const usuario = (db.usuarios || []).find((u) => u.id === req.user.id) || {};
+  const zona = (db.zonas || []).find((z) => z.id === cliente?.zona_id || z.nombre === cliente?.zona);
+  const geoUsuario = usuario.geocerca || {};
+  const geoZona = zona?.geocerca || {};
+  const accion = String(req.query.accion || 'venta');
+  const permiso = accion === 'cobranza' ? 'geocerca.excepcion_cobranzas' : 'geocerca.excepcion_ventas';
+  const eximido = ['admin', 'dueno'].includes(req.user.rol) || tienePermiso(req.user, permiso);
+  const activa = !eximido && (geoUsuario.activa === true || usuario.geocerca_activa === true
+    || geoZona.activa === true || zona?.geocerca_activa === true);
+  res.json({
+    aplica: Boolean(activa),
+    eximido,
+    radio_m: Math.max(1, Number(geoUsuario.radio_m || usuario.geocerca_radio_m || 50)),
+    zona: zona?.nombre || null,
+    zona_geocerca: { latitud: geoZona.latitud ?? null, longitud: geoZona.longitud ?? null, radio_m: geoZona.radio_m || 50 },
+    cliente_tiene_ubicacion: esCoordenaValida(cliente?.latitud, cliente?.longitud),
+  });
+});
 
 router.get('/clientes', (req, res) => {
   const db = load();

@@ -9,7 +9,7 @@ import { useAuth } from '../auth';
 import Mapa from '../components/Mapa';
 import BotonWhatsapp from '../components/BotonWhatsapp';
 import EscanerCodigos from '../components/EscanerCodigos';
-import { esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
+import { distanciaMetros, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, EmptyState, Modal, Money, PageHeader, SkeletonRows, useToast } from '../ui';
 
 const CANALES = [
@@ -47,6 +47,7 @@ export default function VentaNueva() {
   const [presentacionVenta, setPresentacionVenta] = useState('unidad');
   const [ubicacion, setUbicacion] = useState(null);
   const [ubicando, setUbicando] = useState(false);
+  const [geocerca, setGeocerca] = useState({ aplica: false });
   const [scanOpen, setScanOpen] = useState(false);
   const [modoImagenes, setModoImagenes] = useState(true);
   const [qrs, setQrs] = useState([]);
@@ -98,6 +99,17 @@ export default function VentaNueva() {
 
   const cliente = clientes.find((c) => c.id === Number(form.cliente_id));
   const almacen = almacenes.find((a) => a.id === Number(form.almacen_id));
+
+  useEffect(() => {
+    if (!form.cliente_id) { setGeocerca({ aplica: false }); return; }
+    api.get(`/geo/geocerca?cliente_id=${form.cliente_id}&accion=venta`)
+      .then(setGeocerca)
+      .catch(() => setGeocerca({ aplica: false }));
+  }, [form.cliente_id]);
+
+  const distanciaCliente = ubicacion && cliente
+    ? distanciaMetros(ubicacion, { latitud: cliente.latitud, longitud: cliente.longitud })
+    : null;
 
   const filtrados = useMemo(() => productos.filter((p) => {
     if (almacenMovil && !(almacenMovil.lineas || []).some((l) => l.producto_id === p.id && l.cantidad > 0)) return false;
@@ -232,6 +244,18 @@ export default function VentaNueva() {
         return toast(`Supera el límite de crédito. Disponible: ${(cliente.limite_credito - cliente.saldo).toFixed(2)} Bs.`, 'error');
       }
     }
+    let ubicacionFinal = ubicacion;
+    if (geocerca.aplica) {
+      if (!ubicacionFinal) {
+        try { ubicacionFinal = await obtenerUbicacion(); setUbicacion(ubicacionFinal); }
+        catch (error) { return toast(`Geocerca activa: ${error.message}`, 'error'); }
+      }
+      const distancia = distanciaMetros(ubicacionFinal, cliente);
+      if (distancia === null) return toast('El cliente no tiene ubicación registrada; no se puede validar la geocerca.', 'error');
+      if (distancia > geocerca.radio_m) {
+        return toast(`Estás a ${distancia} m del cliente. El límite es ${geocerca.radio_m} m; no se puede registrar la venta.`, 'error');
+      }
+    }
     setSaving(true);
     try {
       const data = await api.post('/pedidos', {
@@ -244,9 +268,9 @@ export default function VentaNueva() {
         forma_pago: form.forma_pago,
         promociones_aplicadas: evaluacion?.aplicadas || [],
         dias_credito: form.forma_pago === 'credito' ? Number(form.dias_credito) : null,
-        latitud: ubicacion?.latitud,
-        longitud: ubicacion?.longitud,
-        precision: ubicacion?.precision,
+        latitud: ubicacionFinal?.latitud,
+        longitud: ubicacionFinal?.longitud,
+        precision: ubicacionFinal?.precision,
         descuento,
         envio,
         notas: form.notas,
@@ -489,13 +513,26 @@ export default function VentaNueva() {
                 <div className="geo-mini-head">
                   <span><MapPin size={12} /> Cliente geolocalizado · {formatoCoords(cliente.latitud, cliente.longitud)}</span>
                   <button type="button" className="btn btn-soft btn-sm" onClick={capturarUbicacion} disabled={ubicando}>
-                    <Crosshair size={12} /> {ubicando ? 'Ubicando…' : ubicacion ? 'Actualizar mi ubicación' : 'Registrar visita aquí'}
+                    <Crosshair size={12} /> {ubicando ? 'Ubicando…' : ubicacion ? 'Actualizar mi ubicación' : geocerca.aplica ? 'Capturar ubicación (obligatoria)' : 'Registrar visita aquí'}
                   </button>
                 </div>
+                {geocerca.aplica && (
+                  <div className={`notice ${distanciaCliente !== null && distanciaCliente > geocerca.radio_m ? 'notice-danger' : 'notice-warn'}`} style={{ margin: '8px 0' }}>
+                    <AlertTriangle size={14} />
+                    Geocerca activa · límite {geocerca.radio_m} m
+                    {distanciaCliente !== null ? ` · tu distancia: ${distanciaCliente} m` : ' · captura tu ubicación para continuar'}
+                    {geocerca.zona ? ` · zona ${geocerca.zona}` : ''}
+                  </div>
+                )}
                 <Mapa altura={150} puntos={[
                   { latitud: cliente.latitud, longitud: cliente.longitud, nombre: cliente.nombre, tipo: 'cliente' },
                   ...(ubicacion ? [{ latitud: ubicacion.latitud, longitud: ubicacion.longitud, nombre: 'Tu ubicación', tipo: 'venta' }] : []),
                 ]} linea={Boolean(ubicacion)} />
+              </div>
+            )}
+            {geocerca.aplica && cliente && !esCoordenaValida(cliente.latitud, cliente.longitud) && (
+              <div className="notice notice-danger" style={{ marginBottom: 12 }}>
+                <AlertTriangle size={14} /> El cliente no tiene ubicación registrada; la geocerca impide registrar la venta.
               </div>
             )}
 

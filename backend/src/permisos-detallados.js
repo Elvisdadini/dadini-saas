@@ -12,6 +12,7 @@ const CATALOGO = [
     { base: 'ventas', etiqueta: 'Ventas', sub: [
       { codigo: 'ventas.registrar_pedidos', etiqueta: 'Registrar Pedidos' },
       { codigo: 'ventas.registrar_cobranza', etiqueta: 'Registrar cobranza' },
+
     ] },
     { base: 'clientes', etiqueta: 'Clientes', sub: [] },
     { base: 'rutas_venta', etiqueta: 'Rutas y zonas de Venta', sub: [] },
@@ -25,6 +26,13 @@ const CATALOGO = [
     { base: 'cobranzas', etiqueta: 'Cobranzas', sub: [
       { codigo: 'cobranzas.registrar', etiqueta: 'Registrar cobranza' },
       { codigo: 'cobranzas.mis_comprobantes', etiqueta: 'Lista de mis cobranzas y comprobantes enviados' },
+
+    ] },
+  ] },
+  { grupo: 'Geocerca', modulos: [
+    { base: 'geocerca', etiqueta: 'Geocerca', sub: [
+      { codigo: 'geocerca.excepcion_ventas', etiqueta: 'Registrar ventas sin validar geocerca' },
+      { codigo: 'geocerca.excepcion_cobranzas', etiqueta: 'Registrar cobranzas sin validar geocerca' },
     ] },
   ] },
   { grupo: 'Logística', modulos: [

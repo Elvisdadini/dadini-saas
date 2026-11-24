@@ -7,7 +7,7 @@ import { api } from '../api';
 import { useAuth } from '../auth';
 import Mapa from '../components/Mapa';
 import BotonWhatsapp from '../components/BotonWhatsapp';
-import { formatoCoords, obtenerUbicacion } from '../geo';
+import { distanciaMetros, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, EmptyState, Estado, Fecha, Modal, Money, PageHeader, SkeletonRows, StatCard, Tabs, useToast } from '../ui';
 
 export default function Cobranzas() {
@@ -26,6 +26,7 @@ export default function Cobranzas() {
   const [busy, setBusy] = useState(false);
   const [ubicacion, setUbicacion] = useState(null);
   const [ubicando, setUbicando] = useState(false);
+  const [geocerca, setGeocerca] = useState({ aplica: false });
   const [visitas, setVisitas] = useState([]);
   const [detalle, setDetalle] = useState(null);
   const [avanceAbierto, setAvanceAbierto] = useState(false);
@@ -118,6 +119,17 @@ export default function Cobranzas() {
     } catch (error) { toast(error.message, 'error'); }
   };
 
+  useEffect(() => {
+    if (!selected?.cliente_id) { setGeocerca({ aplica: false }); return; }
+    api.get(`/geo/geocerca?cliente_id=${selected.cliente_id}&accion=cobranza`)
+      .then(setGeocerca)
+      .catch(() => setGeocerca({ aplica: false }));
+  }, [selected?.cliente_id]);
+
+  const distanciaCliente = ubicacion && selected
+    ? distanciaMetros(ubicacion, { latitud: selected.cliente_latitud, longitud: selected.cliente_longitud })
+    : null;
+
   const capturarUbicacion = async () => {
     setUbicando(true);
     try {
@@ -132,6 +144,18 @@ export default function Cobranzas() {
 
   const cobrar = async () => {
     if (!selected) return;
+    let ubicacionFinal = ubicacion;
+    if (geocerca.aplica) {
+      if (!ubicacionFinal) {
+        try { ubicacionFinal = await obtenerUbicacion(); setUbicacion(ubicacionFinal); }
+        catch (error) { return toast(`Geocerca activa: ${error.message}`, 'error'); }
+      }
+      const distancia = distanciaMetros(ubicacionFinal, { latitud: selected.cliente_latitud, longitud: selected.cliente_longitud });
+      if (distancia === null) return toast('El cliente no tiene ubicación registrada; no se puede validar la geocerca.', 'error');
+      if (distancia > geocerca.radio_m) {
+        return toast(`Estás a ${distancia} m del cliente. El límite es ${geocerca.radio_m} m; no se puede registrar la cobranza.`, 'error');
+      }
+    }
     setBusy(true);
     try {
       const respuesta = await api.post(`/pedidos/${selected.id}/pagos`, {
@@ -140,9 +164,9 @@ export default function Cobranzas() {
         nota: pay.nota,
         numero_comprobante: pay.numero_comprobante,
         tipo_comprobante: pay.tipo_comprobante,
-        latitud: ubicacion?.latitud,
-        longitud: ubicacion?.longitud,
-        precision: ubicacion?.precision,
+        latitud: ubicacionFinal?.latitud,
+        longitud: ubicacionFinal?.longitud,
+        precision: ubicacionFinal?.precision,
       });
       setUltimoComprobante({ pago: respuesta.pago, pedido: respuesta.pedido || selected });
       toast(`Cobro registrado para ${selected.codigo}. Envía el comprobante al WhatsApp del cliente.`);
@@ -415,13 +439,19 @@ export default function Cobranzas() {
           </div>
           <div className="geo-editor">
             <div className="geo-editor-head">
-              <div><strong><Navigation size={13} /> Visita de cobranza</strong><span className="hint">Registra tu ubicación para la trazabilidad en campo.</span></div>
+              <div><strong><Navigation size={13} /> Visita de cobranza</strong><span className="hint">{geocerca.aplica ? 'Geocerca activa: ubicación obligatoria.' : 'Registra tu ubicación para la trazabilidad en campo.'}</span></div>
               <button type="button" className="btn btn-soft btn-sm" onClick={capturarUbicacion} disabled={ubicando}>
-                <Crosshair size={13} /> {ubicando ? 'Ubicando…' : ubicacion ? 'Actualizar ubicación' : 'Usar mi ubicación'}
+                <Crosshair size={13} /> {ubicando ? 'Ubicando…' : ubicacion ? 'Actualizar ubicación' : geocerca.aplica ? 'Capturar ubicación (obligatoria)' : 'Usar mi ubicación'}
               </button>
             </div>
+            {geocerca.aplica && (
+              <div className={`notice ${distanciaCliente !== null && distanciaCliente > geocerca.radio_m ? 'notice-danger' : 'notice-warn'}`} style={{ margin: '8px 0' }}>
+                <AlertTriangle size={14} /> Geocerca · límite {geocerca.radio_m} m
+                {distanciaCliente !== null ? ` · distancia ${distanciaCliente} m` : ' · captura tu ubicación'}
+              </div>
+            )}
             {ubicacion ? <p className="small text-green">Ubicación lista: {formatoCoords(ubicacion.latitud, ubicacion.longitud)} (±{ubicacion.precision} m)</p>
-              : <p className="small muted">Sin ubicación: el cobro se registrará igual, pero sin geolocalización.</p>}
+              : <p className="small muted">{geocerca.aplica ? 'Captura tu ubicación para poder registrar el cobro.' : 'Sin ubicación: el cobro se registrará igual, pero sin geolocalización.'}</p>}
           </div>
           <div className="notice notice-info"><CalendarClock size={15} /> El saldo del cliente y los intereses se actualizan automáticamente al registrar el cobro.</div>
           {ultimoComprobante && (
