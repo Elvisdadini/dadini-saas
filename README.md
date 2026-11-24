@@ -238,6 +238,12 @@ Endpoints: `POST /api/whatsapp`, `GET /api/whatsapp`, `PATCH /api/whatsapp/:id/e
 - Los **tipos de cliente** son jerárquicos: se puede elegir un **tipo principal** al crear uno (ej. "Tienda de barrio" → "Tipo A", "Tipo B", "Supermercado"). Antes cualquier nombre se convertía en "Minorista".
 - En **Nuevo cliente** el selector de tipo se llena con los tipos creados (incluye subtipos con `↳`). La **zona** se filtra automáticamente a las zonas que el vendedor atiende el día seleccionado (o el día actual si está en automático); si solo hay una, se asigna sola.
 
+### Ocultar inactivos y eliminación
+
+- Por defecto, **todo el sistema oculta** productos, categorías de cliente, categorías/marcas de producto, tipos de cliente, zonas y rutas **desactivados**. Las páginas de administración (`/categorias?todos=true`, `/rutas-venta?todos=true`, `/producto-catalogo?todos=true`) pueden mostrarlos para reactivarlos o borrarlos.
+- Acciones de **eliminar** disponibles: categorías de cliente (con validación de clientes/vendedores/promociones/subcategorías), tipos de cliente (clientes/subtipos), zonas (clientes/rutas/vendedores), productos (`DELETE /productos/:id?permanente=true`, bloqueado si hay ventas), además de las ya existentes para categorías/marcas de producto y rutas. Todas usan el diálogo `Confirm` y auditoría.
+- En Roles y permisos y en el alta de usuarios, el check **"Mostrar solo funciones activas"** oculta las funciones no asignadas; el menú respeta la misma compatibilidad módulo ↔ subfunción que el backend.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.
