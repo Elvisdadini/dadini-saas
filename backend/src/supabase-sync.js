@@ -72,16 +72,25 @@ async function restaurar(db, opciones = {}) {
   const operativas = ['productos', 'pedidos', 'clientes', 'pagos', 'rutas', 'visitas'];
   const hayRemoto = operativas.some((clave) => Array.isArray(entidades[clave]) && entidades[clave].length);
   const hayLocal = operativas.some((clave) => Array.isArray(db[clave]) && db[clave].length);
-  const marcaLocal = Date.parse(db.sincronizacion?.ultimo_envio || db.generado_en || 0) || 0;
+  const marcas = [
+    db.sincronizacion?.ultimo_envio,
+    db.sincronizacion?.ultimo_cambio_local,
+    db.generado_en,
+  ].map((valor) => Date.parse(valor || 0) || 0);
+  const marcaLocal = Math.max(...marcas, 0);
   const marcaRemota = Date.parse(data.updated_at || 0) || 0;
-  if (!opciones.forzar && hayLocal) {
-    return { ok: true, restaurado: false, motivo: 'La base local ya tiene datos; se conserva.' };
-  }
-  if (!opciones.forzar && marcaRemota && marcaRemota <= marcaLocal) {
-    return { ok: true, restaurado: false, motivo: 'La instantánea remota no es más reciente que la local.' };
-  }
-  if (!hayRemoto && !opciones.forzar) {
+
+  if (!opciones.forzar && !hayRemoto) {
     return { ok: true, restaurado: false, motivo: 'La instantánea remota está vacía.' };
+  }
+  // Un contenedor nuevo arranca con el JSON versionado (datos antiguos). Si la
+  // nube es más reciente, gana la nube; si el usuario escribió después del
+  // último envío, gana lo local aunque parezca "más pequeño".
+  if (!opciones.forzar && hayLocal && marcaLocal && marcaRemota <= marcaLocal) {
+    return { ok: true, restaurado: false, motivo: 'Hay cambios locales más recientes que la instantánea remota; se conservan.' };
+  }
+  if (!opciones.forzar && !hayLocal && !marcaRemota) {
+    return { ok: true, restaurado: false, motivo: 'No hay datos locales ni marca de tiempo remota.' };
   }
 
   mantenimiento = true;

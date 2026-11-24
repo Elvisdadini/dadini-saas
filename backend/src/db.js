@@ -53,6 +53,12 @@ function load() {
 // El guardado real se encola para respetar el orden y no bloquear la respuesta.
 function save() {
   if (!db) return null;
+  // Marca de "cambio local" para que el restoredor sepa si hay escrituras
+  // más recientes que la última instantánea de Supabase.
+  db.sincronizacion = {
+    ...(db.sincronizacion || {}),
+    ultimo_cambio_local: new Date().toISOString(),
+  };
   colaGuardado = colaGuardado
     .then(() => store.guardar(db))
     .catch((error) => console.error('[db] Error al guardar:', error.message));
