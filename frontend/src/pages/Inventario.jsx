@@ -4,6 +4,7 @@ import { descargarPlantilla, leerExcel } from '../excel';
 import {
   ArrowLeftRight, ArrowDownToLine, ArrowUpFromLine, BadgePercent, Boxes, Building2, ClipboardList,
   FileSpreadsheet, ImagePlus, Package, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, Trash2, Truck, Undo2, Upload, UploadCloud, Warehouse,
+  Lock, Unlock, CheckCircle2, AlertTriangle,
 } from 'lucide-react';
 import { api, qs } from '../api';
 import { optimizarImagen, pesoDeDataUrl, skuDeArchivo } from '../imagen';
@@ -34,6 +35,7 @@ export default function Inventario() {
   const [search, setSearch] = useState('');
   const [categoria, setCategoria] = useState('todas');
   const [bajo, setBajo] = useState(false);
+  const [estadoProducto, setEstadoProducto] = useState('activos');
   const [movTipo, setMovTipo] = useState('todos');
   const [importOpen, setImportOpen] = useState(false);
   const [importRows, setImportRows] = useState([]);
@@ -55,6 +57,8 @@ export default function Inventario() {
   const [loteArchivos, setLoteArchivos] = useState([]);
   const [loteProgreso, setLoteProgreso] = useState(0);
   const [loteResultado, setLoteResultado] = useState(null);
+  const [almacenCerrar, setAlmacenCerrar] = useState(null);
+  const [resultadoCierre, setResultadoCierre] = useState(null);
 
   const puedeEditar = ['admin', 'almacen'].includes(user?.rol);
   const esAdmin = user?.rol === 'admin';
@@ -63,7 +67,7 @@ export default function Inventario() {
     setLoading(true);
     try {
       const [p, a, catCli, catProds] = await Promise.all([
-        api.get(`/productos${qs({ search, categoria, bajo_stock: bajo ? 'true' : '' })}`),
+        api.get(`/productos${qs({ search, categoria, bajo_stock: bajo ? 'true' : '', estado: estadoProducto })}`),
         api.get('/almacenes'),
         api.get('/categorias'),
         api.get('/producto-catalogo'),
@@ -83,7 +87,7 @@ export default function Inventario() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { cargar(); /* eslint-disable-next-line */ }, [search, categoria, bajo, tab, movTipo]);
+  useEffect(() => { cargar(); /* eslint-disable-next-line */ }, [search, categoria, bajo, estadoProducto, tab, movTipo]);
 
   const abrirProducto = (p = null) => {
     setEditing(p);
@@ -221,6 +225,26 @@ export default function Inventario() {
     } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
   };
 
+  const cerrarAlmacen = async () => {
+    if (!almacenCerrar) return;
+    setBusy(true);
+    try {
+      const r = await api.post(`/almacenes/${almacenCerrar.id}/cerrar`, {});
+      setResultadoCierre(r);
+      toast(`${r.transferidos} unidades transferidas a ${r.central.nombre}`);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
+
+  const abrirAlmacenCerrado = async (a) => {
+    setBusy(true);
+    try {
+      const r = await api.post(`/almacenes/${a.id}/abrir`, {});
+      toast(`${r.almacen.nombre} reactivado`);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
+
   const stockAlmacen = (p, almacenId) => p?.stock_por_almacen?.find((s) => s.almacen_id === almacenId)?.cantidad || 0;
 
   const columnasProductos = ['nombre', 'sku', 'categoria', 'precio', 'costo', 'unidad', 'unidades_por_caja', 'peso_kg', 'stock_minimo', 'stock_inicial', 'emoji', 'color'];
@@ -269,8 +293,8 @@ export default function Inventario() {
       />
 
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>
-        <StatCard label="Productos activos" value={resumen.total || 0} icon={Package} tone="blue" hint={`${categorias.length} categorías`} />
-        <StatCard label="Unidades en stock" value={<Num value={resumen.unidades || 0} />} icon={Boxes} tone="green" hint={`${almacenes.length} almacenes`} />
+        <StatCard label="Productos activos" value={resumen.total || 0} icon={Package} tone="blue" hint={`${resumen.inactivos || 0} inactivos · ${categorias.length} categorías`} />
+        <StatCard label="Unidades en stock" value={<Num value={resumen.unidades || 0} />} icon={Boxes} tone="green" hint={`${almacenes.filter((a) => a.activo).length} almacenes activos`} />
         <StatCard label="Valor del inventario" value={<Money value={resumen.valor_inventario} />} icon={Building2} tone="purple" hint="Valorizado al costo" />
         <StatCard label="Stock bajo" value={resumen.bajo_stock || 0} icon={SlidersHorizontal} tone="amber" hint="Productos a reponer" />
       </div>
@@ -287,6 +311,11 @@ export default function Inventario() {
                   <option value="todas">Todas las categorías</option>
                   {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
+                <select className="select" value={estadoProducto} onChange={(e) => setEstadoProducto(e.target.value)}>
+                  <option value="activos">Solo activos</option>
+                  <option value="inactivos">Solo inactivos</option>
+                  <option value="todos">Todos</option>
+                </select>
                 <label className="check"><input type="checkbox" checked={bajo} onChange={(e) => setBajo(e.target.checked)} /> Solo stock bajo</label>
               </div>
             </div>
@@ -297,7 +326,7 @@ export default function Inventario() {
                   <tbody>
                     {productos.map((p) => (
                       <tr key={p.id}>
-                        <td><div className="inline" style={{ gap: 8 }}><span className="product-thumb" style={{ width: 32, height: 32, fontSize: 16 }}>{p.emoji}</span><div><span className="cell-strong">{p.nombre}</span><span className="cell-sub">{p.sku} · {p.unidad}</span></div></div></td>
+                        <td><div className="inline" style={{ gap: 8 }}><span className="product-thumb" style={{ width: 32, height: 32, fontSize: 16 }}>{p.emoji}</span><div><span className="cell-strong">{p.nombre}</span><span className="cell-sub">{p.sku} · {p.unidad}</span></div>{!p.activo && <Badge tone="red">Inactivo</Badge>}</div></td>
                         <td><Badge tone="gray">{p.categoria}</Badge></td>
                         <td className="num"><Money value={p.precio} /></td>
                         <td className="num muted"><Money value={p.costo} /></td>
@@ -410,6 +439,10 @@ export default function Inventario() {
                     <div className="inline"><span className="wh-icon"><Warehouse size={17} /></span><div><h3>{a.nombre}</h3><span className="small muted">{a.zona} · {a.ciudad}</span></div></div>
                     {esAdmin && <button className="icon-btn" onClick={() => abrirAlmacen(a)}><Pencil size={14} /></button>}
                   </div>
+                  <div className="inline mt-8" style={{ gap: 6 }}>
+                    <Badge tone={a.activo ? 'green' : 'red'}>{a.activo ? 'Activo' : 'Cerrado'}</Badge>
+                    {a.es_central && <Badge tone="orange">Central</Badge>}
+                  </div>
                   <div className="small muted mt-8">{a.direccion}</div>
                   <div className="small muted mt-8">Encargado: {a.encargado || '—'} · {a.telefono || 'Sin teléfono'}</div>
                   <div className="wh-stats">
@@ -417,6 +450,13 @@ export default function Inventario() {
                     <div><span>Unidades</span><strong><Num value={a.unidades} /></strong></div>
                     <div><span>Valor</span><strong><Money value={a.valor} /></strong></div>
                   </div>
+                  {puedeEditar && !a.es_central && (
+                    <div className="inline mt-12" style={{ gap: 6 }}>
+                      {a.activo
+                        ? <button className="btn btn-outline btn-sm" onClick={() => { setAlmacenCerrar(a); setResultadoCierre(null); }}><Lock size={13} /> Cerrar almacén</button>
+                        : <button className="btn btn-outline btn-sm" onClick={() => abrirAlmacenCerrado(a)} disabled={busy}><Unlock size={13} /> Reabrir</button>}
+                    </div>
+                  )}
                 </div>
               ))}
               {esAdmin && <button className="card card-pad" style={{ display: 'grid', placeItems: 'center', minHeight: 160, borderStyle: 'dashed', color: 'var(--muted)' }} onClick={() => abrirAlmacen()}><span><Plus size={20} style={{ display: 'block', margin: '0 auto 5px' }} />Agregar almacén</span></button>}
@@ -554,6 +594,44 @@ export default function Inventario() {
               {importResult.creados} creados · {importResult.errores.length} errores de {importResult.total} filas.
               {importResult.errores.slice(0, 5).map((e) => <div key={e.fila}>Fila {e.fila}: {e.error}</div>)}
             </div>
+          )}
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(almacenCerrar)} onClose={() => { setAlmacenCerrar(null); setResultadoCierre(null); }}
+        title={`Cerrar ${almacenCerrar?.nombre || 'almacén'}`}
+        subtitle="Todo el stock se transferirá automáticamente al almacén central"
+        footer={<>
+          <button className="btn btn-ghost" onClick={() => { setAlmacenCerrar(null); setResultadoCierre(null); }}>Cancelar</button>
+          {!resultadoCierre && <button className="btn btn-primary" onClick={cerrarAlmacen} disabled={busy}>{busy ? 'Cerrando…' : 'Cerrar y transferir'}</button>}
+        </>}
+      >
+        <div className="form-stack">
+          {!resultadoCierre ? (
+            <>
+              <div className="notice notice-warn"><AlertTriangle size={15} /> Se moverán todas las unidades de este almacén al central. La acción quedará registrada con movimientos de transferencia. Podrás reabrir el almacén cuando quieras.</div>
+              <div className="inline" style={{ justifyContent: 'space-between' }}>
+                <span className="small muted">Unidades a transferir</span>
+                <strong>{(almacenCerrar?.unidades || 0).toLocaleString()}</strong>
+              </div>
+              <div className="inline" style={{ justifyContent: 'space-between' }}>
+                <span className="small muted">Productos con stock</span>
+                <strong>{almacenCerrar?.productos || 0}</strong>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="notice notice-success"><CheckCircle2 size={15} /> Almacén cerrado correctamente.</div>
+              <div className="inline" style={{ justifyContent: 'space-between' }}>
+                <span className="small muted">Unidades transferidas</span><strong>{resultadoCierre.transferidos}</strong>
+              </div>
+              <div className="inline" style={{ justifyContent: 'space-between' }}>
+                <span className="small muted">Productos movidos</span><strong>{resultadoCierre.productos}</strong>
+              </div>
+              <div className="inline" style={{ justifyContent: 'space-between' }}>
+                <span className="small muted">Destino</span><strong>{resultadoCierre.central?.nombre}</strong>
+              </div>
+            </>
           )}
         </div>
       </Modal>

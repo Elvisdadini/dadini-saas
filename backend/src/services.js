@@ -6,27 +6,36 @@ function fechaCorta(isoString) {
   return String(isoString || '').slice(0, 10);
 }
 
+function inactivo(db, productoId) {
+  const producto = db.productos.find((p) => p.id === Number(productoId));
+  return producto ? producto.activo === false : false;
+}
+
 function stockDe(db, productoId, indices) {
   if (indices) return indices.stockPorProducto.get(Number(productoId)) || 0;
+  if (inactivo(db, productoId)) return 0;
   return db.stock.filter((s) => s.producto_id === productoId).reduce((sum, s) => sum + s.cantidad, 0);
 }
 
 function stockEn(db, productoId, almacenId, indices) {
   if (indices) return indices.stockPorClave.get(`${Number(productoId)}:${Number(almacenId)}`) || 0;
+  if (inactivo(db, productoId)) return 0;
   const row = db.stock.find((s) => s.producto_id === productoId && s.almacen_id === Number(almacenId));
   return row ? row.cantidad : 0;
 }
 
 function productoResumen(db, producto, indices) {
   const total = stockDe(db, producto.id, indices);
+  const desactivado = producto.activo === false;
   return {
     ...producto,
+    activo: !desactivado,
     stock_total: total,
-    bajo_stock: total <= (producto.stock_minimo || 0),
+    bajo_stock: !desactivado && total <= (producto.stock_minimo || 0),
     stock_por_almacen: db.almacenes.map((a) => ({
       almacen_id: a.id,
       almacen: a.nombre,
-      cantidad: stockEn(db, producto.id, a.id, indices),
+      cantidad: desactivado ? 0 : stockEn(db, producto.id, a.id, indices),
     })),
   };
 }

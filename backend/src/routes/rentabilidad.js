@@ -22,11 +22,13 @@ function construir(db, desde, hasta, agrupacion = 'dia') {
   const utilidadNeta = round2(margen - totalGastos);
   const capitalAlmacenes = round2(db.stock.reduce((s, fila) => {
     const producto = db.productos.find((p) => p.id === fila.producto_id);
-    return s + fila.cantidad * num(producto?.costo);
+    if (!producto || producto.activo === false) return s;
+    return s + fila.cantidad * num(producto.costo);
   }, 0));
   const capitalMovil = round2((db.almacenes_moviles || []).reduce((s, almacen) => s + (almacen.lineas || []).reduce((x, linea) => {
     const producto = db.productos.find((p) => p.id === linea.producto_id);
-    return x + linea.cantidad * num(producto?.costo);
+    if (!producto || producto.activo === false) return x;
+    return x + linea.cantidad * num(producto.costo);
   }, 0), 0));
 
   const claveDe = (fecha) => {

@@ -13,10 +13,15 @@ function porId(items, clave = 'id') {
 }
 
 function buildIndices(db) {
+  // Un producto inactivo NO cuenta para stock ni valor de inventario. Se
+  // excluye al construir los índices para que todos los consumidores
+  // (dashboard, reportes, productos, almacenes) hereden la misma regla.
+  const activos = new Set((db.productos || []).filter((p) => p && p.activo !== false).map((p) => Number(p.id)));
   const stockPorProducto = new Map();
   const stockPorClave = new Map();
   (db.stock || []).forEach((s) => {
     const productoId = Number(s.producto_id);
+    if (!activos.has(productoId)) return;
     const almacenId = Number(s.almacen_id);
     stockPorProducto.set(productoId, (stockPorProducto.get(productoId) || 0) + Number(s.cantidad || 0));
     stockPorClave.set(`${productoId}:${almacenId}`, Number(s.cantidad || 0));
@@ -50,6 +55,7 @@ function buildIndices(db) {
     || null;
 
   return {
+    productosActivos: activos,
     clientes: porId(db.clientes),
     usuarios: porId(db.usuarios),
     almacenes: porId(db.almacenes),

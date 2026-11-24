@@ -3,6 +3,7 @@ const { load, save } = require('../db');
 const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, audit, num, round2, matches } = require('../utils');
 const { productoResumen, stockEn, stockDe } = require('../services');
+const { buildIndices } = require('../indexes');
 
 const router = express.Router();
 router.use(authRequired);
@@ -19,9 +20,12 @@ function setStock(db, productoId, almacenId, cantidad) {
 
 router.get('/', (req, res) => {
   const db = load();
-  const { search, categoria, bajo_stock, todos } = req.query;
-  let productos = db.productos.map((p) => productoResumen(db, p));
-  if (!todos) productos = productos.filter((p) => p.activo);
+  const indices = buildIndices(db);
+  const { search, categoria, bajo_stock, todos, estado } = req.query;
+  let productos = db.productos.map((p) => productoResumen(db, p, indices));
+  const estadoFiltro = estado || (todos === 'true' ? 'todos' : 'activos');
+  if (estadoFiltro === 'activos') productos = productos.filter((p) => p.activo);
+  if (estadoFiltro === 'inactivos') productos = productos.filter((p) => !p.activo);
   if (categoria && categoria !== 'todas') productos = productos.filter((p) => p.categoria === categoria);
   if (bajo_stock === 'true') productos = productos.filter((p) => p.bajo_stock);
   if (search) productos = productos.filter((p) => matches(`${p.nombre} ${p.sku} ${p.categoria} ${p.marca || ''}`, search));
@@ -35,10 +39,15 @@ router.get('/', (req, res) => {
     marcas,
     catalogo: { categorias: db.producto_categorias || [], marcas: db.producto_marcas || [] },
     resumen: {
-      total: db.productos.filter((p) => p.activo).length,
-      unidades: round2(db.stock.reduce((s, x) => s + x.cantidad, 0)),
-      valor_inventario: round2(db.productos.reduce((s, p) => s + stockDe(db, p.id) * p.costo, 0)),
-      bajo_stock: db.productos.filter((p) => p.activo && stockDe(db, p.id) <= p.stock_minimo).length,
+      total: indices.productosActivos.size,
+      inactivos: db.productos.filter((p) => p.activo === false).length,
+      unidades: round2(db.stock
+        .filter((x) => indices.productosActivos.has(Number(x.producto_id)))
+        .reduce((s, x) => s + x.cantidad, 0)),
+      valor_inventario: round2(db.productos
+        .filter((p) => p.activo !== false)
+        .reduce((s, p) => s + stockDe(db, p.id, indices) * (p.costo || 0), 0)),
+      bajo_stock: db.productos.filter((p) => p.activo !== false && stockDe(db, p.id, indices) <= p.stock_minimo).length,
     },
   });
 });

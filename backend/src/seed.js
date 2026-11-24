@@ -56,7 +56,7 @@ function buildSeed() {
   }));
 
   const almacenes = [
-    { id: 1, nombre: 'Almacén Central', direccion: 'Av. Ayacucho #245', zona: 'Centro', ciudad: 'Cochabamba', encargado: 'Jorge Villarroel', telefono: '72345678', activo: true },
+    { id: 1, nombre: 'Almacén Central', direccion: 'Av. Ayacucho #245', zona: 'Centro', ciudad: 'Cochabamba', encargado: 'Jorge Villarroel', telefono: '72345678', activo: true, es_central: true },
     { id: 2, nombre: 'Sucursal Quillacollo', direccion: 'Av. Blanco Galindo km 12', zona: 'Quillacollo', ciudad: 'Quillacollo', encargado: 'Ruth Aguilar', telefono: '68712345', activo: true },
     { id: 3, nombre: 'Depósito Sacaba', direccion: 'Calle Sucre #118', zona: 'Sacaba', ciudad: 'Sacaba', encargado: 'Marco Padilla', telefono: '69823456', activo: true },
   ];
