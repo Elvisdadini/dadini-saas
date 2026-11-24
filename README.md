@@ -220,6 +220,9 @@ Endpoints: `POST /api/whatsapp`, `GET /api/whatsapp`, `PATCH /api/whatsapp/:id/e
 - Productos: `nombre`, `sku`, `categoria`, `precio`, `costo`, `unidad`, `unidades_por_caja`, `stock_minimo`, `stock_inicial`, `emoji`, `color`. El `stock_inicial` se registra como entrada de inventario.
 - Clientes: `nombre`, `codigo`, `tipo`, `zona`, `direccion`, `telefono`, `email`, `contacto`, `limite_credito`, `latitud`, `longitud`, `ruta_venta`, `dia_visita`, `notas`. Si trae coordenadas se genera la visita `alta_cliente`.
 - Ambos devuelven cuántas filas se crearon y los errores por fila.
+- **Actualizar precios** (menú Catálogo → Actualizar precios): permite editar precio y costo de todos los productos a la vez en la tabla o subiendo un Excel con `sku, nombre, precio, costo`. Botón **Aplicar N cambios** guarda todo y muestra el detalle de cada producto modificado.
+- **Sincronizar** (barra superior, ícono circular): guarda la base local, verifica buckets, sube la instantánea a Supabase y la confirma. Muestra porcentaje, etapa actual, aviso de éxito/fallo y los errores exactos.
+- **Nombre DADINI / Gestión SaaS** del menú: al hacer clic vuelve al Dashboard.
 
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
