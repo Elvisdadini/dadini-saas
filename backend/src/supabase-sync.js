@@ -7,6 +7,14 @@ let mantenimiento = false;
 
 function estaEnMantenimiento() { return mantenimiento; }
 
+function registrarRestore(db, motivo, restaurado = false, extra = {}) {
+  db.sincronizacion = {
+    ...(db.sincronizacion || {}),
+    ultimo_restore: { en: new Date().toISOString(), motivo, restaurado, ...extra },
+  };
+  return { ok: true, restaurado, motivo, ...extra };
+}
+
 async function sincronizar(db, motivo = 'manual', opciones = {}) {
   // Evita solapes y, sobre todo, impedir que una base local vacía sobrescriba
   // una buena instantánea si Supabase falló al restaurar durante el arranque.
@@ -81,18 +89,22 @@ async function restaurar(db, opciones = {}) {
   const marcaRemota = Date.parse(data.updated_at || 0) || 0;
 
   if (!opciones.forzar && !hayRemoto) {
-    return { ok: true, restaurado: false, motivo: 'La instantánea remota está vacía.' };
+    return registrarRestore(db, 'La instantánea remota está vacía.');
   }
   // Un contenedor nuevo arranca con el JSON versionado (datos antiguos). Si la
   // nube es más reciente, gana la nube; si el usuario escribió después del
   // último envío, gana lo local aunque parezca "más pequeño".
   if (!opciones.forzar && hayLocal && marcaLocal && marcaRemota <= marcaLocal) {
-    return { ok: true, restaurado: false, motivo: 'Hay cambios locales más recientes que la instantánea remota; se conservan.' };
+    return registrarRestore(db, 'Hay cambios locales más recientes que la instantánea remota; se conservan.');
   }
   if (!opciones.forzar && !hayLocal && !marcaRemota) {
-    return { ok: true, restaurado: false, motivo: 'No hay datos locales ni marca de tiempo remota.' };
+    return registrarRestore(db, 'No hay datos locales ni marca de tiempo remota.');
   }
 
+  registrarRestore(db, 'Instantánea remota más reciente restaurada.', true, {
+    actualizado_en: data.updated_at,
+    productos: (entidades.productos || []).length,
+  });
   mantenimiento = true;
   try {
     Object.assign(db, entidades);
