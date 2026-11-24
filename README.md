@@ -272,6 +272,15 @@ Botón **Asistente AI** en la barra superior. Panel con chat, sugerencias y **al
 - **Preventa:** en "Registrar visita" y en la visita desde el mapa existe el motivo **Cambio de producto**, con producto, cantidad, motivo, detalles, **lote**, **fecha de vencimiento** y **foto de comprobante**. Todo queda en la visita (`detalle`, `foto_url`, `cambios[]`) y se muestra en la ficha del cliente.
 - Helper reutilizable `backend/src/fotos.js` (bucket `comprobantes`, máximo 2 MB por foto).
 
+### Mapa de zonas (cuadrantes)
+
+Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cuadrante**; cada clic en el mapa agrega un vértice (mínimo 3, máximo 12) y **Guardar cuadrante** persiste el polígono `zona.geocerca.poligono`. La geocerca de esa zona usa el polígono (point-in-polygon) en lugar del círculo.
+
+- Clientes dentro del cuadrante → marcador **verde**; clientes fuera → marcador **rojo** y aviso rojo con el conteo.
+- Panel "Clientes fuera del cuadrante" con selección múltiple y **Reasignar seleccionados**: elige la zona vecina y el vendedor de esa zona; se actualizan `zona`, `zona_id`, `ruta_venta`, `ruta_venta_id`, `vendedor_id`, `distribuidor_id` y `dia_visita`.
+- Endpoints: `PUT /api/rutas-venta/zonas/:id/poligono`, `GET /api/geo/zonas/:id/cobertura` y `POST /api/geo/zonas/:id/reasignar-fuera`.
+- Sin librerías nuevas: se usa `useMapEvents` + `Polygon` de react-leaflet y ray-casting propio (`puntoDentroPoligono`). `zonas`, `tipos_cliente` y `rutas_venta` se agregaron a `ENTIDADES` para sobrevivir en modo PostgreSQL.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.
