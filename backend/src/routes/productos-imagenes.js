@@ -55,7 +55,9 @@ router.post('/upload', allow('admin', 'dueno', 'almacen'), async (req, res) => {
   try {
     const resultado = await subirUno(sku, imagen);
     if (!resultado.ok) return res.status(400).json({ error: resultado.error });
-    const producto = db.productos.find((p) => String(p.sku).toLowerCase() === String(sku).toLowerCase());
+    const normalizar = (s) => String(s || '').trim().toLowerCase().replace(/[_\s]+/g, ' ');
+    const clave = normalizar(sku);
+    const producto = db.productos.find((p) => normalizar(p.sku) === clave || normalizar(p.nombre) === clave);
     if (producto) producto.imagen_url = resultado.url;
     audit(db, req, 'Imagen de producto cargada', 'Inventario', `${sku} · ${round2(resultado.bytes / 1024)} KB`);
     save();
@@ -73,16 +75,24 @@ router.post('/lote', allow('admin', 'dueno', 'almacen'), async (req, res) => {
   const errores = [];
   try {
     await asegurarBucket();
-    const porSku = new Map(db.productos.map((p) => [String(p.sku || '').toLowerCase(), p]));
+    const normalizar = (s) => String(s || '').trim().toLowerCase().replace(/[_\s]+/g, ' ');
+    const porSku = new Map(db.productos.map((p) => [normalizar(p.sku), p]));
+    const porNombre = new Map(db.productos.map((p) => [normalizar(p.nombre), p]));
     for (const item of imagenes) {
+      const clave = normalizar(item?.sku);
+      // El nombre del archivo suele ser el nombre del producto (ej.
+      // "Cookie chips chocolate.jpg"), no el SKU (SNA001).
+      const producto = porSku.get(clave) || porNombre.get(clave);
+      if (!producto) {
+        errores.push(`No existe un producto con SKU o nombre "${item?.sku}".`);
+        continue;
+      }
       const resultado = await subirUno(item?.sku, item?.imagen, true);
-      if (resultado.ok) correctas.push(resultado);
-      else errores.push(resultado.error);
+      if (resultado.ok) {
+        correctas.push({ ...resultado, producto_id: producto.id, producto_nombre: producto.nombre });
+        producto.imagen_url = resultado.url;
+      } else errores.push(resultado.error);
     }
-    correctas.forEach((r) => {
-      const producto = porSku.get(String(r.sku).toLowerCase());
-      if (producto) producto.imagen_url = r.url;
-    });
     if (correctas.length) {
       audit(db, req, 'Imágenes de producto cargadas', 'Inventario', `${correctas.length} imágenes · ${errores.length} errores`);
       save();

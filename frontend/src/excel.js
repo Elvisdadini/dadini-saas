@@ -19,3 +19,15 @@ export async function descargarPlantilla(columnas, nombre) {
   XLSX.utils.book_append_sheet(libro, hoja, 'Datos');
   XLSX.writeFile(libro, nombre);
 }
+
+// Descarga un Excel ya lleno (útil para exportar precios actuales y editarlos).
+export async function descargarExcel(filas, nombre, columnas) {
+  const XLSX = await cargarXlsx();
+  const datos = columnas
+    ? filas.map((f) => Object.fromEntries(columnas.map((c) => [c, f[c] ?? ''])))
+    : filas;
+  const hoja = XLSX.utils.json_to_sheet(datos.length ? datos : [{}]);
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, 'Datos');
+  XLSX.writeFile(libro, nombre);
+}

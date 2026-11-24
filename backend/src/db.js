@@ -69,8 +69,21 @@ async function flush() {
   await colaGuardado;
 }
 
+// Guarda de forma inmediata y propaga el error (save() solo lo loguea).
+// Lo usa el botón "Sincronizar" para poder mostrar errores exactos al usuario.
+async function guardarAhora() {
+  await colaGuardado;
+  if (!db) throw new Error('La base de datos aún no se ha inicializado.');
+  await store.guardar(db);
+  return { base: store.base(), bytes: JSON.stringify(db).length };
+}
+
+function estadoGuardado() {
+  return { base: store.base(), motor: store.modo };
+}
+
 module.exports = {
-  init, load, save, reset, flush,
+  init, load, save, reset, flush, guardarAhora, estadoGuardado,
   base: store.base,
   motor: store.modo,
   cerrarStore: store.cerrar,

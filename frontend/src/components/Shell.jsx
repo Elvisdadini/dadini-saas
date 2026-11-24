@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   BadgePercent, Bell, BarChart3, Building2, ChevronDown, ClipboardList, Crown, LayoutDashboard, LogOut, Menu, Palette, Receipt, Tag, Target, TrendingUp, Undo2,
   MapPin, Package, PackageCheck, Search, Settings, ShoppingCart, Truck, Users, Wallet, X, UserRound, Lock,
-  FileText, ArrowUpRight, CheckCircle2, AlertTriangle,
+  FileText, ArrowUpRight, CheckCircle2, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth, puede, ROL_LABEL } from '../auth';
@@ -40,6 +40,7 @@ const NAV = [
   ] },
   { group: 'Catálogo', items: [
     { to: '/inventario', label: 'Inventario', icon: Package, key: 'inventario' },
+    { to: '/inventario/precios', label: 'Actualizar precios', icon: Tag, key: 'inventario' },
     { to: '/inventario/conteo', label: 'Conteo de inventario', icon: ClipboardList, key: 'inventario' },
     { to: '/catalogo', label: 'Generar catálogo', icon: FileText, key: 'catalogo' },
     { to: '/inventario/preparado', label: 'Preparado de carga', icon: PackageCheck, key: 'inventario' },
@@ -80,6 +81,7 @@ const PAGE_TITLES = {
   '/compras/nomina': ['Sueldos y boletas', 'Planilla mensual'],
   '/reportes/rentabilidad': ['Rentabilidad', 'Dashboard financiero'],
   '/inventario': ['Inventario', 'Productos y almacenes'],
+  '/inventario/precios': ['Actualizar precios', 'Cambio masivo de precios y costos'],
   '/inventario/conteo': ['Conteo de inventario', 'Conteo físico, responsables y congelamiento'],
   '/catalogo': ['Generar catálogo', 'PDF carta para compartir por WhatsApp'],
   '/inventario/promociones': ['Promociones', 'Reglas de venta'],
@@ -106,6 +108,9 @@ export default function Shell({ children }) {
   const [userOpen, setUserOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifs, setNotifs] = useState([]);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [syncProgreso, setSyncProgreso] = useState(null);
+  const [syncError, setSyncError] = useState('');
   const notifRef = useRef(null);
   const userRef = useRef(null);
 
@@ -153,6 +158,40 @@ export default function Shell({ children }) {
     }
   };
 
+  // Sincronización global con progreso: se inicia en el servidor y se sondea
+  // el avance para mostrar porcentaje, etapa y errores exactos.
+  useEffect(() => {
+    if (!syncOpen || !syncProgreso?.activo) return undefined;
+    const timer = window.setInterval(async () => {
+      try {
+        const data = await api.get('/sincronizacion/progreso');
+        setSyncProgreso(data);
+        if (!data.activo && data.estado !== 'en_curso') {
+          toast(data.estado === 'exitoso' ? 'Sincronización exitosa' : 'La sincronización falló', data.estado === 'exitoso' ? 'info' : 'error');
+        }
+      } catch (error) {
+        setSyncError(error.message);
+      }
+    }, 700);
+    return () => window.clearInterval(timer);
+  }, [syncOpen, syncProgreso?.activo]);
+
+  const sincronizarGlobal = async () => {
+    setSyncOpen(true);
+    setSyncError('');
+    setSyncProgreso({ activo: true, estado: 'en_curso', porcentaje: 0, etapa: 'Iniciando', mensaje: 'Iniciando sincronización…', errores: [], avisos: [] });
+    try {
+      const r = await api.post('/sincronizacion/forzar', {});
+      if (!r.iniciado) {
+        setSyncProgreso(null);
+        setSyncError(r.motivo || 'No se pudo iniciar la sincronización.');
+      }
+    } catch (error) {
+      setSyncProgreso(null);
+      setSyncError(error.message);
+    }
+  };
+
   const page = PAGE_TITLES[location.pathname] || (location.pathname.startsWith('/ventas/') ? ['Detalle de venta', 'Ventas'] : location.pathname.startsWith('/distribucion/') ? ['Detalle de ruta', 'Distribución'] : ['DADINI SaaS', 'Panel']);
   const pendientes = resumen?.kpis?.pedidos_pendientes || 0;
   const rutas = resumen?.rutas?.filter((r) => r.estado === 'en_camino').length || 0;
@@ -162,13 +201,13 @@ export default function Shell({ children }) {
     <div className="app">
       <BrandStyle />
       <aside className={`sidebar ${open ? 'open' : ''}`}>
-        <div className="sidebar-brand">
+        <button className="sidebar-brand brand-interactivo" onClick={() => navigate('/')} title="Ir al Dashboard">
           <img className="brand-logo" src="/logo-dadini-icon.png" alt="DADINI" />
           <div className="brand-copy">
             <strong>DADINI</strong>
             <span>Gestión SaaS</span>
           </div>
-        </div>
+        </button>
         <div className="sidebar-scroll">
           {NAV.map((group) => (
             <div key={group.group}>
@@ -221,6 +260,11 @@ export default function Shell({ children }) {
           </div>
           <GlobalSearch puede={puede} user={user} navigate={navigate} />
           <div className="topbar-actions">
+            {puede(user, 'administracion') && (
+              <button className="btn btn-outline btn-sm" onClick={sincronizarGlobal} title="Guardar y sincronizar todos los cambios">
+                <RefreshCw size={14} /> Sincronizar
+              </button>
+            )}
             {errorResumen && <button className="btn btn-ghost btn-sm" onClick={() => { cacheResumen = { id: null, en: 0, data: null }; setErrorResumen(''); window.location.reload(); }} title={errorResumen}>Reintentar carga</button>}
             <div style={{ position: 'relative' }} ref={notifRef}>
               <button className="icon-btn" onClick={() => setNotifOpen((v) => !v)} aria-label="Notificaciones" style={{ position: 'relative' }}>
@@ -277,6 +321,49 @@ export default function Shell({ children }) {
       </div>
 
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} user={user} refresh={refresh} />
+
+      <Modal
+        open={syncOpen}
+        onClose={() => setSyncOpen(false)}
+        title="Sincronización del sistema"
+        subtitle="Guarda todos los cambios y los envía a la nube"
+        size="md"
+        footer={<button className="btn btn-primary" onClick={() => setSyncOpen(false)} disabled={syncProgreso?.activo}>Cerrar</button>}
+      >
+        {syncError && <div className="notice notice-danger"><AlertTriangle size={14} /> {syncError}</div>}
+        {syncProgreso && (
+          <>
+            <div className="sync-head">
+              <span>{syncProgreso.etapa || 'Procesando…'}</span>
+              <strong>{syncProgreso.porcentaje || 0}%</strong>
+            </div>
+            <div className="sync-track"><i style={{ width: `${syncProgreso.porcentaje || 0}%` }} /></div>
+            <p className="sync-mensaje">{syncProgreso.mensaje}</p>
+
+            {syncProgreso.estado === 'exitoso' && (
+              <div className="notice notice-success"><CheckCircle2 size={14} /> Sincronización exitosa. Todos los cambios están guardados.</div>
+            )}
+            {syncProgreso.estado === 'fallido' && (
+              <div className="notice notice-danger"><AlertTriangle size={14} /> La sincronización falló. Revisa los errores exactos abajo.</div>
+            )}
+
+            {!!syncProgreso.errores?.length && (
+              <div className="sync-errores">
+                <strong>Errores</strong>
+                {syncProgreso.errores.map((e, i) => (
+                  <div key={i} className="sync-error-item"><b>{e.etapa}</b><span>{e.mensaje}</span></div>
+                ))}
+              </div>
+            )}
+            {!!syncProgreso.avisos?.length && (
+              <details className="sync-detalles">
+                <summary>Detalle de la sincronización</summary>
+                {syncProgreso.avisos.map((a, i) => <p key={i}>{a}</p>)}
+              </details>
+            )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

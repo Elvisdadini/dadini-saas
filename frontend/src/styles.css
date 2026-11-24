@@ -82,6 +82,29 @@ h4 { font-size: 14px; font-weight: 700; }
   gap: 11px;
   padding: 20px 20px 18px;
 }
+button.sidebar-brand { width: 100%; background: transparent; border: 0; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+button.sidebar-brand:hover, button.sidebar-brand:focus-visible { background: rgba(255,255,255,0.06); outline: none; }
+button.sidebar-brand:focus-visible { box-shadow: inset 0 0 0 2px var(--orange); }
+
+/* Progreso de sincronización global */
+.sync-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 7px; }
+.sync-head strong { font-size: 14px; color: var(--orange); }
+.sync-track { height: 9px; border-radius: 20px; background: var(--line); overflow: hidden; }
+.sync-track i { display: block; height: 100%; border-radius: 20px; background: linear-gradient(90deg, var(--orange), #ffb347); transition: width .35s ease; }
+.sync-mensaje { font-size: 11.5px; color: var(--muted); margin: 9px 0 12px; }
+.sync-errores { margin-top: 12px; }
+.sync-errores > strong { font-size: 11.5px; color: var(--red); }
+.sync-error-item { display: flex; flex-direction: column; gap: 2px; background: var(--red-soft); color: #a82f4a; padding: 8px 10px; border-radius: 8px; font-size: 11px; margin-top: 6px; }
+.sync-error-item b { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.sync-detalles { margin-top: 12px; font-size: 11px; color: var(--muted); }
+.sync-detalles summary { cursor: pointer; font-weight: 600; }
+.sync-detalles p { margin: 6px 0 0; line-height: 1.5; }
+
+/* Actualización masiva de precios */
+.input-precio { width: 96px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 12px; background: #fff; color: var(--text); }
+.input-precio:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 2px var(--orange-soft); }
+.data-table tr.fila-cambio { background: var(--amber-soft); }
+.data-table tr.fila-cambio td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
 .brand-mark {
   width: 40px;
   height: 40px;

@@ -7,10 +7,11 @@ let mantenimiento = false;
 
 function estaEnMantenimiento() { return mantenimiento; }
 
-async function sincronizar(db, motivo = 'manual') {
+async function sincronizar(db, motivo = 'manual', opciones = {}) {
   // Evita solapes y, sobre todo, impedir que una base local vacía sobrescriba
   // una buena instantánea si Supabase falló al restaurar durante el arranque.
-  if (mantenimiento || enCurso) return { ok: false, motivo, omitido: true };
+  // El botón de sincronización manual usa { forzar: true } para poder reintentar.
+  if (!opciones.forzar && (mantenimiento || enCurso)) return { ok: false, motivo, omitido: true };
   const supabase = obtenerCliente();
   const estado = db.sincronizacion || (db.sincronizacion = {});
   if (!supabase) {
@@ -66,7 +67,9 @@ async function restaurar(db, opciones = {}) {
   if (!data?.payload?.datos) return { ok: false, sin_datos: true, error: 'No hay instantánea guardada.' };
 
   const entidades = data.payload.datos;
-  const operativas = ['pedidos', 'clientes', 'pagos', 'rutas', 'visitas'];
+  // Incluye productos: importar un catálogo con 0 pedidos no debe hacer que
+  // el restoredor sobrescriba los productos al reiniciar Render.
+  const operativas = ['productos', 'pedidos', 'clientes', 'pagos', 'rutas', 'visitas'];
   const hayRemoto = operativas.some((clave) => Array.isArray(entidades[clave]) && entidades[clave].length);
   const hayLocal = operativas.some((clave) => Array.isArray(db[clave]) && db[clave].length);
   const marcaLocal = Date.parse(db.sincronizacion?.ultimo_envio || db.generado_en || 0) || 0;

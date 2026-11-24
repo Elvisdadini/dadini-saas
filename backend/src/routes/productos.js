@@ -128,6 +128,7 @@ router.post('/importar', allow('almacen', 'admin'), (req, res) => {
   const creados = [];
   const errores = [];
   filas.forEach((fila, index) => {
+    try {
     const nombre = String(fila.nombre || fila.Nombre || fila.NOMBRE || '').trim().toUpperCase();
     const categoria = String(fila.categoria || fila.Categoria || fila.CATEGORIA || 'General').trim();
     const sku = String(fila.sku || fila.SKU || fila.codigo || '').trim();
@@ -141,6 +142,7 @@ router.post('/importar', allow('almacen', 'admin'), (req, res) => {
       errores.push({ fila: index + 2, error: `El SKU ${codigo} ya existe.` });
       return;
     }
+    const unidad = String(fila.unidad || fila.Unidad || (categoria === 'Surtidos' ? 'caja' : 'unidad'));
     const producto = {
       id: nextId(db.productos) + creados.length,
       sku: codigo,
@@ -150,7 +152,7 @@ router.post('/importar', allow('almacen', 'admin'), (req, res) => {
       costo: round2(num(fila.costo ?? fila.Costo ?? fila.COSTO)),
       emoji: String(fila.emoji || '📦').slice(0, 4),
       color: String(fila.color || '#FF6500'),
-      unidad: String(fila.unidad || fila.Unidad || (categoria === 'Surtidos' ? 'caja' : 'unidad')),
+      unidad,
       unidades_por_caja: Math.max(1, Math.round(num(fila.unidades_por_caja ?? fila.unidadesPorCaja, 24))),
       categorias_clientes: Array.isArray(fila.categorias_clientes) ? fila.categorias_clientes.map(Number)
         : String(fila.categorias_clientes || '').split(',').map((x) => Number(x.trim())).filter(Boolean),
@@ -163,6 +165,9 @@ router.post('/importar', allow('almacen', 'admin'), (req, res) => {
       created_at: new Date().toISOString(),
     };
     creados.push(producto);
+    } catch (error) {
+      errores.push({ fila: index + 2, error: error.message || 'Error al procesar la fila.' });
+    }
   });
   creados.forEach((producto) => {
     db.productos.push(producto);
@@ -179,6 +184,77 @@ router.post('/importar', allow('almacen', 'admin'), (req, res) => {
   audit(db, req, 'Productos importados', 'Inventario', `${creados.length} productos · ${errores.length} errores`);
   save();
   return res.status(201).json({ creados: creados.length, errores, total: filas.length, productos: creados.map((p) => ({ id: p.id, sku: p.sku, nombre: p.nombre })) });
+});
+
+// Actualización masiva de precios: recibe un array de { id | sku, precio, costo? }.
+// Nunca crea productos; solo modifica los que existen y devuelve un informe
+// fila por fila para que se sepa exactamente qué falló.
+router.post('/precios-masivos', allow('almacen', 'admin', 'dueno'), (req, res) => {
+  const db = load();
+  const filas = Array.isArray(req.body?.productos) ? req.body.productos : [];
+  if (!filas.length) return res.status(400).json({ error: 'No hay cambios para aplicar.' });
+
+  const actualizados = [];
+  const errores = [];
+  const omitidos = [];
+
+  filas.forEach((fila, index) => {
+    const numeroFila = index + 2;
+    try {
+      const id = fila?.id !== undefined && fila?.id !== '' ? Number(fila.id) : null;
+      const sku = String(fila?.sku || '').trim().toUpperCase();
+      const producto = (id && db.productos.find((p) => p.id === id))
+        || (sku && db.productos.find((p) => String(p.sku || '').trim().toUpperCase() === sku));
+      if (!producto) {
+        errores.push({ fila: numeroFila, sku, error: 'Producto no encontrado por id o SKU.' });
+        return;
+      }
+      const precioNuevo = fila?.precio === undefined || fila?.precio === '' ? null : num(fila.precio);
+      const costoNuevo = fila?.costo === undefined || fila?.costo === '' ? null : num(fila.costo);
+      if (precioNuevo === null && costoNuevo === null) {
+        omitidos.push({ fila: numeroFila, sku, motivo: 'Sin precio ni costo nuevo.' });
+        return;
+      }
+      if (precioNuevo !== null && !(precioNuevo > 0)) {
+        errores.push({ fila: numeroFila, sku, error: 'El precio debe ser mayor a cero.' });
+        return;
+      }
+      if (costoNuevo !== null && costoNuevo < 0) {
+        errores.push({ fila: numeroFila, sku, error: 'El costo no puede ser negativo.' });
+        return;
+      }
+      const anterior = { precio: producto.precio, costo: producto.costo };
+      if (precioNuevo !== null) producto.precio = round2(precioNuevo);
+      if (costoNuevo !== null) producto.costo = round2(costoNuevo);
+      producto.updated_at = new Date().toISOString();
+      actualizados.push({
+        fila: numeroFila,
+        id: producto.id,
+        sku: producto.sku,
+        nombre: producto.nombre,
+        precio_anterior: anterior.precio,
+        precio_nuevo: producto.precio,
+        costo_anterior: anterior.costo,
+        costo_nuevo: producto.costo,
+      });
+    } catch (error) {
+      errores.push({ fila: numeroFila, error: error.message || 'Error al procesar la fila.' });
+    }
+  });
+
+  if (actualizados.length) {
+    audit(db, req, 'Precios actualizados masivamente', 'Inventario',
+      `${actualizados.length} productos · ${errores.length} errores`);
+    save();
+  }
+  return res.status(200).json({
+    ok: errores.length === 0,
+    actualizados: actualizados.length,
+    errores,
+    omitidos,
+    total: filas.length,
+    detalles: actualizados,
+  });
 });
 
 function filaStock(producto, filas) {
