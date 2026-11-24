@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Download, FileText, Printer, Share2 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
 import { api } from '../api';
 import { Badge, EmptyState, Fecha, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 import SelectorEmpleadosWhatsapp from '../components/SelectorEmpleadosWhatsapp';
@@ -60,6 +59,7 @@ export default function Catalogo() {
     if (!seleccionados.length) return toast('No hay productos para el catálogo.', 'error');
     setBusy(true);
     try {
+      const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait', compress: true });
       const ancho = 612; const alto = 792; const margen = 24;
       const cols = opciones.con_imagenes ? 4 : 5;

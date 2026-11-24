@@ -1,12 +1,12 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { sign, compare, hash, authRequired } = require('../auth');
+const { sign, compare, compareAsync, hash, authRequired } = require('../auth');
 const { audit } = require('../utils');
 const { asegurarApkPorDefecto } = require('../apk');
 
 const router = express.Router();
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, usuario, password, pin } = req.body || {};
   const identificador = String(usuario || email || '').trim().toLowerCase();
   if (!identificador || !(password || pin)) return res.status(400).json({ error: 'Ingresa tu usuario y contraseña.' });
@@ -17,15 +17,29 @@ router.post('/login', (req, res) => {
   if (!user) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
   if (!user.activo) return res.status(403).json({ error: 'Tu cuenta está desactivada. Contacta al administrador.' });
   const valido = pin
-    ? Boolean(user.pin) && compare(String(pin), user.pin)
-    : compare(String(password || ''), user.password);
+    ? (Boolean(user.pin) && await compareAsync(String(pin), user.pin))
+    : await compareAsync(String(password || ''), user.password);
   if (!valido) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
   user.ultimo_acceso = new Date().toISOString();
   save();
   const token = sign(user);
+  // Se entrega el perfil completo en el login para que el frontend no tenga
+  // que repetir GET /auth/me justo después de autenticarse.
+  asegurarApkPorDefecto(db, req);
   return res.json({
     token,
-    user: { id: user.id, nombre: user.nombre, email: user.email, usuario: user.usuario || null, rol: user.rol, cargo: user.cargo, telefono: user.telefono, tiene_pin: Boolean(user.pin) },
+    user: {
+      id: user.id, nombre: user.nombre, email: user.email, usuario: user.usuario || null,
+      rol: user.rol, cargo: user.cargo, telefono: user.telefono, whatsapp: user.whatsapp || null,
+      tiene_pin: Boolean(user.pin), permisos: require('../permisos').permisosUsuario(user),
+      repartidor_id: user.repartidor_id || null, vehiculo_id: user.vehiculo_id || null,
+      ruta_venta: user.ruta_venta || null, zona_venta: user.zona_venta || null,
+      dias_visita: user.dias_visita || [], distribuidor_id: user.repartidor_id || null,
+    },
+    empresa: db.configuracion.empresa,
+    plan: db.configuracion.plan,
+    branding: db.configuracion.branding || {},
+    apk: db.configuracion.apk || null,
   });
 });
 
@@ -76,12 +90,6 @@ router.put('/password', authRequired, (req, res) => {
   audit(db, req, 'Contraseña actualizada', 'Usuarios', 'Cambió su contraseña de acceso');
   save();
   return res.json({ ok: true });
-});
-
-router.get('/demo', (req, res) => {
-  const db = load();
-  const cuentas = db.usuarios.filter((u) => u.activo).map((u) => ({ nombre: u.nombre, email: u.email, rol: u.rol, cargo: u.cargo }));
-  res.json({ cuentas, password: 'Dadini2026!' });
 });
 
 module.exports = router;

@@ -1,24 +1,16 @@
-const { createClient } = require('@supabase/supabase-js');
 const config = require('./config');
+const { obtenerCliente, estaConfigurado } = require('./supabase-client');
 
-let cliente = null;
 let temporizador = null;
+let enCurso = false;
+let mantenimiento = false;
 
-function estaConfigurado() {
-  return Boolean(config.supabase.url && config.supabase.serviceKey);
-}
-
-function obtenerCliente() {
-  if (!estaConfigurado()) return null;
-  if (!cliente) {
-    cliente = createClient(config.supabase.url, config.supabase.serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-  }
-  return cliente;
-}
+function estaEnMantenimiento() { return mantenimiento; }
 
 async function sincronizar(db, motivo = 'manual') {
+  // Evita solapes y, sobre todo, impedir que una base local vacía sobrescriba
+  // una buena instantánea si Supabase falló al restaurar durante el arranque.
+  if (mantenimiento || enCurso) return { ok: false, motivo, omitido: true };
   const supabase = obtenerCliente();
   const estado = db.sincronizacion || (db.sincronizacion = {});
   if (!supabase) {
@@ -32,6 +24,7 @@ async function sincronizar(db, motivo = 'manual') {
     branding: db.configuracion?.branding || {},
     datos: Object.fromEntries(Object.entries(db).filter(([clave]) => clave !== 'sincronizacion')),
   };
+  enCurso = true;
   try {
     const { error } = await supabase
       .from(config.supabase.table)
@@ -52,6 +45,8 @@ async function sincronizar(db, motivo = 'manual') {
     estado.ultimo_error = error.message;
     estado.intentos = (estado.intentos || 0) + 1;
     return { ok: false, motivo, error: error.message };
+  } finally {
+    enCurso = false;
   }
 }
 
@@ -74,27 +69,37 @@ async function restaurar(db, opciones = {}) {
   const operativas = ['pedidos', 'clientes', 'pagos', 'rutas', 'visitas'];
   const hayRemoto = operativas.some((clave) => Array.isArray(entidades[clave]) && entidades[clave].length);
   const hayLocal = operativas.some((clave) => Array.isArray(db[clave]) && db[clave].length);
+  const marcaLocal = Date.parse(db.sincronizacion?.ultimo_envio || db.generado_en || 0) || 0;
+  const marcaRemota = Date.parse(data.updated_at || 0) || 0;
   if (!opciones.forzar && hayLocal) {
     return { ok: true, restaurado: false, motivo: 'La base local ya tiene datos; se conserva.' };
+  }
+  if (!opciones.forzar && marcaRemota && marcaRemota <= marcaLocal) {
+    return { ok: true, restaurado: false, motivo: 'La instantánea remota no es más reciente que la local.' };
   }
   if (!hayRemoto && !opciones.forzar) {
     return { ok: true, restaurado: false, motivo: 'La instantánea remota está vacía.' };
   }
 
-  Object.assign(db, entidades);
-  db.sincronizacion = {
-    ...(db.sincronizacion || {}),
-    empresa_id: empresaId,
-    estado: 'sincronizado',
-    ultimo_envio: data.updated_at || null,
-    ultimo_error: null,
-  };
-  return {
-    ok: true,
-    restaurado: true,
-    actualizado_en: data.updated_at,
-    entidades: Object.keys(entidades).length,
-  };
+  mantenimiento = true;
+  try {
+    Object.assign(db, entidades);
+    db.sincronizacion = {
+      ...(db.sincronizacion || {}),
+      empresa_id: empresaId,
+      estado: 'sincronizado',
+      ultimo_envio: data.updated_at || null,
+      ultimo_error: null,
+    };
+    return {
+      ok: true,
+      restaurado: true,
+      actualizado_en: data.updated_at,
+      entidades: Object.keys(entidades).length,
+    };
+  } finally {
+    mantenimiento = false;
+  }
 }
 
 function iniciarSincronizacionPeriodica(obtenerDb, guardarDb) {
@@ -127,4 +132,4 @@ alter table ${config.supabase.table} enable row level security;`,
   };
 }
 
-module.exports = { estaConfigurado, sincronizar, restaurar, iniciarSincronizacionPeriodica, estado };
+module.exports = { estaConfigurado, estaEnMantenimiento, sincronizar, restaurar, iniciarSincronizacionPeriodica, estado };

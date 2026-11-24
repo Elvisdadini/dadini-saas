@@ -92,6 +92,8 @@ const PAGE_TITLES = {
   '/administracion/permisos': ['Roles y permisos', 'Modelos de acceso y funciones por usuario'],
 };
 
+let cacheResumen = { id: null, en: 0, data: null };
+
 export default function Shell({ children }) {
   const { user, plan, refresh, logout } = useAuth();
   const toast = useToast();
@@ -99,6 +101,7 @@ export default function Shell({ children }) {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [resumen, setResumen] = useState(null);
+  const [errorResumen, setErrorResumen] = useState('');
   const [notifOpen, setNotifOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -112,13 +115,25 @@ export default function Shell({ children }) {
     setUserOpen(false);
   }, [location.pathname]);
 
+  // El resumen se consulta una vez por usuario y se reutiliza 60 s: navegar
+  // por el menú no debe recalcular el dashboard en el servidor.
   useEffect(() => {
-    if (!user) return;
+    if (!user) return undefined;
+    if (cacheResumen.id === user.id && Date.now() - cacheResumen.en < 60_000) {
+      setResumen(cacheResumen.data);
+      setNotifs(cacheResumen.data?.notificaciones || []);
+      return undefined;
+    }
+    let vivo = true;
+    setErrorResumen('');
     api.get('/dashboard?periodo=7d').then((data) => {
+      if (!vivo) return;
+      cacheResumen = { id: user.id, en: Date.now(), data };
       setResumen(data);
       setNotifs(data.notificaciones || []);
-    }).catch(() => {});
-  }, [user, location.pathname]);
+    }).catch((error) => { if (vivo) setErrorResumen(error.message); });
+    return () => { vivo = false; };
+  }, [user]);
 
   useEffect(() => {
     const onClick = (e) => {
@@ -206,6 +221,7 @@ export default function Shell({ children }) {
           </div>
           <GlobalSearch puede={puede} user={user} navigate={navigate} />
           <div className="topbar-actions">
+            {errorResumen && <button className="btn btn-ghost btn-sm" onClick={() => { cacheResumen = { id: null, en: 0, data: null }; setErrorResumen(''); window.location.reload(); }} title={errorResumen}>Reintentar carga</button>}
             <div style={{ position: 'relative' }} ref={notifRef}>
               <button className="icon-btn" onClick={() => setNotifOpen((v) => !v)} aria-label="Notificaciones" style={{ position: 'relative' }}>
                 <Bell size={18} />
@@ -249,7 +265,7 @@ export default function Shell({ children }) {
                     <span style={{ fontSize: 10.5, color: 'var(--muted)' }}>{user?.email}</span>
                   </div>
                   <button className="dropdown-item" onClick={() => { setProfileOpen(true); setUserOpen(false); }}><UserRound size={15} /> Mi perfil</button>
-                  <button className="dropdown-item" onClick={() => { navigate('/administracion'); setUserOpen(false); }}><Settings size={15} /> Configuración</button>
+                  {puede(user, 'administracion') && <button className="dropdown-item" onClick={() => { navigate('/administracion'); setUserOpen(false); }}><Settings size={15} /> Configuración</button>}
                   <div className="divider" style={{ margin: '4px 0' }} />
                   <button className="dropdown-item danger" onClick={logout}><LogOut size={15} /> Cerrar sesión</button>
                 </div>
@@ -299,9 +315,9 @@ function GlobalSearch({ user, puede, navigate }) {
         value={term}
         onChange={(e) => { setTerm(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder="Buscar pedidos, clientes o productos…"
+        placeholder="Buscar clientes o productos…"
       />
-      <kbd>⌘K</kbd>
+
       {open && (
         <div className="search-panel">
           {!term && (

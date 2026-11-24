@@ -34,7 +34,10 @@ router.get('/activos', (req, res) => {
 
 router.get('/alertas', (req, res) => {
   const db = load();
-  res.json({ alertas: verificarVencimientos(db) });
+  const antes = (db.notificaciones || []).length;
+  const alertas = verificarVencimientos(db);
+  if ((db.notificaciones || []).length !== antes) save();
+  res.json({ alertas });
 });
 
 function validar(body, crear) {

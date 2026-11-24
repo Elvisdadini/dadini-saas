@@ -76,4 +76,9 @@ function compare(password, hashed) {
   return bcrypt.compareSync(password, hashed);
 }
 
-module.exports = { sign, verify, authRequired, allow, requirePermiso, hash, compare };
+// Versión no bloqueante para el login (evita congelar el event loop).
+function compareAsync(password, hashed) {
+  return bcrypt.compare(password, hashed);
+}
+
+module.exports = { sign, verify, authRequired, allow, requirePermiso, hash, compare, compareAsync };

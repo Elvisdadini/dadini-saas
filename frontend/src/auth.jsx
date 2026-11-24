@@ -50,7 +50,13 @@ export function puede(user, modulo) {
   if (user.rol === 'admin' || user.rol === 'dueno') return true;
   // Los permisos guardados en el usuario son la fuente de verdad; el mapa por
   // rol se conserva solo para cuentas creadas antes de esta versión.
-  if (Array.isArray(user.permisos)) return user.permisos.includes(modulo);
+  if (Array.isArray(user.permisos)) {
+    if (user.permisos.includes(modulo)) return true;
+    // Misma compatibilidad que el backend: el permiso de módulo otorga sus
+    // sub-funciones (ej. "inventario" habilita "inventario.ver").
+    if (modulo && modulo.includes('.')) return user.permisos.includes(modulo.split('.')[0]);
+    return false;
+  }
   return (PERMISOS[modulo] || []).includes(user.rol);
 }
 
@@ -105,13 +111,11 @@ export function AuthProvider({ children }) {
     const data = await api.post('/auth/login', { usuario: identificador, password, pin });
     setToken(data.token);
     setUser(data.user);
-    const perfil = await api.get('/auth/me');
-    setUser(perfil.user);
-    setEmpresa(perfil.empresa);
-    setPlan(perfil.plan);
-    setBranding(perfil.branding || {});
-    setApk(perfil.apk || null);
-    return perfil.user;
+    setEmpresa(data.empresa);
+    setPlan(data.plan);
+    setBranding(data.branding || {});
+    setApk(data.apk || null);
+    return data.user;
   }, []);
 
   const value = useMemo(

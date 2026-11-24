@@ -15,10 +15,39 @@ const PORT = config.port;
 const advertencias = config.validarConfiguracion();
 advertencias.forEach((mensaje) => console.warn(`[config] ${mensaje}`));
 
+// En producción la configuración incompleta es un error de arranque, no un aviso.
+if (config.nodeEnv === 'production') {
+  const fatales = [];
+  if (!process.env.JWT_SECRET || config.jwtSecret === 'dadini-saas-2026-secreto-local') fatales.push('JWT_SECRET');
+  if (!process.env.CORS_ORIGIN) fatales.push('CORS_ORIGIN');
+  if (fatales.length) {
+    console.error(`[config] Variables obligatorias ausentes en producción: ${fatales.join(', ')}`);
+    process.exit(1);
+  }
+}
+
 app.disable('x-powered-by');
 app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || true }));
+const origenes = String(process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
+app.use(cors({ origin: origenes.length ? origenes : false }));
 app.use('/api', rateLimit({ windowMs: 60_000, max: config.nodeEnv === 'production' ? 600 : 5000, standardHeaders: 'draft-7', legacyHeaders: false }));
+// Bloquea escrituras mientras se está restaurando la base desde Supabase.
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && syncRemote.estaEnMantenimiento()) {
+    return res.status(503).json({ error: 'Sistema restaurando datos. Intenta de nuevo en unos segundos.' });
+  }
+  return next();
+});
+const limiteEstricto = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos. Espera un minuto.' },
+});
+app.use('/api/auth/login', limiteEstricto);
+app.use('/api/auth/pin', limiteEstricto);
+app.use('/api/whatsapp/masivo', limiteEstricto);
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
 app.use('/uploads', express.static(config.uploadDir, { fallthrough: true, dotfiles: 'deny' }));
@@ -107,8 +136,8 @@ async function arrancar() {
   const servidor = app.listen(PORT, () => {
     console.log(`\n  DADINI SaaS API escuchando en http://localhost:${PORT}`);
     console.log(`  Motor de datos: ${motor()} · ${base()}`);
-    console.log(`  Demo: ${db.pedidos.length} pedidos · ${db.productos.length} productos · ${db.rutas.length} rutas`);
-    console.log('  Login: admin@dadini.bo / Dadini2026!\n');
+    console.log(`  Datos: ${db.pedidos.length} pedidos · ${db.productos.length} productos · ${db.rutas.length} rutas`);
+    console.log('  Acceso corporativo: usa tu usuario y contraseña asignados.\n');
   });
 
   const detener = async () => {

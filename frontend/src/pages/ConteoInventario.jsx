@@ -73,11 +73,12 @@ export default function ConteoInventario() {
     } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
   };
 
-  const alLeerCodigo = (codigo) => {
+  // useCallback evita que el escáner reinicie la cámara en cada render.
+  const alLeerCodigo = useCallback((codigo) => {
     setBusqueda(codigo);
     setScanOpen(false);
     toast(`Código leído: ${codigo}. Confirma la cantidad.`, 'info');
-  };
+  }, [toast]);
 
   const verCongelamiento = async () => {
     if (!activo) return;

@@ -1,35 +1,20 @@
 const express = require('express');
-const { createClient } = require('@supabase/supabase-js');
 const { authRequired, requirePermiso } = require('../auth');
 const { audit } = require('../utils');
-const config = require('../config');
+const { obtenerCliente } = require('../supabase-client');
+const { ensureBucket } = require('../supabase-storage');
 
 const router = express.Router();
 router.use(authRequired);
 
 const BUCKET = 'catalogos';
-let supabase = null;
-
 function cliente() {
-  if (!config.supabase.url || !config.supabase.serviceKey) throw new Error('Supabase no está configurado.');
-  if (!supabase) {
-    supabase = createClient(config.supabase.url, config.supabase.serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-  }
+  const supabase = obtenerCliente();
+  if (!supabase) throw new Error('Supabase no está configurado.');
   return supabase;
 }
-
-async function asegurarBucket() {
-  const storage = cliente().storage;
-  const { error } = await storage.getBucket(BUCKET);
-  if (!error) return;
-  const { error: creacion } = await storage.createBucket(BUCKET, {
-    public: true,
-    fileSizeLimit: '20MB',
-    allowedMimeTypes: ['application/pdf'],
-  });
-  if (creacion && !/already exists/i.test(creacion.message)) throw new Error(creacion.message);
+function asegurarBucket() {
+  return ensureBucket(BUCKET, { fileSizeLimit: '20MB', allowedMimeTypes: ['application/pdf'] });
 }
 
 router.post('/guardar', requirePermiso('catalogo.generar_pdf', 'catalogo.crear'), async (req, res) => {

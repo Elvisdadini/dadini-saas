@@ -454,7 +454,7 @@ router.post('/', allow('ventas', 'preventista', 'distribucion'), (req, res) => {
       pedido_id: p.id,
       orden: i + 1,
       estado: 'pendiente',
-      hora_estimada: `${String(9 + i).padStart(2, '0')}:00`,
+      hora_estimada: `${String((9 + i) % 24).padStart(2, '0')}:00`,
       notas: '',
     })),
     created_at: ahora,

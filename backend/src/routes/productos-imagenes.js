@@ -1,37 +1,23 @@
 const express = require('express');
-const { createClient } = require('@supabase/supabase-js');
 const { load, save } = require('../db');
 const { authRequired, allow } = require('../auth');
 const { audit, round2 } = require('../utils');
-const config = require('../config');
+const { obtenerCliente } = require('../supabase-client');
+const { ensureBucket } = require('../supabase-storage');
 
 const router = express.Router();
 router.use(authRequired);
 
 const BUCKET = 'productos';
 const MAX_BYTES = 200 * 1024; // máximo 200 KB por imagen
-let supabase = null;
 
 function cliente() {
-  if (!config.supabase.url || !config.supabase.serviceKey) throw new Error('Supabase no está configurado.');
-  if (!supabase) {
-    supabase = createClient(config.supabase.url, config.supabase.serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-  }
+  const supabase = obtenerCliente();
+  if (!supabase) throw new Error('Supabase no está configurado.');
   return supabase;
 }
-
-async function asegurarBucket() {
-  const storage = cliente().storage;
-  const { error } = await storage.getBucket(BUCKET);
-  if (!error) return;
-  const { error: creacion } = await storage.createBucket(BUCKET, {
-    public: true,
-    fileSizeLimit: '2MB',
-    allowedMimeTypes: ['image/webp', 'image/jpeg', 'image/png'],
-  });
-  if (creacion && !/already exists/i.test(creacion.message)) throw new Error(creacion.message);
+function asegurarBucket() {
+  return ensureBucket(BUCKET);
 }
 
 function nombreArchivo(sku) {
@@ -46,8 +32,8 @@ function decodificar(dataUrl) {
   return buffer;
 }
 
-async function subirUno(sku, dataUrl) {
-  await asegurarBucket();
+async function subirUno(sku, dataUrl, bucketListo = false) {
+  if (!bucketListo) await asegurarBucket();
   const buffer = decodificar(dataUrl);
   if (!buffer) return { ok: false, error: `Imagen inválida o mayor a 200 KB (${sku}).` };
   const archivo = nombreArchivo(sku);
@@ -87,13 +73,14 @@ router.post('/lote', allow('admin', 'dueno', 'almacen'), async (req, res) => {
   const errores = [];
   try {
     await asegurarBucket();
+    const porSku = new Map(db.productos.map((p) => [String(p.sku || '').toLowerCase(), p]));
     for (const item of imagenes) {
-      const resultado = await subirUno(item?.sku, item?.imagen);
+      const resultado = await subirUno(item?.sku, item?.imagen, true);
       if (resultado.ok) correctas.push(resultado);
       else errores.push(resultado.error);
     }
     correctas.forEach((r) => {
-      const producto = db.productos.find((p) => String(p.sku).toLowerCase() === String(r.sku).toLowerCase());
+      const producto = porSku.get(String(r.sku).toLowerCase());
       if (producto) producto.imagen_url = r.url;
     });
     if (correctas.length) {
@@ -108,7 +95,7 @@ router.get('/estado', (req, res) => {
   const db = load();
   return res.json({
     bucket: BUCKET,
-    configurado: Boolean(config.supabase.url && config.supabase.serviceKey),
+    configurado: Boolean(obtenerCliente()),
     con_imagen: db.productos.filter((p) => p.imagen_url).length,
     total: db.productos.length,
     maximo_kb: Math.round(MAX_BYTES / 1024),
