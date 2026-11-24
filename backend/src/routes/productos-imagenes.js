@@ -20,6 +20,38 @@ function asegurarBucket() {
   return ensureBucket(BUCKET);
 }
 
+function normalizar(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+gr\b/g, 'gr')
+    .replace(/\bvanilla\b/g, 'vainilla')
+    .replace(/\b(\w{4,})s\b/g, '$1')
+    .replace(/\s+/g, ' ');
+}
+
+function resolverProducto(db, clave) {
+  const normalizada = normalizar(clave);
+  const porSku = new Map(db.productos.map((p) => [normalizar(p.sku), p]));
+  const porNombre = new Map(db.productos.map((p) => [normalizar(p.nombre), p]));
+  const exacto = porSku.get(normalizada) || porNombre.get(normalizada);
+  if (exacto) return exacto;
+  const buscadas = new Set(normalizar(clave).split(' ').filter((p) => p.length > 2));
+  let mejor = null;
+  let puntaje = 0;
+  for (const p of db.productos) {
+    const disponibles = new Set(normalizar(`${p.nombre} ${p.sku}`).split(' ').filter((w) => w.length > 2));
+    let coincidencias = 0;
+    buscadas.forEach((w) => { if (disponibles.has(w)) coincidencias += 1; });
+    const score = coincidencias / Math.max(1, buscadas.size);
+    if (score > puntaje) { puntaje = score; mejor = p; }
+  }
+  return puntaje >= 0.6 ? mejor : null;
+}
+
 function nombreArchivo(sku, extension = 'webp') {
   return `${String(sku || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '') || 'producto'}.${extension}`;
 }
@@ -58,9 +90,7 @@ router.post('/upload', allow('admin', 'dueno', 'almacen'), async (req, res) => {
   try {
     const resultado = await subirUno(sku, imagen);
     if (!resultado.ok) return res.status(400).json({ error: resultado.error });
-    const normalizar = (s) => String(s || '').trim().toLowerCase().replace(/[_\s]+/g, ' ');
-    const clave = normalizar(sku);
-    const producto = db.productos.find((p) => normalizar(p.sku) === clave || normalizar(p.nombre) === clave);
+    const producto = resolverProducto(db, sku);
     if (producto) producto.imagen_url = resultado.url;
     audit(db, req, 'Imagen de producto cargada', 'Inventario', `${sku} · ${round2(resultado.bytes / 1024)} KB`);
     save();
@@ -78,14 +108,11 @@ router.post('/lote', allow('admin', 'dueno', 'almacen'), async (req, res) => {
   const errores = [];
   try {
     await asegurarBucket();
-    const normalizar = (s) => String(s || '').trim().toLowerCase().replace(/[_\s]+/g, ' ');
-    const porSku = new Map(db.productos.map((p) => [normalizar(p.sku), p]));
-    const porNombre = new Map(db.productos.map((p) => [normalizar(p.nombre), p]));
     for (const item of imagenes) {
-      const clave = normalizar(item?.sku);
       // El nombre del archivo suele ser el nombre del producto (ej.
-      // "Cookie chips chocolate.jpg"), no el SKU (SNA001).
-      const producto = porSku.get(clave) || porNombre.get(clave);
+      // "Cookie chips chocolate.jpg"), no el SKU (SNA001). Se intenta
+      // coincidencia exacta y, si no, tolerante a tildes/abreviaturas.
+      const producto = resolverProducto(db, item?.sku);
       if (!producto) {
         errores.push(`No existe un producto con SKU o nombre "${item?.sku}".`);
         continue;
