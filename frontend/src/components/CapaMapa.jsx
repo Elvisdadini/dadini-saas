@@ -1,17 +1,16 @@
 import { TileLayer } from 'react-leaflet';
 
-// El servidor público de tiles de OpenStreetMap bloquea aplicaciones que no
-// cumplen su política de uso (User-Agent/Referer). Usamos los tiles de CARTO,
-// construidos sobre datos de OpenStreetMap, con su atribución correspondiente.
-export const URL_TILES = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-export const ATRIBUCION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+// Ni OpenStreetMap ni CARTO sirven ya tiles raster sin clave (CARTO empezó a
+// exigirla el 25/09/2026 y muestra "API KEY REQUIRED"). Usamos el servicio de
+// Esri World Street Map, que funciona sin clave con atribución visible.
+export const URL_TILES = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+export const ATRIBUCION = 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN';
 
 export default function CapaMapa() {
   return (
     <TileLayer
       attribution={ATRIBUCION}
       url={URL_TILES}
-      subdomains="abcd"
       maxZoom={19}
       detectRetina={false}
     />
