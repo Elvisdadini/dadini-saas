@@ -231,6 +231,13 @@ Endpoints: `POST /api/whatsapp`, `GET /api/whatsapp`, `PATCH /api/whatsapp/:id/e
 - En Inventario → Productos hay un filtro **Solo activos / Solo inactivos / Todos**. Los productos inactivos se ven con badge **Inactivo** y **stock 0**.
 - Los productos inactivos **no cuentan** en "Unidades en stock", "Valor del inventario", "Stock bajo", métricas por almacén ni "Capital en almacenes" de Rentabilidad. El stock físico se conserva y se transfiere al cerrar.
 
+### Rutas, zonas y tipos de cliente
+
+- Una ruta de venta puede tener **varias zonas** (chips "Zonas a visitar") para el **mismo vendedor y día**. Se guardan en `zona_ids`/`zonas`; `zona`/`zona_id` se mantienen por compatibilidad. El día se agrega a `dias_visita` del vendedor.
+- La agenda de preventa usa **todas las zonas** que el vendedor visita ese día, no solo `zona_venta`.
+- Los **tipos de cliente** son jerárquicos: se puede elegir un **tipo principal** al crear uno (ej. "Tienda de barrio" → "Tipo A", "Tipo B", "Supermercado"). Antes cualquier nombre se convertía en "Minorista".
+- En **Nuevo cliente** el selector de tipo se llena con los tipos creados (incluye subtipos con `↳`). La **zona** se filtra automáticamente a las zonas que el vendedor atiende el día seleccionado (o el día actual si está en automático); si solo hay una, se asigna sola.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.
