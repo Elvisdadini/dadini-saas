@@ -224,6 +224,13 @@ Endpoints: `POST /api/whatsapp`, `GET /api/whatsapp`, `PATCH /api/whatsapp/:id/e
 - **Sincronizar** (barra superior, ícono circular): guarda la base local, verifica buckets, sube la instantánea a Supabase y la confirma. Muestra porcentaje, etapa actual, aviso de éxito/fallo y los errores exactos.
 - **Nombre DADINI / Gestión SaaS** del menú: al hacer clic vuelve al Dashboard.
 
+### Cierre de almacenes y productos inactivos
+
+- En Inventario → **Almacenes**, cada almacén no central tiene **Cerrar almacén**. El cierre mueve **todo** su stock (incluidos productos inactivos) al **Almacén Central**, genera un par de movimientos `transferencia_salida`/`transferencia_entrada` por producto y muestra cuántas unidades se movieron. El almacén queda marcado como **Cerrado** y puede **Reabrirse**. No se puede cerrar el almacén central.
+- El modal muestra por separado las unidades **activas** y las **físicas** (incluye inactivos) para que el cierre sea transparente.
+- En Inventario → Productos hay un filtro **Solo activos / Solo inactivos / Todos**. Los productos inactivos se ven con badge **Inactivo** y **stock 0**.
+- Los productos inactivos **no cuentan** en "Unidades en stock", "Valor del inventario", "Stock bajo", métricas por almacén ni "Capital en almacenes" de Rentabilidad. El stock físico se conserva y se transfiere al cerrar.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.
