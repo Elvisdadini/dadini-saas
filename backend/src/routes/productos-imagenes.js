@@ -20,26 +20,29 @@ function asegurarBucket() {
   return ensureBucket(BUCKET);
 }
 
-function nombreArchivo(sku) {
-  return `${String(sku || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '') || 'producto'}.webp`;
+function nombreArchivo(sku, extension = 'webp') {
+  return `${String(sku || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '') || 'producto'}.${extension}`;
 }
 
 function decodificar(dataUrl) {
   const valor = String(dataUrl || '');
-  if (!/^data:image\/(webp|jpeg|png);base64,/i.test(valor)) return null;
+  const coincidence = valor.match(/^data:image\/(webp|jpeg|png);base64,/i);
+  if (!coincidence) return null;
   const buffer = Buffer.from(valor.slice(valor.indexOf(',') + 1), 'base64');
   if (!buffer.length || buffer.length > MAX_BYTES) return null;
-  return buffer;
+  const tipo = coincidence[1].toLowerCase();
+  return { buffer, mime: `image/${tipo}`, extension: tipo === 'jpeg' ? 'jpg' : tipo };
 }
 
 async function subirUno(sku, dataUrl, bucketListo = false) {
   if (!bucketListo) await asegurarBucket();
-  const buffer = decodificar(dataUrl);
-  if (!buffer) return { ok: false, error: `Imagen inválida o mayor a 200 KB (${sku}).` };
-  const archivo = nombreArchivo(sku);
+  const imagen = decodificar(dataUrl);
+  if (!imagen) return { ok: false, error: `Imagen inválida o mayor a 200 KB (${sku}).` };
+  const { buffer, mime, extension } = imagen;
+  const archivo = nombreArchivo(sku, extension);
   const storage = cliente().storage;
   const { error } = await storage.from(BUCKET).upload(archivo, buffer, {
-    contentType: 'image/webp',
+    contentType: mime,
     cacheControl: '3600',
     upsert: true,
   });
