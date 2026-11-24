@@ -161,7 +161,9 @@ if ($LASTEXITCODE -ne 0) { throw "zipalign falló ($LASTEXITCODE)." }
 
 Write-Host "[5/6] Firmando APK..." -ForegroundColor Yellow
 $pass = $env:DADINI_APK_PASSWORD
-if (-not $pass) { $pass = 'dadini-saas-2026' }
+if (-not $pass) {
+  throw "Define DADINI_APK_PASSWORD con la contraseña del keystore antes de firmar (ej. `$env:DADINI_APK_PASSWORD='...')."
+}
 
 if (-not (Test-Path $keystore)) {
   & $keytool -genkeypair -v `

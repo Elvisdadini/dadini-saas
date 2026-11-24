@@ -711,6 +711,8 @@ h4 { font-size: 14px; font-weight: 700; }
 .w-100 { width: 100%; }
 .pill-group { display: flex; gap: 6px; flex-wrap: wrap; }
 .mini-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.mini-kpis.dos-columnas { grid-template-columns: 1fr 1fr; }
+@media (max-width: 520px) { .mini-kpis.dos-columnas { grid-template-columns: 1fr; } }
 .mini-stat { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
 .mini-stat span { display: block; font-size: 9.5px; color: var(--muted-2); text-transform: uppercase; letter-spacing: 0.05em; }
 .mini-stat strong { display: block; font-size: 15px; margin-top: 2px; }

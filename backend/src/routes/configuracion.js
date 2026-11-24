@@ -11,13 +11,15 @@ const { asegurarApkPorDefecto } = require('../apk');
 
 const directorioApk = path.join(config.uploadDir, 'apk');
 fs.mkdirSync(directorioApk, { recursive: true });
+const { randomUUID } = require('crypto');
 const almacenamientoApk = multer.diskStorage({
   destination: directorioApk,
-  filename: (req, archivo, callback) => callback(null, `dadini-${Date.now()}${path.extname(archivo.originalname).toLowerCase()}`),
+  // UUID evita colisiones entre cargas simultáneas y no expone la hora exacta.
+  filename: (req, archivo, callback) => callback(null, `dadini-${randomUUID()}.apk`),
 });
 const subirApk = multer({
   storage: almacenamientoApk,
-  limits: { fileSize: 200 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, archivo, callback) => {
     if (path.extname(archivo.originalname).toLowerCase() !== '.apk') return callback(new Error('Solo se permiten archivos .apk'));
     return callback(null, true);
@@ -94,7 +96,8 @@ router.get('/auditoria', allow(), (req, res) => {
 router.post('/apk', allow('admin', 'dueno'), subirApk.single('apk'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Selecciona un archivo .apk.' });
   const db = load();
-  const urlBase = `${req.protocol}://${req.get('host')}`;
+  const protocolo = (req.get('x-forwarded-proto') || req.protocol).split(',')[0].trim();
+  const urlBase = `${protocolo}://${req.get('host')}`;
   db.configuracion.apk_desactivada = false;
   db.configuracion.apk = {
     nombre: req.file.originalname,

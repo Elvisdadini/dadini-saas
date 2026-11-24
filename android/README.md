@@ -14,6 +14,7 @@ seguro que carga https://dadini-saas.onrender.com.
 ## Compilar
 
 ```powershell
+$env:DADINI_APK_PASSWORD = 'TU_PASSWORD_DEL_KEYSTORE'
 powershell -ExecutionPolicy Bypass -File .\dadini-saas\android\build-dadini-apk.ps1
 ```
 
@@ -21,8 +22,12 @@ El script detecta el Android SDK y el JDK (usa el JBR de Android Studio),
 compila recursos y Java, alinea, firma y verifica el APK.
 
 La firma se guarda en `dadini-app/signing/dadini-saas-release.keystore`
-(ignorado por Git). Consérvala para publicar actualizaciones; contraseña por
-defecto `dadini-saas-2026`, configurable con `DADINI_APK_PASSWORD`.
+(ignorado por Git). Consérvala para publicar actualizaciones: sin ella no se
+puede sobrescribir la app instalada. La contraseña **debe** suministrarse en
+`DADINI_APK_PASSWORD` (el script ya no tiene un valor por defecto). El keystore
+actual fue creado con la contraseña usada para firmar la versión 21.0.5; si se
+pierde, habrá que generar uno nuevo y los usuarios tendrán que desinstalar la
+app antes de instalar la versión firmada con la nueva llave.
 
 ## Probar en un teléfono con Android Studio / adb
 

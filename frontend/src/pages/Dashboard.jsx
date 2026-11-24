@@ -220,7 +220,7 @@ export default function Dashboard() {
         <div className="panel">
           <div className="panel-head"><div><h3>Estado de la operación</h3><p>Indicadores del período</p></div></div>
           <div className="panel-body">
-            <div className="mini-kpis" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="mini-kpis dos-columnas">
               <div className="mini-stat"><span>Ventas período</span><strong><Money value={k.ventas_periodo} /></strong></div>
               <div className="mini-stat"><span>Ticket promedio</span><strong><Money value={k.ticket_promedio} /></strong></div>
               <div className="mini-stat"><span>Monto vencido</span><strong style={{ color: 'var(--red)' }}><Money value={k.monto_vencido} /></strong></div>
