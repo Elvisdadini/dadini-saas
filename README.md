@@ -254,6 +254,15 @@ Botón **Asistente AI** en la barra superior. Panel con chat, sugerencias y **al
 - **Herramientas de escritura:** crear cliente, actualizar precio y registrar visita. El agente **propone** la acción y el usuario debe pulsar **Confirmar y ejecutar**. Cada ejecución respeta los permisos del usuario y queda en auditoría.
 - Límite de 40 consultas por minuto por usuario. Costo estimado con `gpt-4o-mini`: muy bajo para uso normal.
 
+### Geocerca
+
+- **Por zona:** en Rutas y zonas de venta, el lápiz junto a cada zona abre **Geocerca**: activar, latitud/longitud del centro y radio en metros (por defecto 50). Se guarda con `PUT /api/rutas-venta/zonas/:id`.
+- **Por usuario:** en Administración → usuarios, cada vendedor tiene **"Exigir geocerca a este usuario"** y **Radio (m)**.
+- Al registrar una **venta** o una **cobranza**, el backend calcula la distancia real (Haversine en metros) entre la ubicación del dispositivo y la tienda del cliente. Si supera el radio, responde **403** con la distancia exacta: *"Estás a 12655 m del cliente. El límite permitido es 50 m."* No se descuenta stock ni se crea el pago.
+- Si la geocerca está activa y no hay GPS o el cliente no tiene coordenadas, la operación se bloquea con un mensaje claro. Las pantallas de Venta nueva, Cobranzas y Detalle de pedido capturan la ubicación automáticamente antes de enviar.
+- Excepciones: administradores/dueños y quienes tengan `geocerca.excepcion_ventas` o `geocerca.excepcion_cobranzas` (permisos nuevos, independientes del módulo Ventas/Cobranzas).
+- Se corrigió `esCoordenaValida`: `null`/`''` ya no se cuentan como `(0,0)`, evitando visitas falsas y falsos "dentro de la zona".
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.
