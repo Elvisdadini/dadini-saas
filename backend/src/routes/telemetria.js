@@ -10,7 +10,7 @@ function destinoSentry(dsn) {
     const url = new URL(String(dsn));
     const proyecto = url.pathname.replace(/^\//, '').replace(/\/$/, '');
     if (!url.username || !proyecto) return null;
-    return `https://${url.host}/api/${proyecto}/envelope/`;
+    return { url: `https://${url.host}/api/${proyecto}/envelope/`, key: decodeURIComponent(url.username) };
   } catch { return null; }
 }
 
@@ -46,16 +46,19 @@ router.post('/error', async (req, res) => {
     JSON.stringify(evento),
   ].join('\n');
   try {
-    await fetch(endpoint, {
+    const respuesta = await fetch(endpoint.url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-sentry-envelope' },
+      headers: {
+        'Content-Type': 'application/x-sentry-envelope',
+        'X-Sentry-Auth': `Sentry sentry_version=7, sentry_client=dadini-saas/1.0, sentry_key=${endpoint.key}`,
+      },
       body: envelope,
       signal: AbortSignal.timeout(5000),
     });
-    return res.json({ ok: true, reenviado: true });
+    return res.json({ ok: true, reenviado: respuesta.ok, status: respuesta.status });
   } catch {
     // Nunca devolvemos el DSN ni el detalle interno al navegador.
-    return res.json({ ok: true, reenviado: false });
+    return res.json({ ok: true, reenviado: false, status: 0 });
   }
 });
 
