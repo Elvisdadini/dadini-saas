@@ -45,7 +45,7 @@ function nextCode(collection, field, prefix, start = 1001) {
 
 function audit(db, req, accion, entidad, detalle) {
   const usuario = req?.user?.nombre || 'Sistema';
-  db.auditoria.unshift({
+  const entrada = {
     id: nextId(db.auditoria),
     usuario_id: req?.user?.id || null,
     usuario,
@@ -55,8 +55,12 @@ function audit(db, req, accion, entidad, detalle) {
     detalle,
     fecha: new Date().toISOString(),
     ip: req?.ip || 'local',
-  });
-  if (db.auditoria.length > 500) db.auditoria.length = 500;
+  };
+  // Se sella ANTES de insertar: la cadena se calcula sobre la auditoría actual.
+  const cadena = require('./auditoria-chain');
+  cadena.sellar(db, entrada);
+  db.auditoria.unshift(entrada);
+  cadena.recortar(db, 500);
 }
 
 function ensureDir(dir) {

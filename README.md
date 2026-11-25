@@ -328,6 +328,20 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - **Ficha 360** (modal): resistencia RFM, ciclo de compra y próxima visita sugerida, productos favoritos, pestañas de pedidos, visitas (timeline), cobros/pagos y **notas de seguimiento** persistidas en `crm_notas`. Incluye accesos a nueva venta, cobranzas y WhatsApp prellenado para reactivar o cobrar.
 - Endpoints: `GET /api/crm/clientes`, `GET /api/crm/clientes/:id`, `GET /api/crm/segmentos`, `POST /api/crm/clientes/:id/notas` y `DELETE /api/crm/notas/:id`. `crm_notas` se agregó a `ENTIDADES` para sobrevivir en PostgreSQL.
 
+### Seguridad: verificación en dos pasos (2FA)
+
+- **Mi cuenta → Seguridad** permite activar TOTP (RFC 6238, SHA-1, 6 dígitos, ventana ±1 periodo). El backend genera el secreto, lo muestra **una sola vez** junto a un enlace `otpauth://` y lo guarda **cifrado AES-256-GCM** con una clave derivada de `JWT_SECRET` con dominio propio (`totp-secretos.js`), independiente de SIAT. El secreto nunca vuelve a devolverse al frontend.
+- Al confirmar con un código válido se entregan **8 códigos de recuperación** de un solo uso (guardados como hashes SHA-256). Desde entonces, el login con contraseña o PIN responde `{ requiere_2fa: true, challenge_id }` **sin emitir JWT**; `POST /api/auth/2fa/verificar` valida el TOTP o un código de recuperación y recién entonces firma el mismo JWT de siempre. Los challenges son efímeros (5 min, máximo 5 intentos) y viven en memoria.
+- Se puede desactivar con un código válido. Endpoints: `GET /auth/2fa/estado`, `POST /auth/2fa/iniciar`, `/confirmar`, `/desactivar` y `/verificar`. Los de inicio/verificación tienen rate limit de 10/min.
+
+### Auditoría inmutable y calidad
+
+- Cada entrada de `db.auditoria` se **sella con SHA-256** encadenando el hash de la entrada anterior (`prev_hash`). `utils.audit()` sella **antes** de insertar; al recortar a 500 registros se guarda un `genesis_hash` con el último hash eliminado para que la cadena siga siendo verificable. Las entradas históricas se sellan automáticamente al inicializar.
+- `GET /api/configuracion/auditoria/verificar` (admin/dueno/supervisor) recalcula toda la cadena y devuelve `{ ok, total, errores, ultimo_hash, verificado_en }`: detecta cualquier **edición o borrado**.
+- **CI** (`.github/workflows/ci.yml`): en cada push/PR a `main` corre `npm ci`, `node --check` y los tests del backend, y `npm ci` + `npm run build` del frontend.
+- **Observabilidad**: si se define `SENTRY_DSN`, `frontend/src/telemetria.js` captura errores no controlados y promesas rechazadas y los envía a `/api/telemetria/error`, que los reenvía a Sentry por envelope HTTP sin añadir dependencias. Sin DSN no hace nada; el DSN nunca llega al navegador.
+- **E2E opcional** con Playwright (`frontend/e2e/login.spec.js`): cubre acceso, login correcto y credenciales inválidas. Requiere `npm i -D @playwright/test && npx playwright install chromium`; se ejecuta con `npm run test:e2e` apuntando `E2E_BASE_URL`.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.

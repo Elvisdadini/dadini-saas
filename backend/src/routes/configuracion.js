@@ -83,6 +83,12 @@ router.put('/', allow(), (req, res) => {
   return res.json({ configuracion: db.configuracion });
 });
 
+// Verificación de la cadena de hashes: detecta edición o borrado de registros.
+router.get('/auditoria/verificar', allow('admin', 'dueno', 'supervisor'), (req, res) => {
+  const db = load();
+  return res.json(require('../auditoria-chain').verificar(db));
+});
+
 router.get('/auditoria', allow(), (req, res) => {
   const db = load();
   const { search, accion, limit } = req.query;

@@ -68,6 +68,7 @@ export function AuthProvider({ children }) {
   const [branding, setBranding] = useState({});
   const [apk, setApk] = useState(null);
   const [loading, setLoading] = useState(Boolean(getToken()));
+  const [desafio2fa, setDesafio2fa] = useState(null);
 
   const logout = useCallback(() => {
     setToken(null);
@@ -76,6 +77,18 @@ export function AuthProvider({ children }) {
     setPlan(null);
     setBranding({});
     setApk(null);
+    setDesafio2fa(null);
+  }, []);
+
+  const aplicarSesion = useCallback((data) => {
+    setToken(data.token);
+    setUser(data.user);
+    setEmpresa(data.empresa);
+    setPlan(data.plan);
+    setBranding(data.branding || {});
+    setApk(data.apk || null);
+    setDesafio2fa(null);
+    return data.user;
   }, []);
 
   const refresh = useCallback(async () => {
@@ -110,18 +123,24 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (identificador, password, pin) => {
     const data = await api.post('/auth/login', { usuario: identificador, password, pin });
-    setToken(data.token);
-    setUser(data.user);
-    setEmpresa(data.empresa);
-    setPlan(data.plan);
-    setBranding(data.branding || {});
-    setApk(data.apk || null);
-    return data.user;
-  }, []);
+    if (data.requiere_2fa) {
+      setDesafio2fa({ id: data.challenge_id });
+      return null;
+    }
+    return aplicarSesion(data);
+  }, [aplicarSesion]);
+
+  const verificar2FA = useCallback(async (codigo) => {
+    if (!desafio2fa?.id) throw new Error('Inicia sesión para continuar.');
+    const data = await api.post('/auth/2fa/verificar', { challenge_id: desafio2fa.id, codigo });
+    return aplicarSesion(data);
+  }, [desafio2fa, aplicarSesion]);
+
+  const cancelar2FA = useCallback(() => setDesafio2fa(null), []);
 
   const value = useMemo(
-    () => ({ user, empresa, plan, branding, apk, loading, login, logout, refresh }),
-    [user, empresa, plan, branding, apk, loading, login, logout, refresh],
+    () => ({ user, empresa, plan, branding, apk, loading, desafio2fa, login, verificar2FA, cancelar2FA, logout, refresh }),
+    [user, empresa, plan, branding, apk, loading, desafio2fa, login, verificar2FA, cancelar2FA, logout, refresh],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

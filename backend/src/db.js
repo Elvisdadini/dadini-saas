@@ -40,6 +40,7 @@ async function init() {
 
   // Migración suave: agrega rutas/zonas/tipos y los permisos de usuarios
   // existentes sin borrar ningún dato operativo.
+  require('./auditoria-chain').asegurar(db);
   if (asegurarEstructura(db) || restaurado || (db.notificaciones || []).length !== notificacionesAntes) await store.guardar(db);
   return db;
 }

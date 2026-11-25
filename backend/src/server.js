@@ -47,6 +47,9 @@ const limiteEstricto = rateLimit({
 });
 app.use('/api/auth/login', limiteEstricto);
 app.use('/api/auth/pin', limiteEstricto);
+app.use('/api/auth/2fa/verificar', limiteEstricto);
+app.use('/api/auth/2fa/iniciar', limiteEstricto);
+app.use('/api/telemetria/error', limiteEstricto);
 app.use('/api/whatsapp/masivo', limiteEstricto);
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
@@ -97,6 +100,7 @@ app.use('/api/geo', require('./routes/geo'));
 app.use('/api/cargas', require('./routes/cargas'));
 app.use('/api/campo', require('./routes/campo'));
 app.use('/api/whatsapp', require('./routes/whatsapp'));
+app.use('/api/telemetria', require('./routes/telemetria'));
 app.use('/api/promociones', require('./routes/promociones'));
 app.use('/api/categorias', require('./routes/categorias'));
 app.use('/api/almacenes-moviles', require('./routes/almacenes-moviles'));

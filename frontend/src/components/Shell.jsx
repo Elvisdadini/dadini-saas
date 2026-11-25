@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { api, contarCola, reenviarCola } from '../api';
 import { useAuth, puede, ROL_LABEL } from '../auth';
-import { Avatar, Modal, useToast } from '../ui';
+import { Avatar, Badge, Modal, useToast } from '../ui';
 import BrandStyle from './BrandStyle';
 import AsistenteIA from './AsistenteIA';
 
@@ -514,11 +514,20 @@ function ProfileModal({ open, onClose, user, refresh }) {
   const [tab, setTab] = useState('perfil');
   const [form, setForm] = useState({ nombre: user?.nombre || '', telefono: user?.telefono || '', cargo: user?.cargo || '' });
   const [pass, setPass] = useState({ actual: '', nueva: '', repetir: '' });
+  const [dosfa, setDosfa] = useState({ activo: false, pendiente: false, recuperacion_restantes: 0 });
+  const [setup2fa, setSetup2fa] = useState(null);
+  const [codigo2fa, setCodigo2fa] = useState('');
+  const [codigosRec, setCodigosRec] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) setForm({ nombre: user?.nombre || '', telefono: user?.telefono || '', cargo: user?.cargo || '' });
   }, [open, user]);
+
+  useEffect(() => {
+    if (!open) return;
+    api.get('/auth/2fa/estado').then(setDosfa).catch(() => {});
+  }, [open]);
 
   const saveProfile = async () => {
     setLoading(true);
@@ -543,6 +552,40 @@ function ProfileModal({ open, onClose, user, refresh }) {
     } catch (error) {
       toast(error.message, 'error');
     } finally { setLoading(false); }
+  };
+
+  const iniciar2fa = async () => {
+    setLoading(true);
+    try {
+      const r = await api.post('/auth/2fa/iniciar', {});
+      setSetup2fa(r);
+      setCodigo2fa('');
+      setCodigosRec([]);
+      toast('Configura tu app de autenticación con el secreto mostrado');
+    } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
+  };
+
+  const confirmar2fa = async () => {
+    setLoading(true);
+    try {
+      const r = await api.post('/auth/2fa/confirmar', { codigo: codigo2fa.trim() });
+      setCodigosRec(r.codigos || []);
+      setSetup2fa(null);
+      setCodigo2fa('');
+      setDosfa({ activo: true, pendiente: false, recuperacion_restantes: r.codigos?.length || 0 });
+      toast('Verificación en dos pasos activada');
+    } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
+  };
+
+  const desactivar2fa = async () => {
+    setLoading(true);
+    try {
+      await api.post('/auth/2fa/desactivar', { codigo: codigo2fa.trim() });
+      setCodigo2fa('');
+      setCodigosRec([]);
+      setDosfa({ activo: false, pendiente: false, recuperacion_restantes: 0 });
+      toast('Verificación en dos pasos desactivada');
+    } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
   };
 
   return (
@@ -577,6 +620,42 @@ function ProfileModal({ open, onClose, user, refresh }) {
           <div className="field-row">
             <div className="field"><label>Nueva contraseña</label><input type="password" className="input" value={pass.nueva} onChange={(e) => setPass({ ...pass, nueva: e.target.value })} /></div>
             <div className="field"><label>Repetir contraseña</label><input type="password" className="input" value={pass.repetir} onChange={(e) => setPass({ ...pass, repetir: e.target.value })} /></div>
+          </div>
+          <div className="panel mt-16">
+            <div className="panel-head">
+              <div><h3>Verificación en dos pasos</h3><p>Protege el acceso con una app de autenticación (TOTP)</p></div>
+              <Badge tone={dosfa.activo ? 'green' : dosfa.pendiente ? 'amber' : 'gray'}>{dosfa.activo ? 'Activa' : dosfa.pendiente ? 'Configurando' : 'Inactiva'}</Badge>
+            </div>
+            <div className="panel-body">
+              {codigosRec.length > 0 && (
+                <div className="notice notice-warn mb-12"><strong>Guarda estos códigos de recuperación</strong> — se muestran una sola vez.
+                  <pre className="preview-box mt-8" style={{ minHeight: 'auto' }}>{codigosRec.join('\n')}</pre>
+                </div>
+              )}
+              {setup2fa ? (
+                <div className="form-stack">
+                  <div className="notice notice-info">Escanea el enlace con tu app de autenticación o copia el secreto. Luego ingresa el código de 6 dígitos para activar.</div>
+                  <div className="field"><label>Secreto (cópialo ahora)</label><input className="input" readOnly value={setup2fa.secreto || ''} onFocus={(e) => e.target.select()} /></div>
+                  <a className="btn btn-soft btn-sm" href={setup2fa.uri} target="_blank" rel="noreferrer">Abrir enlace otpauth en el celular</a>
+                  <div className="field"><label>Código de 6 dígitos</label><input className="input" inputMode="numeric" maxLength={6} value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value)} placeholder="000000" /></div>
+                  <div className="inline">
+                    <button className="btn btn-primary" onClick={confirmar2fa} disabled={loading || codigo2fa.trim().length !== 6}>Activar 2FA</button>
+                    <button className="btn btn-ghost" onClick={() => setSetup2fa(null)}>Cancelar</button>
+                  </div>
+                </div>
+              ) : dosfa.activo ? (
+                <div className="form-stack">
+                  <span className="hint">Códigos de recuperación disponibles: {dosfa.recuperacion_restantes}. Cada uno se puede usar una sola vez.</span>
+                  <div className="field"><label>Código actual (para desactivar)</label><input className="input" inputMode="numeric" maxLength={6} value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value)} placeholder="000000" /></div>
+                  <button className="btn btn-outline" onClick={desactivar2fa} disabled={loading || codigo2fa.trim().length !== 6}>Desactivar verificación en dos pasos</button>
+                </div>
+              ) : (
+                <div className="form-stack">
+                  <span className="hint">Al activarla, tu contraseña seguirá siendo el primer paso y necesitarás un código de tu celular para ingresar.</span>
+                  <button className="btn btn-outline" onClick={iniciar2fa} disabled={loading}>Activar verificación en dos pasos</button>
+                </div>
+              )}
+            </div>
           </div>
           <div className="modal-foot" style={{ padding: '4px 0 0', background: 'none', border: 0 }}>
             <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>

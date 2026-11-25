@@ -4,7 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './auth';
 import { ToastProvider } from './ui';
+import { instalarTelemetria } from './telemetria';
 import './styles.css';
+
+instalarTelemetria();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

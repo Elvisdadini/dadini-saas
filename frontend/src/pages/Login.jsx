@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, Lock, ShieldCheck, Truck, UserRound, Wallet } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, Lock, ShieldCheck, Smartphone, Truck, UserRound, Wallet } from 'lucide-react';
 import { useAuth } from '../auth';
 
 const CLAVE_USUARIO = 'dadini_usuario';
 
 export default function LoginPage() {
-  const { user, login, loading: authLoading } = useAuth();
+  const { user, login, verificar2FA, cancelar2FA, desafio2fa, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [identificador, setIdentificador] = useState('');
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [recordar, setRecordar] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [codigo2fa, setCodigo2fa] = useState('');
 
   useEffect(() => {
     const guardado = localStorage.getItem(CLAVE_USUARIO);
@@ -27,22 +28,47 @@ export default function LoginPage() {
     if (!authLoading && user) navigate('/', { replace: true });
   }, [user, authLoading, navigate]);
 
+  const finalizarIngreso = () => {
+    if (recordar) localStorage.setItem(CLAVE_USUARIO, identificador.trim());
+    else localStorage.removeItem(CLAVE_USUARIO);
+    const from = location.state?.from;
+    navigate(from && from !== '/login' ? from : '/', { replace: true });
+  };
+
   const entrar = async () => {
     setError('');
     if (!identificador.trim()) return setError('Ingresa tu usuario.');
     setLoading(true);
     try {
-      if (usarPin) await login(identificador.trim(), undefined, pin.trim());
-      else await login(identificador.trim(), password, undefined);
-      if (recordar) localStorage.setItem(CLAVE_USUARIO, identificador.trim());
-      else localStorage.removeItem(CLAVE_USUARIO);
-      const from = location.state?.from;
-      navigate(from && from !== '/login' ? from : '/', { replace: true });
+      const ingresado = usarPin
+        ? await login(identificador.trim(), undefined, pin.trim())
+        : await login(identificador.trim(), password, undefined);
+      if (ingresado) finalizarIngreso();
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const verificar = async () => {
+    setError('');
+    if (!codigo2fa.trim()) return setError('Ingresa el código de 6 dígitos.');
+    setLoading(true);
+    try {
+      await verificar2FA(codigo2fa.trim());
+      finalizarIngreso();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const volver = () => {
+    cancelar2FA();
+    setCodigo2fa('');
+    setError('');
   };
 
   const cambiarUsuario = () => {
@@ -94,37 +120,54 @@ export default function LoginPage() {
 
           {error && <div className="notice notice-danger" style={{ marginBottom: 14 }}><Lock size={15} /> {error}</div>}
 
-          <form onSubmit={(e) => { e.preventDefault(); entrar(); }}>
-            {recordar && identificador ? (
+          {desafio2fa ? (
+            <form onSubmit={(e) => { e.preventDefault(); verificar(); }}>
               <div className="notice notice-info" style={{ marginBottom: 14 }}>
-                <UserRound size={15} />
-                <span>Usuario recordado: <strong>{identificador}</strong></span>
-                <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={cambiarUsuario}>Cambiar</button>
+                <Smartphone size={15} />
+                <span>Verificación en dos pasos. Abre tu app de autenticación e ingresa el código de 6 dígitos (o un código de recuperación).</span>
               </div>
-            ) : (
               <div className="field">
-                <label>Usuario</label>
-                <div style={{ position: 'relative' }}>
-                  <UserRound size={15} style={{ position: 'absolute', left: 11, top: 11, color: 'var(--muted-2)' }} />
-                  <input className="input" style={{ paddingLeft: 34 }} value={identificador} onChange={(e) => setIdentificador(e.target.value)} placeholder="Ej. admin" autoComplete="username" />
+                <label>Código de verificación</label>
+                <input className="input" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={codigo2fa} onChange={(e) => setCodigo2fa(e.target.value)} placeholder="000000" autoFocus />
+              </div>
+              <button type="submit" className="btn btn-primary btn-lg btn-block" style={{ marginTop: 6 }} disabled={loading}>
+                {loading ? <><Loader2 size={17} className="spin" /> Verificando…</> : <>Verificar e ingresar <ArrowRight size={16} /></>}
+              </button>
+              <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 8 }} onClick={volver}><ArrowLeft size={14} /> Volver al inicio de sesión</button>
+            </form>
+          ) : (
+            <form onSubmit={(e) => { e.preventDefault(); entrar(); }}>
+              {recordar && identificador ? (
+                <div className="notice notice-info" style={{ marginBottom: 14 }}>
+                  <UserRound size={15} />
+                  <span>Usuario recordado: <strong>{identificador}</strong></span>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={cambiarUsuario}>Cambiar</button>
+                </div>
+              ) : (
+                <div className="field">
+                  <label>Usuario</label>
+                  <div style={{ position: 'relative' }}>
+                    <UserRound size={15} style={{ position: 'absolute', left: 11, top: 11, color: 'var(--muted-2)' }} />
+                    <input className="input" style={{ paddingLeft: 34 }} value={identificador} onChange={(e) => setIdentificador(e.target.value)} placeholder="Ej. admin" autoComplete="username" />
+                  </div>
+                </div>
+              )}
+              <div className="field">
+                <label>{usarPin ? 'PIN' : 'Contraseña'}</label>
+                <div className="login-pass">
+                  <input className="input" type={show ? 'text' : 'password'} value={usarPin ? pin : password} onChange={(e) => usarPin ? setPin(e.target.value) : setPassword(e.target.value)} placeholder={usarPin ? '••••' : '••••••••'} autoComplete="current-password" />
+                  <button type="button" className="icon-btn" onClick={() => setShow((v) => !v)} aria-label="Mostrar contraseña">{show ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                 </div>
               </div>
-            )}
-            <div className="field">
-              <label>{usarPin ? 'PIN' : 'Contraseña'}</label>
-              <div className="login-pass">
-                <input className="input" type={show ? 'text' : 'password'} value={usarPin ? pin : password} onChange={(e) => usarPin ? setPin(e.target.value) : setPassword(e.target.value)} placeholder={usarPin ? '••••' : '••••••••'} autoComplete="current-password" />
-                <button type="button" className="icon-btn" onClick={() => setShow((v) => !v)} aria-label="Mostrar contraseña">{show ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+              <div className="login-options">
+                <label className="check"><input type="checkbox" checked={recordar} onChange={(e) => setRecordar(e.target.checked)} /> Mantener usuario en este dispositivo</label>
+                <label className="check"><input type="checkbox" checked={usarPin} onChange={(e) => setUsarPin(e.target.checked)} /> Ingresar con PIN</label>
               </div>
-            </div>
-            <div className="login-options">
-              <label className="check"><input type="checkbox" checked={recordar} onChange={(e) => setRecordar(e.target.checked)} /> Mantener usuario en este dispositivo</label>
-              <label className="check"><input type="checkbox" checked={usarPin} onChange={(e) => setUsarPin(e.target.checked)} /> Ingresar con PIN</label>
-            </div>
-            <button type="submit" className="btn btn-primary btn-lg btn-block" style={{ marginTop: 6 }} disabled={loading}>
-              {loading ? <><Loader2 size={17} className="spin" /> Ingresando…</> : <>Ingresar al panel <ArrowRight size={16} /></>}
-            </button>
-          </form>
+              <button type="submit" className="btn btn-primary btn-lg btn-block" style={{ marginTop: 6 }} disabled={loading}>
+                {loading ? <><Loader2 size={17} className="spin" /> Ingresando…</> : <>Ingresar al panel <ArrowRight size={16} /></>}
+              </button>
+            </form>
+          )}
 
           <p className="login-legal">Solo personal autorizado de DADINI. Las actividades quedan registradas en la auditoría del sistema.</p>
         </div>
