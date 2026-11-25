@@ -1,3 +1,4 @@
+# Plantilla de referencia. El workflow activo está en .github/workflows/ci.yml.
 name: CI
 
 on:
