@@ -40,6 +40,8 @@ function respuestaLogin(db, req, user) {
       ruta_venta: user.ruta_venta || null, zona_venta: user.zona_venta || null,
       dias_visita: user.dias_visita || [], distribuidor_id: user.repartidor_id || null,
       dos_factor: Boolean(user.totp?.activo),
+      sucursal_id: Number(user.sucursal_id || 1),
+      sucursales: (db.sucursales || []).filter((s) => s.activa !== false).map((s) => ({ id: s.id, nombre: s.nombre, codigo: s.codigo })),
     },
     empresa: db.configuracion.empresa,
     plan: db.configuracion.plan,

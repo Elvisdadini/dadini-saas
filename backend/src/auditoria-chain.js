@@ -19,9 +19,14 @@ function porId(db) {
   return (db.auditoria || []).slice().sort((a, b) => Number(a.id) - Number(b.id));
 }
 
+function anclaDe(db) {
+  return require('./tenant').dbReal()?.auditoria_cadena || db.auditoria_cadena;
+}
+
 function actualizarAncla(db, hash, total) {
-  db.auditoria_cadena = {
-    ...(db.auditoria_cadena || {}),
+  const destino = require('./tenant').dbReal() || db;
+  destino.auditoria_cadena = {
+    ...(destino.auditoria_cadena || {}),
     ultimo_hash: hash,
     total,
     actualizado_en: new Date().toISOString(),
@@ -42,7 +47,7 @@ function recortar(db, max = 500) {
 
 function asegurar(db) {
   if (!Array.isArray(db.auditoria)) db.auditoria = [];
-  let anterior = db.auditoria_cadena?.genesis_hash || GENESIS;
+  let anterior = anclaDe(db)?.genesis_hash || GENESIS;
   porId(db).forEach((entrada) => {
     if (!entrada.hash) {
       entrada.prev_hash = anterior;
@@ -51,7 +56,7 @@ function asegurar(db) {
     }
     anterior = entrada.hash;
   });
-  if (!db.auditoria_cadena) actualizarAncla(db, anterior, db.auditoria.length);
+  if (!anclaDe(db)) actualizarAncla(db, anterior, db.auditoria.length);
   return anterior;
 }
 
@@ -68,7 +73,7 @@ function sellar(db, entrada) {
 }
 
 function verificar(db) {
-  let anterior = db.auditoria_cadena?.genesis_hash || GENESIS;
+  let anterior = anclaDe(db)?.genesis_hash || GENESIS;
   const errores = [];
   const entradas = porId(db);
   entradas.forEach((entrada) => {
@@ -78,7 +83,7 @@ function verificar(db) {
     }
     anterior = entrada.hash || esperado;
   });
-  const ancla = db.auditoria_cadena;
+  const ancla = anclaDe(db);
   if (ancla && (ancla.total !== entradas.length || (entradas.length && ancla.ultimo_hash !== anterior))) {
     errores.push({
       id: 'ancla',

@@ -41,9 +41,15 @@ function authRequired(req, res, next) {
       dias_visita: Array.isArray(user.dias_visita) ? user.dias_visita : [],
       distribuidor_id: user.repartidor_id || null,
       permisos: permisosUsuario(user),
+      sucursal_id: Number(user.sucursal_id || 1),
     };
     req.db = db;
-    return next();
+    const tenant = require('./tenant');
+    return tenant.ejecutar(tenant.resolver(req), () => {
+      req.db = require('./db').load();
+      req.sucursal_id = tenant.actual()?.sucursal_id || 1;
+      return next();
+    });
   } catch (error) {
     return res.status(401).json({ error: 'Tu sesión expiró. Vuelve a iniciar sesión.' });
   }

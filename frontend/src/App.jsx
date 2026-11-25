@@ -44,6 +44,7 @@ const RutaDetalle = lazy(() => import('./pages/RutaDetalle'));
 const Reportes = lazy(() => import('./pages/Reportes'));
 const ReportesAutomaticos = lazy(() => import('./pages/ReportesAutomaticos'));
 const Administracion = lazy(() => import('./pages/Administracion'));
+const Sucursales = lazy(() => import('./pages/Sucursales'));
 const RutasVenta = lazy(() => import('./pages/RutasVenta'));
 const Permisos = lazy(() => import('./pages/Permisos'));
 
@@ -118,6 +119,7 @@ export default function App() {
             <Route path="reportes" element={<Guard module="reportes"><Reportes /></Guard>} />
             <Route path="dueno" element={<Guard module="dueno"><Dueno /></Guard>} />
             <Route path="administracion" element={<Guard module="administracion"><Administracion /></Guard>} />
+            <Route path="administracion/sucursales" element={<Guard module="administracion"><Sucursales /></Guard>} />
             <Route path="administracion/personalizacion" element={<Guard module="administracion"><Personalizacion /></Guard>} />
             <Route path="administracion/permisos" element={<Guard module="administracion"><Permisos /></Guard>} />
             <Route path="*" element={<Navigate to="/" replace />} />

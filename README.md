@@ -342,6 +342,15 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - **Observabilidad**: si se define `SENTRY_DSN`, `frontend/src/telemetria.js` captura errores no controlados y promesas rechazadas y los envía a `/api/telemetria/error`, que los reenvía a Sentry por envelope HTTP sin añadir dependencias. Sin DSN no hace nada; el DSN nunca llega al navegador.
 - **E2E opcional** con Playwright (`frontend/e2e/login.spec.js`): cubre acceso, login correcto y credenciales inválidas. Requiere `npm i -D @playwright/test && npx playwright install chromium`; se ejecuta con `npm run test:e2e` apuntando `E2E_BASE_URL`.
 
+### Multi-sucursal / tenant (datos aislados)
+
+- Nueva página **Sistema → Sucursales** (`/administracion/sucursales`): crear, editar, activar/desactivar sucursales, asignar usuarios y ver métricas por sucursal. Con una sola sucursal el comportamiento es idéntico al anterior.
+- Aislamiento mediante **contexto por request** (`AsyncLocalStorage`): `tenant.js` etiqueta cada fila operativa con `sucursal_id`; `db.load()` devuelve una vista filtrada y `db.save()` integra solo las filas de esa sucursal, conservando las demás. Los usuarios, la auditoría y la configuración son globales; cada usuario tiene `sucursal_id`.
+- Administradores y dueños pueden cambiar de sucursal con el selector de la barra superior o el botón **Usar** de la tabla (header `X-Sucursal-Id`, guardado en `localStorage`). Los demás usuarios ven solo la suya.
+- Los **IDs y correlativos son globales** (`nextId`/`nextCode` consultan la base real), así que no hay colisiones entre sucursales. La auditoría inmutable sigue funcionando: su ancla se actualiza en la base real aunque la escritura ocurra dentro de una sucursal.
+- Datos preexistentes se migran suavemente a la sucursal 1 (`Casa Matriz`) al iniciar; una sucursal nueva empieza vacía. `sucursales` se agregó a `ENTIDADES` para persistir en PostgreSQL.
+- Endpoints: `GET /api/sucursales`, `GET /mi`, `POST /`, `PUT /:id` y `POST /:id/usuarios`. Las sucursales inactivas no aparecen en el selector.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.

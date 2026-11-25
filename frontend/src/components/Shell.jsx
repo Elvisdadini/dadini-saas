@@ -62,6 +62,7 @@ const NAV = [
     items: [
       { to: '/dueno', label: 'Panel del dueño', icon: Crown, key: 'dueno' },
       { to: '/administracion', label: 'Administración', icon: Settings, key: 'administracion' },
+      { to: '/administracion/sucursales', label: 'Sucursales', icon: Building2, key: 'administracion' },
       { to: '/facturacion', label: 'Facturación SIAT', icon: Receipt, key: 'administracion' },
       { to: '/administracion/personalizacion', label: 'Marca y APK', icon: Palette, key: 'administracion' },
       { to: '/administracion/permisos', label: 'Roles y permisos', icon: Lock, key: 'administracion' },
@@ -105,6 +106,7 @@ const PAGE_TITLES = {
   '/crm': ['CRM 360', 'Scoring RFM y plan de acción por cliente'],
   '/dueno': ['Panel del dueño', 'Planes, precios y descuentos'],
   '/administracion': ['Administración', 'Configuración del sistema'],
+  '/administracion/sucursales': ['Sucursales', 'Aislamiento de datos por cadena'],
   '/administracion/personalizacion': ['Marca y APK', 'Identidad visual y nube'],
   '/administracion/permisos': ['Roles y permisos', 'Modelos de acceso y funciones por usuario'],
 };
@@ -112,7 +114,7 @@ const PAGE_TITLES = {
 let cacheResumen = { id: null, en: 0, data: null };
 
 export default function Shell({ children }) {
-  const { user, plan, refresh, logout } = useAuth();
+  const { user, plan, refresh, logout, sucursales, sucursalId, cambiarSucursal } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -326,6 +328,11 @@ export default function Shell({ children }) {
           </div>
           <GlobalSearch puede={puede} user={user} navigate={navigate} />
           <div className="topbar-actions">
+            {sucursales.length > 1 && (
+              <select className="select" value={sucursalId || ''} onChange={(e) => cambiarSucursal(e.target.value)} title="Sucursal activa">
+                {sucursales.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+              </select>
+            )}
             <AsistenteIA pagina={page[0]} />
             {puede(user, 'administracion') && (
               <button className="btn btn-outline btn-sm" onClick={sincronizarGlobal} title="Guardar y sincronizar todos los cambios">

@@ -4,6 +4,7 @@ const { buildSeed, SEED_VERSION } = require('./seed');
 const { asegurarEstructura } = require('./permisos');
 const sync = require('./supabase-sync');
 const { verificarVencimientos } = require('./qr-alertas');
+const tenant = require('./tenant');
 
 let db = null;
 let colaGuardado = Promise.resolve();
@@ -17,6 +18,8 @@ async function init() {
     await store.guardar(db);
     console.log(`[db] Base inicializada en ${store.base()}`);
   }
+  const sucursalesMigradas = tenant.asegurar(db);
+  tenant.registrar(db);
   // Si el contenedor se recreó (nuevo deploy de Render), recuperamos la última
   // instantánea de Supabase antes de dejar operar la app.
   let restaurado = false;
@@ -41,19 +44,28 @@ async function init() {
   // Migración suave: agrega rutas/zonas/tipos y los permisos de usuarios
   // existentes sin borrar ningún dato operativo.
   require('./auditoria-chain').asegurar(db);
-  if (asegurarEstructura(db) || restaurado || (db.notificaciones || []).length !== notificacionesAntes) await store.guardar(db);
+  if (asegurarEstructura(db) || sucursalesMigradas || restaurado || (db.notificaciones || []).length !== notificacionesAntes) await store.guardar(db);
   return db;
 }
 
 function load() {
   if (!db) throw new Error('La base de datos aún no se ha inicializado.');
-  return db;
+  const contexto = tenant.actual();
+  if (!contexto?.sucursal_id) return db;
+  if (!contexto.vista) contexto.vista = tenant.vistaDe(db, contexto.sucursal_id);
+  return contexto.vista;
+}
+
+function integrarContexto() {
+  const contexto = tenant.actual();
+  if (contexto?.sucursal_id && contexto.vista) tenant.integrar(contexto.vista, contexto.sucursal_id);
 }
 
 // Las rutas mutan el objeto en memoria y llaman a save() de forma síncrona.
 // El guardado real se encola para respetar el orden y no bloquear la respuesta.
 function save() {
   if (!db) return null;
+  integrarContexto();
   // Marca de "cambio local" para que el restoredor sepa si hay escrituras
   // más recientes que la última instantánea de Supabase.
   db.sincronizacion = {
@@ -68,6 +80,8 @@ function save() {
 
 async function reset() {
   db = buildSeed();
+  tenant.asegurar(db);
+  tenant.registrar(db);
   await store.guardar(db);
   return db;
 }
@@ -81,6 +95,7 @@ async function flush() {
 async function guardarAhora() {
   await colaGuardado;
   if (!db) throw new Error('La base de datos aún no se ha inicializado.');
+  integrarContexto();
   await store.guardar(db);
   return { base: store.base(), bytes: JSON.stringify(db).length };
 }

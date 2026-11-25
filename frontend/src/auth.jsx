@@ -69,6 +69,8 @@ export function AuthProvider({ children }) {
   const [apk, setApk] = useState(null);
   const [loading, setLoading] = useState(Boolean(getToken()));
   const [desafio2fa, setDesafio2fa] = useState(null);
+  const [sucursales, setSucursales] = useState([]);
+  const [sucursalId, setSucursalId] = useState(Number(localStorage.getItem('dadini_sucursal') || 0));
 
   const logout = useCallback(() => {
     setToken(null);
@@ -78,6 +80,8 @@ export function AuthProvider({ children }) {
     setBranding({});
     setApk(null);
     setDesafio2fa(null);
+    localStorage.removeItem('dadini_sucursal');
+    setSucursales([]);
   }, []);
 
   const aplicarSesion = useCallback((data) => {
@@ -88,6 +92,10 @@ export function AuthProvider({ children }) {
     setBranding(data.branding || {});
     setApk(data.apk || null);
     setDesafio2fa(null);
+    const idSucursal = Number(data.user?.sucursal_id || 1);
+    localStorage.setItem('dadini_sucursal', String(idSucursal));
+    setSucursalId(idSucursal);
+    setSucursales(data.user?.sucursales || []);
     return data.user;
   }, []);
 
@@ -103,6 +111,11 @@ export function AuthProvider({ children }) {
       setPlan(data.plan);
       setBranding(data.branding || {});
       setApk(data.apk || null);
+      try {
+        const suc = await api.get('/sucursales/mi');
+        setSucursales(suc.disponibles || []);
+        setSucursalId(Number(suc.sucursal?.id || 1));
+      } catch { /* sucursales opcional en despliegues anteriores */ }
     } catch (error) {
       setToken(null);
       setUser(null);
@@ -138,9 +151,15 @@ export function AuthProvider({ children }) {
 
   const cancelar2FA = useCallback(() => setDesafio2fa(null), []);
 
+  const cambiarSucursal = useCallback((id) => {
+    localStorage.setItem('dadini_sucursal', String(id));
+    setSucursalId(Number(id));
+    window.location.reload();
+  }, []);
+
   const value = useMemo(
-    () => ({ user, empresa, plan, branding, apk, loading, desafio2fa, login, verificar2FA, cancelar2FA, logout, refresh }),
-    [user, empresa, plan, branding, apk, loading, desafio2fa, login, verificar2FA, cancelar2FA, logout, refresh],
+    () => ({ user, empresa, plan, branding, apk, loading, desafio2fa, login, verificar2FA, cancelar2FA, sucursales, sucursalId, cambiarSucursal, logout, refresh }),
+    [user, empresa, plan, branding, apk, loading, desafio2fa, login, verificar2FA, cancelar2FA, sucursales, sucursalId, cambiarSucursal, logout, refresh],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

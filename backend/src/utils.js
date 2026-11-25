@@ -32,11 +32,19 @@ function parseIntSafe(value, fallback = 0) {
 }
 
 function nextId(collection) {
-  return collection.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
+  // Dentro de un request con sucursal, los IDs deben ser globales para no
+  // colisionar entre tenants: se calculan sobre la base real, no sobre el filtro.
+  const tenant = require('./tenant');
+  const entidad = tenant.entidadDe(collection);
+  if (entidad) return tenant.maxId(entidad);
+  return (collection || []).reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
 }
 
 function nextCode(collection, field, prefix, start = 1001) {
-  const max = collection.reduce((acc, item) => {
+  const tenant = require('./tenant');
+  const entidad = tenant.entidadDe(collection);
+  if (entidad) return tenant.maxCodigo(entidad, field, prefix, start);
+  const max = (collection || []).reduce((acc, item) => {
     const match = String(item[field] || '').match(/(\d+)$/);
     return match ? Math.max(acc, Number(match[1])) : acc;
   }, start - 1);

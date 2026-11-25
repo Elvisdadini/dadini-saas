@@ -69,6 +69,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/sucursales', require('./routes/sucursales'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/productos', require('./routes/productos'));
 app.use('/api/producto-catalogo', require('./routes/producto-catalogo'));

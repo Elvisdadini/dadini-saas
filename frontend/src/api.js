@@ -137,6 +137,8 @@ async function request(path, { method = 'GET', body, raw = false } = {}) {
   const headers = {};
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+  const sucursal = localStorage.getItem('dadini_sucursal');
+  if (sucursal) headers['X-Sucursal-Id'] = sucursal;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
   if (puedeEncolar(path, method) && sinConexion()) {
@@ -187,7 +189,10 @@ export const api = {
 
 export async function downloadCSV(path, filename) {
   const token = getToken();
-  const response = await fetch(`${BASE}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const sucursal = localStorage.getItem('dadini_sucursal');
+  if (sucursal) headers['X-Sucursal-Id'] = sucursal;
+  const response = await fetch(`${BASE}${path}`, { headers });
   if (!response.ok) throw new Error('No se pudo generar el archivo.');
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
