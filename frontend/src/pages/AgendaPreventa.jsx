@@ -8,6 +8,7 @@ import { api } from '../api';
 import { useAuth } from '../auth';
 import Mapa from '../components/Mapa';
 import BotonWhatsapp from '../components/BotonWhatsapp';
+import FirmaCanvas from '../components/FirmaCanvas';
 import { formatoCoords, obtenerUbicacion } from '../geo';
 import { optimizarImagen } from '../imagen';
 import { Badge, EmptyState, Modal, Money, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
@@ -40,10 +41,10 @@ export default function AgendaPreventa() {
   const [modal, setModal] = useState(null);
   const [detalle, setDetalle] = useState(null);
   const [visitaMapa, setVisitaMapa] = useState(null);
-  const [visitaMapaForm, setVisitaMapaForm] = useState({ motivo: 'cerrado', notas: '', detalle: '', foto: null, latitud: '', longitud: '' });
+  const [visitaMapaForm, setVisitaMapaForm] = useState({ motivo: 'cerrado', notas: '', detalle: '', foto: null, firma: null, latitud: '', longitud: '' });
   const [avanceAbierto, setAvanceAbierto] = useState(false);
   const [avance, setAvance] = useState(null);
-  const [form, setForm] = useState({ resultado: 'pedido', motivo: '', notas: '', detalle: '', foto: null, latitud: '', longitud: '', precision: null });
+  const [form, setForm] = useState({ resultado: 'pedido', motivo: '', notas: '', detalle: '', foto: null, firma: null, latitud: '', longitud: '', precision: null });
   const [ubicando, setUbicando] = useState(false);
   const [saving, setSaving] = useState(false);
   const [productos, setProductos] = useState([]);
@@ -96,7 +97,7 @@ export default function AgendaPreventa() {
 
   const abrirVisita = (cliente) => {
     setModal(cliente);
-    setForm({ resultado: 'pedido', motivo: '', notas: '', detalle: '', foto: null, latitud: cliente.latitud || '', longitud: cliente.longitud || '', precision: null });
+    setForm({ resultado: 'pedido', motivo: '', notas: '', detalle: '', foto: null, firma: null, latitud: cliente.latitud || '', longitud: cliente.longitud || '', precision: null });
     setCambioForm(CAMBIO_VACIO);
   };
 
@@ -117,7 +118,7 @@ export default function AgendaPreventa() {
     let ubicacion = null;
     try { ubicacion = await obtenerUbicacion(); } catch (error) { toast(error.message, 'error'); }
     setVisitaMapaForm({
-      motivo: 'cerrado', notas: '', detalle: '', foto: null,
+      motivo: 'cerrado', notas: '', detalle: '', foto: null, firma: null,
       latitud: ubicacion?.latitud ?? cliente.latitud ?? '',
       longitud: ubicacion?.longitud ?? cliente.longitud ?? '',
     });
@@ -204,6 +205,7 @@ export default function AgendaPreventa() {
         motivo: visitaMapaForm.motivo,
         detalle: visitaMapaForm.detalle,
         foto: visitaMapaForm.foto,
+        firma: visitaMapaForm.firma,
         cambios,
         notas: visitaMapaForm.notas || `Sin compra: ${visitaMapaForm.motivo}`,
         latitud: visitaMapaForm.latitud,
@@ -232,6 +234,7 @@ export default function AgendaPreventa() {
         motivo,
         detalle: form.detalle,
         foto: form.foto,
+        firma: form.firma,
         cambios,
         notas: form.notas || (form.resultado === 'pedido' ? 'Pedido confirmado en visita' : `Sin pedido: ${motivo}`),
         latitud: form.latitud,
@@ -455,6 +458,7 @@ export default function AgendaPreventa() {
               catch (error) { toast(error.message, 'error'); }
               e.target.value = '';
             }} />{visitaMapaForm.foto && <img src={visitaMapaForm.foto} alt="Comprobante" style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, marginTop: 6 }} />}</div>
+            <FirmaCanvas value={visitaMapaForm.firma} onChange={(f) => setVisitaMapaForm((v) => ({ ...v, firma: f }))} label="Firma del cliente" alto={90} />
             {visitaMapaForm.motivo === 'cambio' && bloqueCambio(visitaMapaForm, setVisitaMapaForm)}
             <div className="field"><label>Notas</label><textarea className="textarea" value={visitaMapaForm.notas} onChange={(e) => setVisitaMapaForm({ ...visitaMapaForm, notas: e.target.value })} placeholder="Observaciones de la visita…" /></div>
             <div className="inline">
@@ -489,6 +493,7 @@ export default function AgendaPreventa() {
               </div>
             )}
             {detalle.ultima_visita?.foto_url && <a href={detalle.ultima_visita.foto_url} target="_blank" rel="noreferrer"><img src={detalle.ultima_visita.foto_url} alt="Comprobante" style={{ width: 90, height: 68, objectFit: 'cover', borderRadius: 6 }} /></a>}
+            {detalle.ultima_visita?.firma_url && <a href={detalle.ultima_visita.firma_url} target="_blank" rel="noreferrer"><img src={detalle.ultima_visita.firma_url} alt="Firma del cliente" style={{ width: 120, height: 68, objectFit: 'contain', border: '1px solid var(--line)', borderRadius: 6 }} /></a>}
             {detalle.ultima_visita?.cambios?.some((c) => c.foto_url) && detalle.ultima_visita.cambios.filter((c) => c.foto_url).map((c, i) => (
               <a key={i} href={c.foto_url} target="_blank" rel="noreferrer"><img src={c.foto_url} alt="Comprobante de cambio" style={{ width: 90, height: 68, objectFit: 'cover', borderRadius: 6, marginLeft: 6 }} /></a>
             ))}
@@ -528,6 +533,7 @@ export default function AgendaPreventa() {
                 catch (error) { toast(error.message, 'error'); }
                 e.target.value = '';
               }} />{form.foto && <img src={form.foto} alt="Comprobante" style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, marginTop: 6 }} />}</div>
+              <FirmaCanvas value={form.firma} onChange={(f) => setForm((v) => ({ ...v, firma: f }))} label="Firma del cliente" alto={90} />
               {form.motivo === 'cambio' && bloqueCambio(form, setForm)}
             </>
           )}

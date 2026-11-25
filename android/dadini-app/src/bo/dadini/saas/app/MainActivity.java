@@ -97,6 +97,19 @@ public class MainActivity extends Activity {
         settings.setGeolocationEnabled(true);
         settings.setUserAgentString(settings.getUserAgentString() + " DadiniSaasApp/21.0.5");
 
+        // Los service workers vienen desactivados en WebView. Se habilitan con
+        // un ServiceWorkerClient que delega las peticiones a la red.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            android.webkit.ServiceWorkerController.getInstance().setServiceWorkerClient(
+                new android.webkit.ServiceWorkerClient() {
+                    @Override
+                    public android.webkit.WebResourceResponse shouldInterceptRequest(
+                            android.webkit.WebResourceRequest request) {
+                        return null;
+                    }
+                });
+        }
+
         CookieManager.getInstance().setAcceptCookie(true);
         if (Build.VERSION.SDK_INT >= 21) {
             CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false);

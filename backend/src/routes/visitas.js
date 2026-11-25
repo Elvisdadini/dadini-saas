@@ -204,6 +204,11 @@ router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 
     try { fotoComprobante = (await subirFoto(body.foto, 'visita')).url; }
     catch (error) { return res.status(400).json({ error: error.message }); }
   }
+  let firmaUrl = null;
+  if (typeof body.firma === 'string' && body.firma.startsWith('data:image/')) {
+    try { firmaUrl = (await subirFoto(body.firma, 'firma')).url; }
+    catch (error) { return res.status(400).json({ error: error.message }); }
+  }
   const cambios = [];
   for (const cambio of (Array.isArray(body.cambios) ? body.cambios : [])) {
     const item = {
@@ -236,6 +241,7 @@ router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 
     motivo: body.motivo || null,
     detalle: String(body.detalle || ''),
     foto_url: fotoComprobante,
+    firma_url: firmaUrl,
     cambios,
     pedido_id: body.pedido_id ? Number(body.pedido_id) : null,
     ruta_id: body.ruta_id ? Number(body.ruta_id) : null,

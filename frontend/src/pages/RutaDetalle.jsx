@@ -8,6 +8,7 @@ import { api } from '../api';
 import { useAuth } from '../auth';
 import Mapa from '../components/Mapa';
 import BotonWhatsapp from '../components/BotonWhatsapp';
+import FirmaCanvas from '../components/FirmaCanvas';
 import { formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, Confirm, EmptyState, Estado, Fecha, Modal, Money, PageHeader, ProgressBar, SkeletonRows, useToast } from '../ui';
 
@@ -35,6 +36,7 @@ export default function RutaDetalle() {
   const [agregarModal, setAgregarModal] = useState(false);
   const [agregarForm, setAgregarForm] = useState({ producto_id: '', cantidad: 1 });
   const [devueltos, setDevueltos] = useState([]);
+  const [firma, setFirma] = useState(null);
 
   const puedeEditar = ['admin', 'distribucion'].includes(user?.rol);
 
@@ -89,6 +91,7 @@ export default function RutaDetalle() {
   };
 
   const abrirEntrega = (parada, tipo) => {
+    setFirma(null);
     if (!ubicacion) {
       toast('Primero captura tu ubicación con el botón «Mi ubicación».', 'error');
       return;
@@ -106,6 +109,7 @@ export default function RutaDetalle() {
         estado: resultado === 'cerrado' ? 'fallida' : 'entregada',
         resultado_entrega: resultado,
         motivo: resultado === 'cerrado' ? 'cerrado' : null,
+        firma,
         productos_devueltos: resultado === 'parcial' ? devueltos.filter((d) => d.cantidad > 0).map((d) => ({ producto_id: d.producto_id, cantidad: d.cantidad })) : [],
         latitud: ubicacion?.latitud,
         longitud: ubicacion?.longitud,
@@ -119,6 +123,7 @@ export default function RutaDetalle() {
   };
 
   const abrirEntregaDetallada = async (pedidoId) => {
+    setFirma(null);
     const parada = ruta.paradas.find((p) => p.pedido_id === pedidoId);
     if (!parada) return;
     let punto = ubicacion;
@@ -162,6 +167,7 @@ export default function RutaDetalle() {
         items: entregaItems.map((i) => ({ producto_id: i.producto_id, cantidad: Number(i.cantidad) || 0 })),
         motivo: rechazoForm.motivo,
         detalle_otros: rechazoForm.detalle,
+        firma,
         latitud: entregaDetallada.ubicacion?.latitud,
         longitud: entregaDetallada.ubicacion?.longitud,
         precision: entregaDetallada.ubicacion?.precision,
@@ -355,7 +361,7 @@ export default function RutaDetalle() {
                         {!done && !failed && (
                           <>
                             {parada.estado !== 'en_camino' && <button className="btn btn-outline btn-sm" onClick={() => cambiarParada(parada.pedido_id, 'en_camino')}>Iniciar</button>}
-                            <button className="btn btn-soft btn-sm" onClick={() => cambiarParada(parada.pedido_id, 'entregada')}><CheckCircle2 size={12} /> Entregar</button>
+                            <button className="btn btn-soft btn-sm" onClick={() => abrirEntregaDetallada(parada.pedido_id)}><CheckCircle2 size={12} /> Entregar</button>
                              <button className="icon-btn" title="Registrar visita geolocalizada" onClick={() => registrarVisita(parada)} disabled={!ubicacion || busy}><Navigation size={13} /></button>
                              <button className="icon-btn" title="Entrega parcial (descontar productos)" onClick={() => abrirEntrega(parada, 'parcial')} disabled={!ubicacion || busy}><Undo2 size={13} /></button>
                              <button className="icon-btn" title="Cliente cerrado" onClick={() => abrirEntrega(parada, 'cerrado')} disabled={!ubicacion || busy}><XCircle size={13} color="var(--red)" /></button>
@@ -458,6 +464,7 @@ export default function RutaDetalle() {
           ) : (
             <div className="notice notice-warn">La parada se marcará como fallida y el pedido volverá a preparación para reprogramarse.</div>
           )}
+          <FirmaCanvas value={firma} onChange={setFirma} label="Firma de quien recibe" />
           <div className="notice notice-info"><MapPin size={14} /> Ubicación: {formatoCoords(ubicacion?.latitud, ubicacion?.longitud)}</div>
         </div>
       </Modal>
@@ -513,6 +520,7 @@ export default function RutaDetalle() {
               </select>
             </div>
             {rechazoForm.motivo === 'otro' && <div className="field"><label>Detalle de otros</label><textarea className="textarea" value={rechazoForm.detalle} onChange={(e) => setRechazoForm({ ...rechazoForm, detalle: e.target.value })} /></div>}
+            <FirmaCanvas value={firma} onChange={setFirma} label="Firma de quien recibe" />
             <div className="grid grid-2" style={{ gap: 10 }}>
               <button className="btn btn-primary btn-block" disabled={busy} onClick={() => procesarEntrega('confirmada')}><CheckCircle2 size={14} /> Confirmar entrega</button>
               <button className="btn btn-danger-soft btn-block" disabled={busy} onClick={() => procesarEntrega('rechazada')}><XCircle size={14} /> Rechazar entrega</button>
@@ -548,7 +556,11 @@ export default function RutaDetalle() {
               <div className="split"><span className="small muted">Pedido</span><strong>{comprobante.codigo}</strong></div>
               <div className="split mt-8"><span className="small muted">Total entregado</span><strong><Money value={comprobante.total} /></strong></div>
               <div className="split mt-8"><span className="small muted">Estado</span><strong>{comprobante.estado}</strong></div>
+              <div className="split mt-8"><span className="small muted">Entregado</span><strong>{comprobante.fecha_entrega ? new Date(comprobante.fecha_entrega).toLocaleString('es-BO') : '—'}</strong></div>
             </div>
+            {comprobante.firma_url && (
+              <div className="field"><label>Firma del receptor</label><img src={comprobante.firma_url} alt="Firma" style={{ maxWidth: '100%', height: 110, border: '1px solid var(--line)', borderRadius: 8 }} /></div>
+            )}
             <div className="notice notice-info"><Receipt size={14} /> Elige el tipo de comprobante, compártelo por WhatsApp o imprímelo para el cliente.</div>
             <div className="inline">
               <BotonWhatsapp tipo="entrega" clienteId={comprobante.cliente_id} pedidoId={comprobante.id} telefono={comprobante.cliente_telefono} latitud={comprobante.cliente_latitud} longitud={comprobante.cliente_longitud} monto={comprobante.total} label="Compartir por WhatsApp" />

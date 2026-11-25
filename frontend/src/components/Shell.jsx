@@ -3,9 +3,9 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   BadgePercent, Bell, BarChart3, Building2, ChevronDown, ClipboardList, Crown, LayoutDashboard, LogOut, Menu, Palette, Receipt, Tag, Target, TrendingUp, Undo2,
   MapPin, Package, PackageCheck, Search, Settings, ShoppingCart, Truck, Users, Wallet, X, UserRound, Lock,
-  FileText, ArrowUpRight, CheckCircle2, AlertTriangle, RefreshCw, Crosshair,
+  FileText, ArrowUpRight, CheckCircle2, AlertTriangle, RefreshCw, Crosshair, WifiOff, CloudUpload,
 } from 'lucide-react';
-import { api } from '../api';
+import { api, contarCola, reenviarCola } from '../api';
 import { useAuth, puede, ROL_LABEL } from '../auth';
 import { Avatar, Modal, useToast } from '../ui';
 import BrandStyle from './BrandStyle';
@@ -107,6 +107,9 @@ export default function Shell({ children }) {
   const [open, setOpen] = useState(false);
   const [resumen, setResumen] = useState(null);
   const [errorResumen, setErrorResumen] = useState('');
+  const [enLinea, setEnLinea] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
+  const [colaPendiente, setColaPendiente] = useState(0);
+  const [sincronizando, setSincronizando] = useState(null);
   const [notifOpen, setNotifOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -122,6 +125,39 @@ export default function Shell({ children }) {
     setNotifOpen(false);
     setUserOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const actualizar = () => setColaPendiente(contarCola());
+    const online = () => { setEnLinea(true); actualizar(); };
+    const offline = () => { setEnLinea(false); actualizar(); };
+    const cola = (e) => setColaPendiente(e.detail?.count ?? contarCola());
+    const progreso = (e) => setSincronizando(e.detail || null);
+    const terminado = (e) => {
+      setSincronizando(null);
+      setColaPendiente(e.detail?.pendientes ?? contarCola());
+      if (e.detail?.enviadas) {
+        toast(`${e.detail.enviadas} cambio(s) enviados correctamente`);
+        cacheResumen = { id: null, en: 0, data: null };
+        api.get('/dashboard?periodo=7d').then((data) => {
+          setResumen(data);
+          setNotifs(data.notificaciones || []);
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener('online', online);
+    window.addEventListener('offline', offline);
+    window.addEventListener('dadini:cola', cola);
+    window.addEventListener('dadini:sincronizando', progreso);
+    window.addEventListener('dadini:sincronizado', terminado);
+    actualizar();
+    return () => {
+      window.removeEventListener('online', online);
+      window.removeEventListener('offline', offline);
+      window.removeEventListener('dadini:cola', cola);
+      window.removeEventListener('dadini:sincronizando', progreso);
+      window.removeEventListener('dadini:sincronizado', terminado);
+    };
+  }, [toast]);
 
   // El resumen se consulta una vez por usuario y se reutiliza 60 s: navegar
   // por el menú no debe recalcular el dashboard en el servidor.
@@ -203,6 +239,21 @@ export default function Shell({ children }) {
   return (
     <div className="app">
       <BrandStyle />
+      {(!enLinea || colaPendiente > 0 || sincronizando) && (
+        <div className={`banner-conexion ${enLinea ? 'sync' : 'off'}`}>
+          {enLinea ? <CloudUpload size={15} /> : <WifiOff size={15} />}
+          <span>
+            {!enLinea
+              ? `Sin conexión · ${colaPendiente} cambio(s) guardado(s) en este dispositivo`
+              : sincronizando
+                ? `Enviando cambios ${sincronizando.actual}/${sincronizando.total}…`
+                : `${colaPendiente} cambio(s) pendiente(s) de enviar`}
+          </span>
+          {enLinea && colaPendiente > 0 && !sincronizando && (
+            <button className="btn btn-sm" onClick={() => reenviarCola()}>Reenviar ahora</button>
+          )}
+        </div>
+      )}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <button className="sidebar-brand brand-interactivo" onClick={() => navigate('/')} title="Ir al Dashboard">
           <img className="brand-logo" src="/logo-dadini-icon.png" alt="DADINI" />

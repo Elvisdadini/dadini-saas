@@ -5,6 +5,7 @@ const { nextId, nextCode, audit, num, round2, hoy, addDaysISO } = require('../ut
 const { pedidoResumen, recalcularCliente, buscarPedidos, stockEn } = require('../services');
 const { config: configCredito, vencimientoDe, diasCredito, normalizarConfig, interesDe } = require('../credito');
 const { esCoordenaValida, validarGeocerca } = require('../geo');
+const { subirFoto } = require('../fotos');
 const { evaluar: evaluarPromociones } = require('../promociones');
 const { buildIndices, porId } = require('../indexes');
 
@@ -304,11 +305,21 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
   return res.status(201).json({ pedido: pedidoResumen(db, pedido, true, indices) });
 });
 
-router.patch('/:id/estado', allow('ventas', 'preventista', 'distribucion'), (req, res) => {
+router.patch('/:id/estado', allow('ventas', 'preventista', 'distribucion'), async (req, res) => {
   const db = load();
   const pedido = db.pedidos.find((p) => p.id === Number(req.params.id));
   if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado.' });
-  const { estado } = req.body || {};
+  const { estado, firma, foto } = req.body || {};
+  let firmaUrl = null;
+  let fotoUrl = null;
+  if (typeof firma === 'string' && firma.startsWith('data:image/')) {
+    try { firmaUrl = (await subirFoto(firma, 'firma')).url; }
+    catch (error) { return res.status(400).json({ error: error.message }); }
+  }
+  if (typeof foto === 'string' && foto.startsWith('data:image/')) {
+    try { fotoUrl = (await subirFoto(foto, 'entrega')).url; }
+    catch (error) { return res.status(400).json({ error: error.message }); }
+  }
   const transiciones = {
     pendiente: ['preparando', 'cancelado'],
     preparando: ['enviado', 'cancelado'],
@@ -355,7 +366,16 @@ router.patch('/:id/estado', allow('ventas', 'preventista', 'distribucion'), (req
   if (estado === 'entregado') {
     const ruta = db.rutas.find((r) => r.id === pedido.ruta_id);
     const parada = ruta?.paradas.find((p) => p.pedido_id === pedido.id);
-    if (parada) { parada.estado = 'entregada'; parada.hora_entrega = new Date().toISOString(); }
+    if (parada) {
+      parada.estado = 'entregada';
+      parada.hora_entrega = new Date().toISOString();
+      if (firmaUrl) parada.firma_url = firmaUrl;
+      if (fotoUrl) parada.foto_url = fotoUrl;
+    }
+    pedido.fecha_entrega = new Date().toISOString();
+    pedido.entregado_por = req.user.id;
+    if (firmaUrl) pedido.firma_url = firmaUrl;
+    if (fotoUrl) pedido.foto_url = fotoUrl;
   }
   recalcularCliente(db, pedido.cliente_id);
   audit(db, req, 'Estado de pedido actualizado', 'Ventas', `${pedido.codigo} → ${estado}`);

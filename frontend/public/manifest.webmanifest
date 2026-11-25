@@ -1,0 +1,16 @@
+{
+  "name": "DADINI SaaS · Gestión de ventas",
+  "short_name": "DADINI",
+  "description": "Ventas, preventa, distribución, cobranzas e inventario de DADINI.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#061c33",
+  "theme_color": "#ff6500",
+  "lang": "es-BO",
+  "icons": [
+    { "src": "/logo-dadini-icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/logo-dadini.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, CalendarDays, Check, CircleDollarSign, Clock3, CreditCard, Crosshair,
+  AlertTriangle, ArrowLeft, ArrowRight, CalendarDays, Check, CheckCircle2, CircleDollarSign, Clock3, CreditCard, Crosshair,
   MapPin, Navigation, Package, PackageCheck, Phone, Printer, Receipt, Truck, UserRound, Wallet, X,
 } from 'lucide-react';
 import { api } from '../api';
 import { puede, useAuth } from '../auth';
 import Mapa from '../components/Mapa';
 import BotonWhatsapp from '../components/BotonWhatsapp';
+import FirmaCanvas from '../components/FirmaCanvas';
 import { distanciaMetros, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, Confirm, Estado, Fecha, Modal, Money, PageHeader, SkeletonRows, useToast } from '../ui';
 
@@ -33,6 +34,8 @@ export default function PedidoDetalle() {
   const [ubicacion, setUbicacion] = useState(null);
   const [ubicando, setUbicando] = useState(false);
   const [geocerca, setGeocerca] = useState({ aplica: false });
+  const [firmaModal, setFirmaModal] = useState(false);
+  const [firma, setFirma] = useState(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -93,13 +96,15 @@ export default function PedidoDetalle() {
     }
   };
 
-  const avanzar = async (estado) => {
+  const avanzar = async (estado, firmaCliente = null) => {
     setBusy(true);
     try {
-      const data = await api.patch(`/pedidos/${id}/estado`, { estado });
+      const data = await api.patch(`/pedidos/${id}/estado`, { estado, firma: firmaCliente });
       setPedido(data.pedido);
       toast(`Pedido actualizado a "${estado}".`);
       setConfirmCancel(false);
+      setFirmaModal(false);
+      setFirma(null);
     } catch (error) {
       toast(error.message, 'error');
     } finally { setBusy(false); }
@@ -188,7 +193,10 @@ export default function PedidoDetalle() {
             <button className="btn btn-outline" onClick={() => window.print()}><Printer size={14} /> Imprimir</button>
             <BotonWhatsapp tipo="pedido" clienteId={pedido.cliente_id} pedidoId={pedido.id} telefono={pedido.cliente_telefono} latitud={pedido.cliente_latitud} longitud={pedido.cliente_longitud} monto={pedido.total} label="Enviar pedido" />
             {pedido.saldo > 0 && pedido.estado !== 'cancelado' && puedeCobrar && <button className="btn btn-primary" onClick={abrirPago}><Wallet size={14} /> Registrar cobro</button>}
-            {siguiente && puedeVender && <button className="btn btn-navy" onClick={() => avanzar(siguiente)} disabled={busy}>Pasar a {siguiente} <ArrowRight size={14} /></button>}
+            {siguiente && puedeVender && <button className="btn btn-navy" onClick={() => {
+              if (siguiente === 'entregado') { setFirma(null); setFirmaModal(true); }
+              else avanzar(siguiente);
+            }} disabled={busy}>Pasar a {siguiente} <ArrowRight size={14} /></button>}
           </>
         )}
       />
@@ -346,6 +354,10 @@ export default function PedidoDetalle() {
               <div className="info-row"><span>Reparto</span><strong>{pedido.canal === 'delivery' ? 'Delivery a domicilio' : pedido.canal === 'ruta' ? 'Reparto en ruta' : 'Entrega en mostrador'}</strong></div>
               <div className="info-row mt-8"><span>Ruta asignada</span><strong>{pedido.ruta_codigo || 'Sin ruta asignada'}</strong></div>
               <div className="info-row mt-8"><span>Vencimiento de cobro</span><strong>{pedido.saldo > 0 ? <Fecha value={pedido.vencimiento} /> : 'Pagado'}</strong></div>
+              {pedido.fecha_entrega && <div className="info-row mt-8"><span>Fecha de entrega</span><strong>{new Date(pedido.fecha_entrega).toLocaleString('es-BO')}</strong></div>}
+              {pedido.firma_url && (
+                <div className="mt-12"><span className="small muted">Firma de recepción</span><img src={pedido.firma_url} alt="Firma del cliente" style={{ display: 'block', maxWidth: '100%', height: 100, border: '1px solid var(--line)', borderRadius: 8, marginTop: 6 }} /></div>
+              )}
               {puedeRuta && (
                 <button className="btn btn-outline btn-sm btn-block mt-12" onClick={abrirRutas}><Truck size={14} /> {pedido.ruta_id ? 'Cambiar de ruta' : 'Asignar a una ruta'}</button>
               )}
@@ -429,6 +441,16 @@ export default function PedidoDetalle() {
             </select>
           </div>
           {rutas.length === 0 && <div className="notice notice-warn"><Truck size={15} /> No hay rutas activas. Crea una ruta desde el módulo de distribución.</div>}
+        </div>
+      </Modal>
+
+      <Modal open={firmaModal} onClose={() => setFirmaModal(false)} title="Confirmar entrega con firma"
+        subtitle={`${pedido?.codigo || ''} · ${pedido?.cliente_nombre || ''}`}
+        footer={<><button className="btn btn-ghost" onClick={() => setFirmaModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={() => avanzar('entregado', firma)} disabled={busy || !firma}>{busy ? 'Guardando…' : 'Confirmar entrega'}</button></>}
+      >
+        <div className="form-stack">
+          <div className="notice notice-info"><CheckCircle2 size={14} /> Pide al cliente o receptor que firme antes de marcar el pedido como entregado.</div>
+          <FirmaCanvas value={firma} onChange={setFirma} label="Firma de quien recibe" />
         </div>
       </Modal>
 

@@ -8,6 +8,7 @@ import { api } from '../api';
 import { useAuth } from '../auth';
 import Mapa from '../components/Mapa';
 import BotonWhatsapp from '../components/BotonWhatsapp';
+import FirmaCanvas from '../components/FirmaCanvas';
 import { formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, EmptyState, Estado, Fecha, Modal, Money, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
@@ -38,7 +39,7 @@ export default function PedidosProgramados() {
   const [confirmaciones, setConfirmaciones] = useState([]);
   const [confirmModal, setConfirmModal] = useState(null);
   const [confirmForm, setConfirmForm] = useState({ observaciones: '', novedades: [] });
-  const [form, setForm] = useState({ tipo: 'entregado', motivo: '', devueltos: [], latitud: '', longitud: '', precision: null });
+  const [form, setForm] = useState({ tipo: 'entregado', motivo: '', devueltos: [], latitud: '', longitud: '', precision: null, firma: null });
   const [ubicando, setUbicando] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -83,6 +84,7 @@ export default function PedidosProgramados() {
       latitud: ubicacion?.latitud || pedido.cliente_latitud || '',
       longitud: ubicacion?.longitud || pedido.cliente_longitud || '',
       precision: ubicacion?.precision || null,
+      firma: null,
     });
   };
 
@@ -103,6 +105,7 @@ export default function PedidosProgramados() {
         latitud: form.latitud,
         longitud: form.longitud,
         precision: form.precision,
+        firma: form.firma,
       });
       toast(form.tipo === 'parcial' ? `Entrega parcial registrada · ${devueltos.length} productos descontados` : `Entrega marcada como ${resultado}`);
       setAccion(null);
@@ -320,6 +323,7 @@ export default function PedidosProgramados() {
               </div>
             </div>
           )}
+          <FirmaCanvas value={form.firma} onChange={(f) => setForm({ ...form, firma: f })} label="Firma de quien recibe" alto={90} />
           <div className="geo-editor">
             <div className="geo-editor-head"><div><strong><MapPin size={13} /> Ubicación de la entrega</strong><span className="hint">Se registra en el mapa y en el reporte de campo.</span></div></div>
             <div className="field-row">

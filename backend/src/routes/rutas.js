@@ -4,6 +4,14 @@ const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, nextCode, audit, round2, num } = require('../utils');
 const { pedidoResumen } = require('../services');
 const { distanciaKm, distanciaAcumulada, centroYDistanza, esCoordenaValida } = require('../geo');
+const { subirFoto } = require('../fotos');
+
+async function subirComprobante(datos, prefijo) {
+  if (typeof datos === 'string' && datos.startsWith('data:image/')) {
+    return (await subirFoto(datos, prefijo)).url;
+  }
+  return null;
+}
 
 const router = express.Router();
 router.use(authRequired);
@@ -322,7 +330,7 @@ router.delete('/:id/paradas/:pedidoId', allow('distribucion'), (req, res) => {
   return res.json({ ruta: rutaResumen(db, ruta) });
 });
 
-router.patch('/:id/paradas/:pedidoId/entrega', allow('distribucion', 'ventas'), (req, res) => {
+router.patch('/:id/paradas/:pedidoId/entrega', allow('distribucion', 'ventas'), async (req, res) => {
   const db = load();
   const ruta = db.rutas.find((r) => r.id === Number(req.params.id));
   if (!ruta) return res.status(404).json({ error: 'Ruta no encontrada.' });
@@ -333,6 +341,12 @@ router.patch('/:id/paradas/:pedidoId/entrega', allow('distribucion', 'ventas'), 
   const b = req.body || {};
   const decision = b.decision === 'rechazada' ? 'rechazada' : 'confirmada';
   const ahora = new Date().toISOString();
+  let firmaUrl = null;
+  let fotoUrl = null;
+  try {
+    firmaUrl = await subirComprobante(b.firma, 'firma');
+    fotoUrl = await subirComprobante(b.foto, 'entrega');
+  } catch (error) { return res.status(400).json({ error: error.message }); }
   let cambios = [];
   try {
     cambios = ajustarPedidoEntrega(db, pedido, b.items, ruta, req);
@@ -359,11 +373,17 @@ router.patch('/:id/paradas/:pedidoId/entrega', allow('distribucion', 'ventas'), 
     });
   }
 
+  if (firmaUrl) parada.firma_url = firmaUrl;
+  if (fotoUrl) parada.foto_url = fotoUrl;
   if (decision === 'confirmada') {
     parada.estado = 'entregada';
     parada.hora_entrega = ahora;
     parada.resultado_entrega = cambios.length ? 'parcial' : 'entregado';
     pedido.estado = 'entregado';
+    pedido.fecha_entrega = ahora;
+    pedido.entregado_por = req.user.id;
+    if (firmaUrl) pedido.firma_url = firmaUrl;
+    if (fotoUrl) pedido.foto_url = fotoUrl;
   } else {
     parada.estado = 'fallida';
     parada.resultado_entrega = 'rechazado';
@@ -385,6 +405,7 @@ router.patch('/:id/paradas/:pedidoId/entrega', allow('distribucion', 'ventas'), 
     dia_visita: db.clientes.find((c) => c.id === pedido.cliente_id)?.dia_visita || null,
     distribuidor_id: ruta.repartidor_id,
     pedido_id: pedido.id, ruta_id: ruta.id, usuario_id: req.user.id,
+    firma_url: firmaUrl, foto_url: fotoUrl,
     notas: `${ruta.codigo} · ${pedido.codigo} → ${decision}${parada.motivo ? ` · ${parada.motivo}: ${parada.detalle_motivo || ''}` : ''}${cambios.length ? ` · ${cambios.map((c) => `${c.tipo} ${c.cantidad} uds.`).join(', ')}` : ''}`,
     fecha: ahora, created_at: ahora,
   });
@@ -393,13 +414,21 @@ router.patch('/:id/paradas/:pedidoId/entrega', allow('distribucion', 'ventas'), 
   return res.json({ ruta: rutaResumen(db, ruta), pedido, parada, cambios, decision });
 });
 
-router.patch('/:id/paradas/:pedidoId', allow('distribucion'), (req, res) => {
+router.patch('/:id/paradas/:pedidoId', allow('distribucion'), async (req, res) => {
   const db = load();
   const ruta = db.rutas.find((r) => r.id === Number(req.params.id));
   if (!ruta) return res.status(404).json({ error: 'Ruta no encontrada.' });
   const parada = ruta.paradas.find((p) => p.pedido_id === Number(req.params.pedidoId));
   if (!parada) return res.status(404).json({ error: 'Parada no encontrada.' });
-  const { estado, notas, hora_estimada, latitud, longitud, precision, resultado_entrega, productos_devueltos, motivo } = req.body || {};
+  const { estado, notas, hora_estimada, latitud, longitud, precision, resultado_entrega, productos_devueltos, motivo, firma, foto } = req.body || {};
+  let firmaUrl = null;
+  let fotoUrl = null;
+  try {
+    firmaUrl = await subirComprobante(firma, 'firma');
+    fotoUrl = await subirComprobante(foto, 'entrega');
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+  if (firmaUrl) parada.firma_url = firmaUrl;
+  if (fotoUrl) parada.foto_url = fotoUrl;
   if (estado && ['pendiente', 'en_camino', 'entregada', 'fallida'].includes(estado)) parada.estado = estado;
   if (notas !== undefined) parada.notas = notas;
   if (hora_estimada !== undefined) parada.hora_estimada = hora_estimada;
@@ -417,9 +446,15 @@ router.patch('/:id/paradas/:pedidoId', allow('distribucion'), (req, res) => {
     parada.motivo = motivo || 'cerrado';
   }
   if (pedido) {
-    if (estado === 'entregada') pedido.estado = 'entregado';
+    if (estado === 'entregada') {
+      pedido.estado = 'entregado';
+      pedido.fecha_entrega = parada.hora_entrega || new Date().toISOString();
+      pedido.entregado_por = req.user.id;
+    }
     if (estado === 'en_camino' && ['pendiente', 'preparando'].includes(pedido.estado)) pedido.estado = 'enviado';
     if (estado === 'fallida') { pedido.estado = 'preparando'; pedido.ruta_id = null; }
+    if (firmaUrl) pedido.firma_url = firmaUrl;
+    if (fotoUrl) pedido.foto_url = fotoUrl;
     pedido.updated_at = new Date().toISOString();
   }
   const cliente = db.clientes.find((c) => c.id === pedido?.cliente_id);
@@ -443,6 +478,8 @@ router.patch('/:id/paradas/:pedidoId', allow('distribucion'), (req, res) => {
       pedido_id: pedido?.id || null,
       ruta_id: ruta.id,
       usuario_id: req.user.id,
+      firma_url: firmaUrl,
+      foto_url: fotoUrl,
       notas: `${ruta.codigo} · ${pedido?.codigo || ''} → ${parada.resultado_entrega || estado}${descontados.length ? ` · devuelto: ${descontados.map((d) => `${d.cantidad} ${d.nombre}`).join(', ')}` : ''}`,
       fecha: new Date().toISOString(),
       created_at: new Date().toISOString(),
