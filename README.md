@@ -298,6 +298,14 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - **Credenciales listas para cuando las tengas**: panel "Credenciales SIAT / envío XML" con ambiente (piloto/producción), URL del endpoint, modalidad, código del sistema, autorización, NIT/actividad y campos para token, usuario, contraseña, certificado y clave privada. Se guardan con el botón **Guardar credenciales SIAT**; los secretos se cifran AES-256-GCM con `SIAT_SECRET_KEY` (variable configurada en Render) y **nunca se devuelven al frontend** (solo se indica si están cargados). Dejar un secreto vacío conserva el valor anterior.
 - **XML y envío**: cada factura tiene **Generar XML** (guarda el Documento Fiscal Digital en el bucket `facturas`) y **Enviar al SIN** (usa las credenciales guardadas y registra estado/respuesta). Sin credenciales o con envío desactivado, responde un mensaje claro. El XML generado es un borrador con los datos obligatorios; debe validarse contra el Anexo Técnico/XSD de la modalidad asignada por el SIN antes de producción.
 
+### Kardex con lotes y FEFO
+
+- Nueva página **Catálogo → Kardex y lotes** (`/inventario/kardex`). Desde Inventario, el ícono de lista de cada producto abre el kardex filtrado.
+- **Entradas con lote y fecha de vencimiento** (también en el ajuste de Inventario); **transferencias** que conservan la identidad del lote.
+- **Salida FEFO**: al vender se consumen primero los lotes con vencimiento más próximo; los vencidos quedan excluidos de la venta. Se guarda en cada línea del pedido el lote consumido para que la anulación reingrese exactamente ese lote.
+- `db.stock` sigue siendo el agregado oficial; `db.lotes`/`db.kardex` son el detalle. `kardex.sincronizar` reconcilia escrituras antiguas y el stock del camión sin mezclarlo con el almacén físico.
+- Panel de **vencidos y próximos a vencer (60 días)** y alerta en el dashboard. Endpoints `GET /api/kardex`, `/producto/:id`, `/alertas`, `POST /entrada` y `/transferencia`.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.
