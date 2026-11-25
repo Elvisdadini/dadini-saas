@@ -26,6 +26,7 @@ const NAV = [
       { to: '/clientes', label: 'Clientes', icon: Users, key: 'clientes' },
       { to: '/clientes/categorias', label: 'Categorías', icon: Tag, key: 'clientes' },
       { to: '/cobranzas', label: 'Cobranzas', labelVendedor: 'Mis créditos', icon: Wallet, key: 'cobranzas', alert: 'vencidas' },
+      { to: '/caja', label: 'Caja y arqueo', icon: Wallet, key: 'cobranzas' },
     ],
   },
   { group: 'Logística', items: [
@@ -56,6 +57,7 @@ const NAV = [
     items: [
       { to: '/dueno', label: 'Panel del dueño', icon: Crown, key: 'dueno' },
       { to: '/administracion', label: 'Administración', icon: Settings, key: 'administracion' },
+      { to: '/facturacion', label: 'Facturación SIAT', icon: Receipt, key: 'administracion' },
       { to: '/administracion/personalizacion', label: 'Marca y APK', icon: Palette, key: 'administracion' },
       { to: '/administracion/permisos', label: 'Roles y permisos', icon: Lock, key: 'administracion' },
     ],
@@ -75,6 +77,8 @@ const PAGE_TITLES = {
   '/clientes': ['Clientes', 'Cartera comercial'],
   '/clientes/categorias': ['Categorías de clientes', 'Descuentos y precios'],
   '/cobranzas': ['Cobranzas', 'Cuentas por cobrar'],
+  '/caja': ['Caja y arqueo', 'Apertura, movimientos y cierre'],
+  '/facturacion': ['Facturación SIAT', 'Normativa vigente y facturas'],
   '/distribucion': ['Distribución', 'Rutas y entregas'],
   '/distribucion/programados': ['Pedidos programados', 'Entregas del día siguiente'],
   '/compras/solicitudes': ['Solicitudes de compra', 'Reposición de inventario'],

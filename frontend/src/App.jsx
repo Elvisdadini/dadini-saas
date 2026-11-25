@@ -33,6 +33,8 @@ const Cobranzas = lazy(() => import('./pages/Cobranzas'));
 const Inventario = lazy(() => import('./pages/Inventario'));
 const ActualizarPrecios = lazy(() => import('./pages/ActualizarPrecios'));
 const MapaZonas = lazy(() => import('./pages/MapaZonas'));
+const Caja = lazy(() => import('./pages/Caja'));
+const Facturacion = lazy(() => import('./pages/Facturacion'));
 const Catalogo = lazy(() => import('./pages/Catalogo'));
 const ConteoInventario = lazy(() => import('./pages/ConteoInventario'));
 const Distribucion = lazy(() => import('./pages/Distribucion'));
@@ -89,6 +91,8 @@ export default function App() {
             <Route path="clientes" element={<Guard module="clientes"><Clientes /></Guard>} />
             <Route path="clientes/categorias" element={<Guard module="clientes"><CategoriasClientes /></Guard>} />
             <Route path="cobranzas" element={<Guard module="cobranzas"><Cobranzas /></Guard>} />
+            <Route path="caja" element={<Guard module="cobranzas"><Caja /></Guard>} />
+            <Route path="facturacion" element={<Guard module="configuracion"><Facturacion /></Guard>} />
             <Route path="inventario" element={<Guard module="inventario"><Inventario /></Guard>} />
             <Route path="inventario/precios" element={<Guard module="inventario"><ActualizarPrecios /></Guard>} />
             <Route path="catalogo" element={<Guard module="catalogo"><Catalogo /></Guard>} />

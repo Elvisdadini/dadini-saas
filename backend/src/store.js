@@ -7,7 +7,7 @@ const ENTIDADES = [
   'usuarios', 'almacenes', 'productos', 'stock', 'clientes', 'pedidos',
   'pagos', 'movimientos', 'rutas', 'repartidores', 'vehiculos',
   'auditoria', 'notificaciones', 'visitas', 'cargas', 'mensajes_whatsapp', 'promociones',
-  'cliente_categorias', 'zonas', 'tipos_cliente', 'rutas_venta', 'almacenes_moviles', 'solicitudes_carga', 'devoluciones_movil',
+  'cliente_categorias', 'zonas', 'tipos_cliente', 'rutas_venta', 'cajas', 'movimientos_caja', 'almacenes_moviles', 'solicitudes_carga', 'devoluciones_movil',
   'objetivos_mensuales', 'confirmaciones_carga',
   'proveedores', 'tipos_gasto', 'solicitudes_compra', 'ordenes_compra', 'gastos', 'pagos_proveedor',
   'boletas_pago', 'conceptos_nomina', 'producto_categorias', 'producto_marcas', 'conteos_inventario', 'qrs_pago',

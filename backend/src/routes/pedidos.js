@@ -6,6 +6,8 @@ const { pedidoResumen, recalcularCliente, buscarPedidos, stockEn } = require('..
 const { config: configCredito, vencimientoDe, diasCredito, normalizarConfig, interesDe } = require('../credito');
 const { esCoordenaValida, validarGeocerca } = require('../geo');
 const { subirFoto } = require('../fotos');
+const { calcularImpuestos, normativaVigente } = require('../fiscal-normativa');
+const cajaModule = require('./caja');
 const { evaluar: evaluarPromociones } = require('../promociones');
 const { buildIndices, porId } = require('../indexes');
 
@@ -243,6 +245,46 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
     const telefono = String(whatsapp_cliente).replace(/\D/g, '');
     if (telefono) cliente.whatsapp = telefono;
   }
+  // Factura conforme al régimen fiscal vigente a la fecha de la venta.
+  const fiscal = db.configuracion.fiscal || {};
+  if (fiscal.facturacion_activa !== false) {
+    const reglas = fiscal.normativa?.reglas || [];
+    const hoyFactura = ahora.slice(0, 10);
+    const vigentes = normativaVigente(reglas, hoyFactura);
+    const impuestos = calcularImpuestos(reglas, total, hoyFactura);
+    const dosificacion = fiscal.dosificacion || {};
+    const correlativo = Math.max(Number(dosificacion.ultimo_numero) || 0, Number(dosificacion.numero_inicial) || 1) + 1;
+    dosificacion.ultimo_numero = correlativo;
+    fiscal.dosificacion = dosificacion;
+    const clienteFactura = db.clientes.find((c) => c.id === cliente.id);
+    const requiereDatos = vigentes.some((r) => r.id === 'rnd-102100000011-comprador-1000') && total > 1000;
+    pedido.factura = {
+      numero: `${String(fiscal.sucursal || 'MATRIZ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-_]+/g, '-') || 'matriz'}-${fiscal.punto_venta || '0'}-${String(correlativo).padStart(6, '0')}`,
+      correlativo,
+      fecha: hoyFactura,
+      nit: fiscal.nit || '',
+      razon_social: fiscal.razon_social || db.configuracion?.empresa?.nombre || 'DADINI',
+      actividad: fiscal.actividad || '',
+      modalidad: fiscal.modalidad || 'computarizada_sfv',
+      autorizacion: fiscal.autorizacion || '',
+      codigo_control: fiscal.codigo_control || '',
+      comprador: requiereDatos
+        ? { nombre: cliente.nombre, nit: clienteFactura?.nit || clienteFactura?.telefono || '0' }
+        : { nombre: 'S/N', nit: '0' },
+      items: lineas.map((l) => ({ nombre: l.nombre, cantidad: l.cantidad, precio: l.precio, subtotal: l.subtotal })),
+      subtotal: impuestos.neto,
+      iva: impuestos.iva,
+      iva_porcentaje: impuestos.iva_porcentaje,
+      metodo_iva: impuestos.metodo,
+      it: impuestos.it,
+      it_porcentaje: impuestos.it_porcentaje,
+      total: impuestos.total,
+      normativa_version: fiscal.normativa?.version || null,
+      normas_aplicadas: vigentes.filter((r) => ['iva', 'it', 'requisito_factura'].includes(r.tipo)).map((r) => r.id),
+      estado: 'vigente',
+      pdf_url: null,
+    };
+  }
   db.pedidos.push(pedido);
 
   lineas.forEach((l) => {
@@ -279,6 +321,13 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
       usuario_id: req.user.id,
       nota: 'Pago registrado al crear la venta',
     });
+    try {
+      const caja = cajaModule.asegurarCaja(db, req);
+      cajaModule.registrarMovimiento(db, req, {
+        caja, tipo: 'ingreso', monto: total, motivo: `Venta ${pedido.codigo} · ${forma_pago}`,
+        referencia: pedido.codigo, pedido_id: pedido.id,
+      });
+    } catch (error) { console.error('[caja] no se pudo registrar la venta:', error.message); }
   }
 
   if (esCoordenaValida(latitud, longitud)) {
@@ -434,6 +483,13 @@ router.post('/:id/pagos', requirePermiso('cobranzas.registrar', 'ventas.registra
     nota: `${req.body?.nota || 'Cobro registrado'}${detalle}`,
   };
   db.pagos.unshift(pago);
+  try {
+    const caja = cajaModule.asegurarCaja(db, req);
+    cajaModule.registrarMovimiento(db, req, {
+      caja, tipo: 'ingreso', monto, motivo: `Cobro ${pedido.codigo} · ${metodo}`,
+      referencia: pago.codigo, pedido_id: pedido.id,
+    });
+  } catch (error) { console.error('[caja] no se pudo registrar el cobro:', error.message); }
   pedido.interes_pagado = round2((pedido.interes_pagado || 0) + aInteres);
   pedido.pagado = round2(pedido.pagado + aCapital);
   pedido.saldo = round2(Math.max(0, pedido.total - pedido.pagado));
