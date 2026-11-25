@@ -3,7 +3,9 @@ const { load, save } = require('../db');
 const { authRequired, allow } = require('../auth');
 const { audit } = require('../utils');
 const { VERSION, REGISTRO, normativaVigente, calcularImpuestos } = require('../fiscal-normativa');
-const { guardarDocumento } = require('../documentos');
+const { guardarDocumento, guardarArchivo } = require('../documentos');
+const { cifrar, descifrar, configuradoParaCifrar } = require('../cripto');
+const { generarXml } = require('../fiscal-xml');
 
 const router = express.Router();
 router.use(authRequired);
@@ -22,6 +24,14 @@ function asegurarFiscal(db) {
     };
   }
   const fiscal = db.configuracion.fiscal;
+  if (!fiscal.siat) {
+    fiscal.siat = {
+      habilitado: false, ambiente: 'piloto', url: '', modalidad: fiscal.modalidad || 'computarizada_sfv',
+      codigo_sistema: '', codigo_autorizacion: '', nit: '', actividad: '',
+      token: null, certificado: null, clave_privada: null, usuario: null, contrasena: null,
+      ultimo_envio: null, ultimo_resultado: null, intentos: 0,
+    };
+  }
   if (!fiscal.normativa) {
     fiscal.normativa = { version: VERSION, actualizado_en: null, fuente: 'registro_interno', reglas: REGISTRO.map((r) => ({ ...r })) };
   }
@@ -32,13 +42,36 @@ function reglas(fiscal) {
   return Array.isArray(fiscal.normativa?.reglas) ? fiscal.normativa.reglas : [];
 }
 
+// Los secretos nunca salen del backend: solo se informa si están cargados.
+function siatPublico(fiscal) {
+  const s = fiscal.siat || {};
+  const tiene = (campo) => Boolean(s[campo]);
+  return {
+    habilitado: s.habilitado === true,
+    ambiente: s.ambiente || 'piloto',
+    url: s.url || '',
+    modalidad: s.modalidad || fiscal.modalidad || '',
+    codigo_sistema: s.codigo_sistema || '',
+    codigo_autorizacion: s.codigo_autorizacion || '',
+    nit: s.nit || fiscal.nit || '',
+    actividad: s.actividad || fiscal.actividad || '',
+    secretos: { token: tiene('token'), certificado: tiene('certificado'), clave_privada: tiene('clave_privada'), usuario: tiene('usuario'), contrasena: tiene('contrasena') },
+    listo_para_enviar: Boolean(s.habilitado && s.url && (s.token || s.usuario)),
+    cifrado_disponible: configuradoParaCifrar(),
+    ultimo_envio: s.ultimo_envio || null,
+    ultimo_resultado: s.ultimo_resultado || null,
+    intentos: s.intentos || 0,
+  };
+}
+
 router.get('/', (req, res) => {
   const db = load();
   const fiscal = asegurarFiscal(db);
   const hoy = new Date().toISOString().slice(0, 10);
   const vigentes = normativaVigente(reglas(fiscal), hoy);
   res.json({
-    fiscal,
+    fiscal: { ...fiscal, siat: siatPublico(fiscal) },
+    siat: siatPublico(fiscal),
     version: VERSION,
     vigentes,
     reglas: reglas(fiscal),
@@ -116,7 +149,94 @@ router.put('/config', allow('admin', 'dueno'), (req, res) => {
   if (req.body?.dosificacion) fiscal.dosificacion = { ...fiscal.dosificacion, ...req.body.dosificacion };
   audit(db, req, 'Configuración fiscal actualizada', 'Facturación', fiscal.nit || 'sin NIT');
   save();
-  return res.json({ ok: true, fiscal });
+  return res.json({ ok: true, fiscal: { ...fiscal, siat: siatPublico(fiscal) } });
+});
+
+// Guarda credenciales SIAT. Los campos sensibles se cifran con SIAT_SECRET_KEY
+// y nunca se devuelven al frontend. Enviar '' significa "mantener el valor".
+router.put('/siat', allow('admin', 'dueno'), (req, res) => {
+  const db = load();
+  const fiscal = asegurarFiscal(db);
+  const s = fiscal.siat;
+  const simples = ['habilitado', 'ambiente', 'url', 'modalidad', 'codigo_sistema', 'codigo_autorizacion', 'nit', 'actividad'];
+  simples.forEach((campo) => {
+    if (req.body?.[campo] !== undefined) {
+      s[campo] = campo === 'habilitado' ? (req.body[campo] === true || req.body[campo] === 'true') : req.body[campo];
+    }
+  });
+  const secretos = ['token', 'certificado', 'clave_privada', 'usuario', 'contrasena'];
+  const nuevos = [];
+  secretos.forEach((campo) => {
+    const valor = req.body?.[campo];
+    if (valor === undefined || valor === '') return;
+    if (valor === '__MANTENER__') return;
+    try { s[campo] = cifrar(valor); nuevos.push(campo); }
+    catch (error) { return res.status(400).json({ error: error.message }); }
+  });
+  if (req.body?.limpiar_secretos === true) secretos.forEach((campo) => { s[campo] = null; });
+  s.actualizado_en = new Date().toISOString();
+  audit(db, req, 'Credenciales SIAT guardadas', 'Facturación', `${s.modalidad || ''} · ${s.ambiente || ''} · ${nuevos.length} secretos`);
+  save();
+  return res.json({ ok: true, guardados: nuevos, siat: siatPublico(fiscal) });
+});
+
+router.post('/facturas/:id/xml', allow('admin', 'dueno', 'ventas', 'cobranzas'), async (req, res) => {
+  const db = load();
+  const fiscal = asegurarFiscal(db);
+  const pedido = (db.pedidos || []).find((p) => p.id === Number(req.params.id));
+  if (!pedido?.factura) return res.status(404).json({ error: 'El pedido no tiene factura generada.' });
+  const cliente = (db.clientes || []).find((c) => c.id === pedido.cliente_id);
+  const xml = generarXml(fiscal, pedido.factura, pedido, cliente);
+  try {
+    const guardado = await guardarArchivo(
+      `data:application/xml;base64,${Buffer.from(xml, 'utf8').toString('base64')}`,
+      'application/xml', 'facturas', `xml-${pedido.factura.numero}`, 'xml',
+    );
+    pedido.factura.xml_url = guardado.url;
+    pedido.factura.xml_generado_en = new Date().toISOString();
+    save();
+    return res.json({ ok: true, ...guardado, bytes: guardado.bytes });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+router.post('/facturas/:id/enviar', allow('admin', 'dueno'), async (req, res) => {
+  const db = load();
+  const fiscal = asegurarFiscal(db);
+  const s = fiscal.siat || {};
+  const pedido = (db.pedidos || []).find((p) => p.id === Number(req.params.id));
+  if (!pedido?.factura) return res.status(404).json({ error: 'El pedido no tiene factura generada.' });
+  if (!s.habilitado) return res.status(400).json({ error: 'El envío al SIN está desactivado. Actívalo y guarda las credenciales en Facturación SIAT.' });
+  if (!s.url) return res.status(400).json({ error: 'Falta la URL del servicio SIAT (ambiente piloto o producción).' });
+  if (!s.token && !s.usuario) return res.status(400).json({ error: 'Faltan credenciales SIAT (token o usuario/contraseña).' });
+
+  const cliente = (db.clientes || []).find((c) => c.id === pedido.cliente_id);
+  const xml = generarXml(fiscal, pedido.factura, pedido, cliente);
+  const headers = { 'Content-Type': 'application/xml; charset=utf-8', Accept: 'application/xml' };
+  if (s.token) headers.Authorization = `Bearer ${descifrar(s.token) || ''}`;
+  if (s.usuario) {
+    const usuario = descifrar(s.usuario) || '';
+    const contrasena = descifrar(s.contrasena) || '';
+    headers.Authorization = `Basic ${Buffer.from(`${usuario}:${contrasena}`).toString('base64')}`;
+  }
+  s.intentos = (s.intentos || 0) + 1;
+  try {
+    const respuesta = await fetch(s.url, { method: 'POST', headers, body: xml });
+    const texto = await respuesta.text();
+    s.ultimo_envio = new Date().toISOString();
+    s.ultimo_resultado = { status: respuesta.status, detalle: texto.slice(0, 1000) };
+    if (!respuesta.ok) throw new Error(`SIAT respondió ${respuesta.status}: ${texto.slice(0, 300)}`);
+    pedido.factura.estado = 'enviada';
+    pedido.factura.enviada_en = s.ultimo_envio;
+    pedido.factura.respuesta_siat = texto.slice(0, 2000);
+    audit(db, req, 'Factura enviada al SIN', 'Facturación', pedido.factura.numero);
+    save();
+    return res.json({ ok: true, status: respuesta.status, detalle: texto.slice(0, 1000) });
+  } catch (error) {
+    pedido.factura.estado = 'error_envio';
+    pedido.factura.error_envio = error.message;
+    save();
+    return res.status(502).json({ ok: false, error: error.message });
+  }
 });
 
 router.get('/facturas', (req, res) => {

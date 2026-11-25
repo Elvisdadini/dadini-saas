@@ -24,6 +24,8 @@ export default function Facturacion() {
   const [verFactura, setVerFactura] = useState(null);
   const [anular, setAnular] = useState(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [siatForm, setSiatForm] = useState({});
+  const [guardandoSiat, setGuardandoSiat] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -37,6 +39,17 @@ export default function Facturacion() {
         punto_venta: d.fiscal?.punto_venta || '0', modalidad: d.fiscal?.modalidad || 'computarizada_sfv',
         autorizacion: d.fiscal?.autorizacion || '', codigo_control: d.fiscal?.codigo_control || '',
         fecha_autorizacion: d.fiscal?.fecha_autorizacion || '', facturacion_activa: d.fiscal?.facturacion_activa !== false,
+      });
+      setSiatForm({
+        habilitado: d.siat?.habilitado || false,
+        ambiente: d.siat?.ambiente || 'piloto',
+        url: d.siat?.url || '',
+        modalidad: d.siat?.modalidad || d.fiscal?.modalidad || 'computarizada_sfv',
+        codigo_sistema: d.siat?.codigo_sistema || '',
+        codigo_autorizacion: d.siat?.codigo_autorizacion || '',
+        nit: d.siat?.nit || d.fiscal?.nit || '',
+        actividad: d.siat?.actividad || d.fiscal?.actividad || '',
+        token: '', certificado: '', clave_privada: '', usuario: '', contrasena: '',
       });
       if (monto) calcular(monto);
     } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
@@ -67,6 +80,34 @@ export default function Facturacion() {
       toast('Configuración fiscal guardada');
       await cargar();
     } catch (error) { toast(error.message, 'error'); } finally { setActualizando(false); }
+  };
+
+  const guardarSiat = async () => {
+    setGuardandoSiat(true);
+    try {
+      const r = await api.put('/fiscal/siat', siatForm);
+      toast(`Credenciales SIAT guardadas${r.guardados?.length ? ` · ${r.guardados.join(', ')}` : ''}`);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setGuardandoSiat(false); }
+  };
+
+  const generarXmlFactura = async (factura) => {
+    setPdfBusy(true);
+    try {
+      const r = await api.post(`/fiscal/facturas/${factura.pedido_id}/xml`, {});
+      toast('XML de la factura generado y guardado');
+      if (r.url) window.open(r.url, '_blank', 'noopener,noreferrer');
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setPdfBusy(false); }
+  };
+
+  const enviarAlSin = async (factura) => {
+    setPdfBusy(true);
+    try {
+      const r = await api.post(`/fiscal/facturas/${factura.pedido_id}/enviar`, {});
+      toast(`Factura enviada al SIN · HTTP ${r.status}`);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setPdfBusy(false); }
   };
 
   const guardarNorma = async () => {
@@ -223,6 +264,46 @@ export default function Facturacion() {
       </div>
 
       <div className="panel mt-16">
+        <div className="panel-head">
+          <div><h3>Credenciales SIAT / envío XML</h3><p>Guarda los datos cuando los tengas. Los secretos se cifran y nunca se muestran de nuevo.</p></div>
+          <Badge tone={datos?.siat?.listo_para_enviar ? 'green' : 'gray'}>{datos?.siat?.listo_para_enviar ? 'Listo para enviar' : 'Sin credenciales'}</Badge>
+        </div>
+        <div className="panel-body">
+          {!datos?.siat?.cifrado_disponible && (
+            <div className="notice notice-warn"><AlertTriangle size={14} /> Define <b>SIAT_SECRET_KEY</b> en Render para poder guardar token, certificado, clave privada y contraseña de forma cifrada.</div>
+          )}
+          <div className="form-stack">
+            <label className="check"><input type="checkbox" checked={Boolean(siatForm.habilitado)} onChange={(e) => setSiatForm({ ...siatForm, habilitado: e.target.checked })} /> Habilitar envío de XML al SIN</label>
+            <div className="field-row">
+              <div className="field"><label>Ambiente</label><select className="select" value={siatForm.ambiente || 'piloto'} onChange={(e) => setSiatForm({ ...siatForm, ambiente: e.target.value })}><option value="piloto">Piloto / pruebas</option><option value="produccion">Producción</option></select></div>
+              <div className="field"><label>Modalidad</label><select className="select" value={siatForm.modalidad || 'computarizada_sfv'} onChange={(e) => setSiatForm({ ...siatForm, modalidad: e.target.value })}><option value="electronica_linea">Electrónica en línea</option><option value="computarizada_linea">Computarizada en línea</option><option value="computarizada_sfv">Computarizada SFV</option><option value="portal_web">Portal Web</option><option value="manual">Manual</option></select></div>
+            </div>
+            <div className="field"><label>URL del servicio SIAT (endpoint)</label><input className="input" value={siatForm.url || ''} onChange={(e) => setSiatForm({ ...siatForm, url: e.target.value })} placeholder="https://.../facturacion/... (piloto o producción)" /></div>
+            <div className="field-row">
+              <div className="field"><label>Código del sistema</label><input className="input" value={siatForm.codigo_sistema || ''} onChange={(e) => setSiatForm({ ...siatForm, codigo_sistema: e.target.value })} placeholder="Asignado por el SIN" /></div>
+              <div className="field"><label>Código de autorización</label><input className="input" value={siatForm.codigo_autorizacion || ''} onChange={(e) => setSiatForm({ ...siatForm, codigo_autorizacion: e.target.value })} /></div>
+            </div>
+            <div className="field-row">
+              <div className="field"><label>NIT (SIAT)</label><input className="input" value={siatForm.nit || ''} onChange={(e) => setSiatForm({ ...siatForm, nit: e.target.value })} /></div>
+              <div className="field"><label>Código de actividad</label><input className="input" value={siatForm.actividad || ''} onChange={(e) => setSiatForm({ ...siatForm, actividad: e.target.value })} /></div>
+            </div>
+            <div className="notice notice-info"><ShieldCheck size={14} /> Los campos de credenciales se guardan cifrados. Los espacios en blanco significan "mantener el valor actual". Estado: token {datos?.siat?.secretos?.token ? '✓ configurado' : '—'}, certificado {datos?.siat?.secretos?.certificado ? '✓' : '—'}, clave privada {datos?.siat?.secretos?.clave_privada ? '✓' : '—'}, usuario {datos?.siat?.secretos?.usuario ? '✓' : '—'}.</div>
+            <div className="field-row">
+              <div className="field"><label>Token</label><input className="input" type="password" value={siatForm.token || ''} onChange={(e) => setSiatForm({ ...siatForm, token: e.target.value })} placeholder={datos?.siat?.secretos?.token ? '•••• configurado' : 'Cuando lo tengas'} /></div>
+              <div className="field"><label>Usuario</label><input className="input" value={siatForm.usuario || ''} onChange={(e) => setSiatForm({ ...siatForm, usuario: e.target.value })} placeholder={datos?.siat?.secretos?.usuario ? '•••• configurado' : 'Cuando lo tengas'} /></div>
+            </div>
+            <div className="field-row">
+              <div className="field"><label>Contraseña</label><input className="input" type="password" value={siatForm.contrasena || ''} onChange={(e) => setSiatForm({ ...siatForm, contrasena: e.target.value })} placeholder={datos?.siat?.secretos?.contrasena ? '•••• configurado' : 'Cuando lo tengas'} /></div>
+              <div className="field"><label>Certificado (PEM)</label><textarea className="textarea" value={siatForm.certificado || ''} onChange={(e) => setSiatForm({ ...siatForm, certificado: e.target.value })} placeholder={datos?.siat?.secretos?.certificado ? '•••• configurado' : 'Cuando lo tengas'} /></div>
+            </div>
+            <div className="field"><label>Clave privada (PEM)</label><textarea className="textarea" value={siatForm.clave_privada || ''} onChange={(e) => setSiatForm({ ...siatForm, clave_privada: e.target.value })} placeholder={datos?.siat?.secretos?.clave_privada ? '•••• configurado' : 'Cuando lo tengas'} /></div>
+            <button className="btn btn-primary btn-block" onClick={guardarSiat} disabled={guardandoSiat}>{guardandoSiat ? 'Guardando…' : 'Guardar credenciales SIAT'}</button>
+            {datos?.siat?.ultimo_envio && <span className="hint">Último envío: {new Date(datos.siat.ultimo_envio).toLocaleString('es-BO')} · HTTP {datos.siat.ultimo_resultado?.status}</span>}
+          </div>
+        </div>
+      </div>
+
+      <div className="panel mt-16">
         <div className="panel-head"><div><h3>Normativa SIAT</h3><p>Vigencias con fecha: aumentos, reducciones y normas temporales se aplican solos</p></div><Badge tone="blue">{normas.length} normas</Badge></div>
         <div className="table-wrap">
           <table className="data-table">
@@ -262,6 +343,8 @@ export default function Facturacion() {
                     <td className="actions">
                       <button className="btn btn-soft btn-sm" onClick={() => setVerFactura(f)}>Ver</button>
                       <button className="icon-btn" title="Descargar PDF" disabled={pdfBusy || f.estado === 'anulada'} onClick={() => generarPdf(f)}><Download size={14} /></button>
+                      <button className="btn btn-soft btn-sm" title="Generar XML" disabled={pdfBusy || f.estado === 'anulada'} onClick={() => generarXmlFactura(f)}>XML</button>
+                      <button className="btn btn-outline btn-sm" title="Enviar al SIN" disabled={pdfBusy || f.estado === 'anulada'} onClick={() => enviarAlSin(f)}>Enviar al SIN</button>
                       {f.estado !== 'anulada' && <button className="icon-btn danger" title="Anular factura" onClick={() => setAnular(f)}><XCircle size={14} /></button>}
                     </td>
                   </tr>
