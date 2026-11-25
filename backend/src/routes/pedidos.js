@@ -8,6 +8,7 @@ const { esCoordenaValida, validarGeocerca } = require('../geo');
 const { subirFoto } = require('../fotos');
 const { calcularImpuestos, normativaVigente } = require('../fiscal-normativa');
 const cajaModule = require('./caja');
+const kardex = require('../kardex');
 const { evaluar: evaluarPromociones } = require('../promociones');
 const { buildIndices, porId } = require('../indexes');
 
@@ -82,6 +83,7 @@ router.get('/:id', (req, res) => {
 
 router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 'vendedor_camion'), (req, res) => {
   const db = load();
+  kardex.sincronizar(db);
   const indices = buildIndices(db);
   const { cliente_id, items, canal, forma_pago, almacen_id, descuento, envio, notas, entrega_direccion, vendedor_id, dias_credito: diasSolicitados, latitud, longitud, precision, almacen_movil_id, whatsapp_cliente } = req.body || {};
   const cliente = indices.clientes.get(Number(cliente_id));
@@ -119,7 +121,12 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
     almacen.id,
     new Date().toISOString().slice(0, 10),
     cliente.categoria_cliente_id || null,
-    almacenMovil ? (productoId) => Number(almacenMovil.lineas.find((l) => l.producto_id === Number(productoId))?.cantidad || 0) : null,
+    () => {
+      const hoyStock = new Date().toISOString().slice(0, 10);
+      return (productoId) => kardex.lotesDe(db, productoId, almacen.id, almacenMovil?.id || null)
+        .filter((l) => Number(l.cantidad) > 0 && (!l.fecha_vencimiento || l.fecha_vencimiento >= hoyStock))
+        .reduce((s, l) => s + Number(l.cantidad), 0);
+    },
   );
   if (evaluacion.insuficientes.length) {
     const falta = evaluacion.insuficientes[0];
@@ -287,14 +294,23 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
   }
   db.pedidos.push(pedido);
 
+  let errorStock = null;
   lineas.forEach((l) => {
-    if (almacenMovil) {
-      const lineaMovil = almacenMovil.lineas.find((x) => x.producto_id === l.producto_id);
-      if (lineaMovil) lineaMovil.cantidad = Math.max(0, lineaMovil.cantidad - l.cantidad);
-      almacenMovil.updated_at = ahora;
-    } else {
-      const actual = stockEn(db, l.producto_id, almacen.id, indices);
-      setStock(db, l.producto_id, almacen.id, actual - l.cantidad);
+    if (errorStock) return;
+    try {
+      const consumo = kardex.consumir(db, {
+        producto_id: l.producto_id, almacen_id: almacen.id,
+        almacen_movil_id: almacenMovil?.id || null,
+        cantidad: l.cantidad,
+        motivo: almacenMovil ? 'Venta directa almacén móvil' : 'Venta',
+        referencia: pedido.codigo, usuario_id: req.user.id, fecha: ahora,
+        almacen_nombre: almacenMovil?.nombre || almacen.nombre,
+      });
+      l.lotes = consumo.lotes;
+      if (almacenMovil) almacenMovil.updated_at = ahora;
+    } catch (error) {
+      errorStock = error.message;
+      return;
     }
     db.movimientos.unshift({
       id: nextId(db.movimientos),
@@ -308,6 +324,11 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
       fecha: ahora,
     });
   });
+
+  if (errorStock) {
+    db.pedidos = db.pedidos.filter((p) => p.id !== pedido.id);
+    return res.status(400).json({ error: errorStock });
+  }
 
   if (forma_pago !== 'credito') {
     db.pagos.unshift({
@@ -385,13 +406,17 @@ router.patch('/:id/estado', allow('ventas', 'preventista', 'distribucion'), asyn
     }
     pedido.items.forEach((l) => {
       const movil = pedido.almacen_movil_id ? db.almacenes_moviles?.find((a) => a.id === pedido.almacen_movil_id) : null;
-      if (movil) {
-        const lineaMovil = movil.lineas.find((x) => x.producto_id === l.producto_id);
-        if (lineaMovil) lineaMovil.cantidad += l.cantidad;
-        else movil.lineas.push({ producto_id: l.producto_id, cantidad: l.cantidad });
-      } else {
-        setStock(db, l.producto_id, pedido.almacen_id, stockEn(db, l.producto_id, pedido.almacen_id) + l.cantidad);
-      }
+      const lotesGuardados = Array.isArray(l.lotes) && l.lotes.length ? l.lotes : [null];
+      lotesGuardados.forEach((lote) => {
+        kardex.registrarEntrada(db, {
+          producto_id: l.producto_id, almacen_id: pedido.almacen_id,
+          almacen_movil_id: movil?.id || null,
+          cantidad: lote ? lote.cantidad : l.cantidad,
+          lote: lote?.lote, fecha_vencimiento: lote?.fecha_vencimiento,
+          motivo: movil ? 'Anulación venta directa' : 'Anulación de venta',
+          referencia: pedido.codigo, usuario_id: req.user.id,
+        });
+      });
       db.movimientos.unshift({
         id: nextId(db.movimientos),
         producto_id: l.producto_id,

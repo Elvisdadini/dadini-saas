@@ -4,6 +4,7 @@ const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, audit, num, round2, matches } = require('../utils');
 const { productoResumen, stockEn, stockDe } = require('../services');
 const { buildIndices } = require('../indexes');
+const kardex = require('../kardex');
 
 const router = express.Router();
 router.use(authRequired);
@@ -114,8 +115,12 @@ router.post('/', requirePermiso('inventario.crear'), allow('almacen'), (req, res
   };
   db.productos.push(producto);
   const inicial = num(stock_inicial, 0);
-  setStock(db, producto.id, 1, inicial);
   if (inicial > 0) {
+    kardex.registrarEntrada(db, {
+      producto_id: producto.id, almacen_id: 1, cantidad: inicial,
+      lote: req.body?.lote, fecha_vencimiento: req.body?.fecha_vencimiento,
+      motivo: 'Stock inicial', referencia: 'ALTA', usuario_id: req.user.id,
+    });
     db.movimientos.unshift({
       id: nextId(db.movimientos),
       producto_id: producto.id,
@@ -185,7 +190,13 @@ router.post('/importar', allow('almacen', 'admin'), (req, res) => {
     db.productos.push(producto);
     const inicial = num(filaStock(producto, filas));
     if (inicial > 0) {
-      setStock(db, producto.id, 1, inicial);
+      const filaOrigen = filas.find((f) => String(f.sku || f.SKU || '').trim() === producto.sku
+        || String(f.nombre || f.Nombre || '').trim().toUpperCase() === producto.nombre);
+      kardex.registrarEntrada(db, {
+        producto_id: producto.id, almacen_id: 1, cantidad: inicial,
+        lote: filaOrigen?.lote, fecha_vencimiento: filaOrigen?.fecha_vencimiento,
+        motivo: 'Importación Excel', referencia: producto.sku, usuario_id: req.user.id,
+      });
       db.movimientos.unshift({
         id: nextId(db.movimientos), producto_id: producto.id, almacen_id: 1,
         tipo: 'entrada', cantidad: inicial, motivo: 'Importación Excel',
@@ -320,6 +331,8 @@ router.delete('/:id', requirePermiso('inventario.eliminar'), allow(), (req, res)
     db.productos = db.productos.filter((p) => p.id !== producto.id);
     db.stock = (db.stock || []).filter((s) => Number(s.producto_id) !== producto.id);
     db.movimientos = (db.movimientos || []).filter((m) => Number(m.producto_id) !== producto.id);
+    db.lotes = (db.lotes || []).filter((l) => Number(l.producto_id) !== producto.id);
+    db.kardex = (db.kardex || []).filter((l) => Number(l.producto_id) !== producto.id);
     (db.promociones || []).forEach((promo) => {
       promo.productos_ids = (promo.productos_ids || []).filter((id) => Number(id) !== producto.id);
     });
@@ -349,9 +362,20 @@ router.post('/:id/ajuste', allow('almacen'), (req, res) => {
   if (!db.almacenes.some((a) => a.id === almacenId)) return res.status(400).json({ error: 'Almacén inválido.' });
   const delta = Math.round(num(cantidad));
   if (!delta) return res.status(400).json({ error: 'Indica una cantidad distinta de cero.' });
-  const actual = stockEn(db, producto.id, almacenId);
-  if (actual + delta < 0) return res.status(400).json({ error: `Stock insuficiente. Disponible: ${actual}.` });
-  setStock(db, producto.id, almacenId, actual + delta);
+  try {
+    if (delta > 0) {
+      kardex.registrarEntrada(db, {
+        producto_id: producto.id, almacen_id: almacenId, cantidad: delta,
+        lote: req.body?.lote, fecha_vencimiento: req.body?.fecha_vencimiento,
+        motivo: motivo || 'Ajuste manual', referencia: 'AJUSTE', usuario_id: req.user.id,
+      });
+    } else {
+      kardex.consumir(db, {
+        producto_id: producto.id, almacen_id: almacenId, cantidad: -delta,
+        motivo: motivo || 'Ajuste manual', referencia: 'AJUSTE', usuario_id: req.user.id,
+      });
+    }
+  } catch (error) { return res.status(400).json({ error: error.message }); }
   db.movimientos.unshift({
     id: nextId(db.movimientos),
     producto_id: producto.id,
@@ -376,10 +400,13 @@ router.post('/transferencia', allow('almacen'), (req, res) => {
   if (Number(origen_id) === Number(destino_id)) return res.status(400).json({ error: 'El origen y destino deben ser distintos.' });
   const qty = Math.round(num(cantidad));
   if (qty <= 0) return res.status(400).json({ error: 'La cantidad debe ser mayor a cero.' });
-  const disponible = stockEn(db, producto.id, Number(origen_id));
-  if (disponible < qty) return res.status(400).json({ error: `Stock insuficiente en origen. Disponible: ${disponible}.` });
-  setStock(db, producto.id, Number(origen_id), disponible - qty);
-  setStock(db, producto.id, Number(destino_id), stockEn(db, producto.id, Number(destino_id)) + qty);
+  try {
+    kardex.transferir(db, {
+      producto_id: producto.id, origen_id: Number(origen_id), destino_id: Number(destino_id),
+      cantidad: qty, motivo: 'Transferencia entre almacenes',
+      referencia: `ALM-${destino_id}`, usuario_id: req.user.id,
+    });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
   db.movimientos.unshift(
     { id: nextId(db.movimientos), producto_id: producto.id, almacen_id: Number(origen_id), tipo: 'transferencia_salida', cantidad: qty, motivo: 'Transferencia entre almacenes', referencia: `ALM-${destino_id}`, usuario_id: req.user.id, fecha: new Date().toISOString() },
     { id: nextId(db.movimientos) + 1, producto_id: producto.id, almacen_id: Number(destino_id), tipo: 'transferencia_entrada', cantidad: qty, motivo: 'Transferencia entre almacenes', referencia: `ALM-${origen_id}`, usuario_id: req.user.id, fecha: new Date().toISOString() },

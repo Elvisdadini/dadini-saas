@@ -174,7 +174,7 @@ export default function Inventario() {
 
   const abrirAjuste = (p) => {
     setAdjust(p);
-    setAdj({ almacen_id: almacenes[0]?.id || 1, tipo: 'entrada', cantidad: 1, motivo: 'Reposición de stock' });
+    setAdj({ almacen_id: almacenes[0]?.id || 1, tipo: 'entrada', cantidad: 1, motivo: 'Reposición de stock', lote: '', fecha_vencimiento: '' });
   };
 
   const guardarAjuste = async () => {
@@ -187,6 +187,8 @@ export default function Inventario() {
         cantidad: adj.tipo === 'salida' ? -Math.abs(cantidad) : Math.abs(cantidad),
         tipo: adj.tipo,
         motivo: adj.motivo,
+        lote: adj.lote,
+        fecha_vencimiento: adj.fecha_vencimiento,
       });
       toast('Inventario ajustado correctamente');
       setAdjust(null);
@@ -355,6 +357,7 @@ export default function Inventario() {
                           {puedeEditar && <button className="icon-btn" title="Ajustar stock" onClick={() => abrirAjuste(p)}><ArrowDownToLine size={14} /></button>}
                           {puedeEditar && <button className="icon-btn" title="Transferir" onClick={() => abrirTransferencia(p)}><ArrowLeftRight size={14} /></button>}
                           {puedeEditar && <button className="icon-btn" title="Editar" onClick={() => abrirProducto(p)}><Pencil size={14} /></button>}
+                          <Link className="icon-btn" title="Ver kardex y lotes" to={`/inventario/kardex?producto=${p.id}`}><ClipboardList size={14} /></Link>
                           {puedeEditar && <button className="icon-btn danger" title="Eliminar producto" onClick={() => setProductoEliminar(p)}><Trash2 size={14} /></button>}
                         </td>
                       </tr>
@@ -541,6 +544,12 @@ export default function Inventario() {
           </div></div>
           <div className="field"><label>Cantidad</label><input className="input" type="number" min="1" value={adj.cantidad} onChange={(e) => setAdj({ ...adj, cantidad: e.target.value })} /></div>
           <div className="field"><label>Motivo</label><select className="select" value={adj.motivo} onChange={(e) => setAdj({ ...adj, motivo: e.target.value })}><option>Reposición de stock</option><option>Merma o daño</option><option>Devolución</option><option>Conteo físico</option><option>Ajuste administrativo</option></select></div>
+          {adj.tipo === 'entrada' && (
+            <div className="field-row">
+              <div className="field"><label>Lote</label><input className="input" value={adj.lote || ''} onChange={(e) => setAdj({ ...adj, lote: e.target.value })} placeholder="Ej. LOTE-2401" /></div>
+              <div className="field"><label>Vencimiento</label><input className="input" type="date" value={adj.fecha_vencimiento || ''} onChange={(e) => setAdj({ ...adj, fecha_vencimiento: e.target.value })} /></div>
+            </div>
+          )}
         </div>
       </Modal>
 

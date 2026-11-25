@@ -235,6 +235,10 @@ function dashboard(db, periodo = '30d') {
       ...stockBajo.slice(0, 3).map((p) => ({ tipo: 'stock', titulo: `Stock bajo: ${p.nombre}`, detalle: `Quedan ${p.stock_total} ${p.unidad} (mínimo ${p.stock_minimo})` })),
       ...(vencidas.length ? [{ tipo: 'cobranza', titulo: `${vencidas.length} facturas vencidas`, detalle: `Bs ${round2(vencidas.reduce((s, p) => s + p.saldo, 0)).toFixed(2)} pendientes de cobro` }] : []),
       ...(pendientes.length ? [{ tipo: 'venta', titulo: `${pendientes.length} pedidos por preparar`, detalle: 'Revisa la cola de ventas para despachar a tiempo' }] : []),
+      ...(() => {
+        const venc = require('./kardex').vencimientos(db, 30).filter((l) => l.estado !== 'vigente');
+        return venc.length ? [{ tipo: 'vencimiento', titulo: `${venc.length} lote(s) vencen pronto`, detalle: `Revisa Kardex y lotes: ${venc.slice(0, 3).map((l) => l.lote).join(', ')}` }] : [];
+      })(),
     ],
   };
 }

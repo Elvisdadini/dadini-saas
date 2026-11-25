@@ -1,6 +1,7 @@
 const express = require('express');
 const { load, save } = require('../db');
 const { subirFoto } = require('../fotos');
+const kardex = require('../kardex');
 const { authRequired, allow } = require('../auth');
 const { nextId, nextCode, audit, num, round2 } = require('../utils');
 
@@ -79,6 +80,8 @@ router.post('/', allow('distribucion', 'vendedor_camion', 'ventas', 'almacen', '
     producto_id: Number(l.producto_id),
     cantidad: Math.max(0, Math.round(num(l.cantidad))),
     motivo: l.motivo || 'No entregado',
+    lote: l.lote || null,
+    fecha_vencimiento: l.fecha_vencimiento || null,
     estado: 'bueno',
     reacomodado: false,
   })).filter((l) => l.producto_id && l.cantidad > 0);
@@ -139,12 +142,12 @@ router.post('/:id/reingresar', allow('almacen', 'admin', 'dueno'), (req, res) =>
   const almacenId = Number(req.body?.almacen_id) || 1;
   const reingresadas = [];
   dev.lineas.filter((l) => l.estado !== 'danado' && !l.reacomodado).forEach((l) => {
-    let fila = db.stock.find((s) => s.producto_id === l.producto_id && s.almacen_id === almacenId);
-    if (!fila) {
-      fila = { id: nextId(db.stock), producto_id: l.producto_id, almacen_id: almacenId, cantidad: 0 };
-      db.stock.push(fila);
-    }
-    fila.cantidad += l.cantidad;
+    kardex.registrarEntrada(db, {
+      producto_id: l.producto_id, almacen_id: almacenId,
+      cantidad: l.cantidad, lote: l.lote, fecha_vencimiento: l.fecha_vencimiento,
+      motivo: 'Reingreso de devolución verificada', referencia: dev.codigo,
+      usuario_id: req.user.id,
+    });
     db.movimientos.unshift({
       id: nextId(db.movimientos), producto_id: l.producto_id, almacen_id: almacenId,
       tipo: 'entrada', cantidad: l.cantidad, motivo: 'Reingreso de devolución verificada',

@@ -43,6 +43,7 @@ const NAV = [
   ] },
   { group: 'Catálogo', items: [
     { to: '/inventario', label: 'Inventario', icon: Package, key: 'inventario' },
+    { to: '/inventario/kardex', label: 'Kardex y lotes', icon: ClipboardList, key: 'inventario' },
     { to: '/inventario/precios', label: 'Actualizar precios', icon: Tag, key: 'inventario' },
     { to: '/inventario/conteo', label: 'Conteo de inventario', icon: ClipboardList, key: 'inventario' },
     { to: '/catalogo', label: 'Generar catálogo', icon: FileText, key: 'catalogo' },
@@ -88,6 +89,7 @@ const PAGE_TITLES = {
   '/compras/nomina': ['Sueldos y boletas', 'Planilla mensual'],
   '/reportes/rentabilidad': ['Rentabilidad', 'Dashboard financiero'],
   '/inventario': ['Inventario', 'Productos y almacenes'],
+  '/inventario/kardex': ['Kardex y lotes', 'Lotes, vencimientos y movimientos FEFO'],
   '/inventario/precios': ['Actualizar precios', 'Cambio masivo de precios y costos'],
   '/inventario/conteo': ['Conteo de inventario', 'Conteo físico, responsables y congelamiento'],
   '/catalogo': ['Generar catálogo', 'PDF carta para compartir por WhatsApp'],
