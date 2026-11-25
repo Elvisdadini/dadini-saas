@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, CalendarRange, Download, FileSpreadsheet, Package, RefreshCcw, Search, TrendingUp, Users, Wallet } from 'lucide-react';
+import { AlarmClock, BarChart3, CalendarRange, Download, FileSpreadsheet, Package, RefreshCcw, Search, TrendingUp, Users, Wallet } from 'lucide-react';
 import { api, downloadCSV, qs } from '../api';
 import { useAuth } from '../auth';
 import { AreaChart, Bars, Donut } from '../charts';
@@ -114,6 +114,7 @@ export default function Reportes() {
         actions={(
           <>
             <Link className="btn btn-outline btn-sm" to="/reportes/rentabilidad"><TrendingUp size={12} /> Rentabilidad</Link>
+            <Link className="btn btn-outline btn-sm" to="/reportes/automatico"><AlarmClock size={12} /> Automáticos</Link>
             <div className="inline">
               <button className="btn btn-outline btn-sm" onClick={() => preset(7)}>7 días</button>
               <button className="btn btn-outline btn-sm" onClick={() => preset(30)}>30 días</button>

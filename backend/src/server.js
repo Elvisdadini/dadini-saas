@@ -85,6 +85,7 @@ app.use('/api/ia', require('./routes/ia'));
 app.use('/api/fiscal', require('./routes/fiscal'));
 app.use('/api/kardex', require('./routes/kardex'));
 app.use('/api/caja', require('./routes/caja'));
+app.use('/api/reportes/automatico', require('./routes/reportes-auto'));
 app.use('/api/reportes', require('./routes/reportes'));
 app.use('/api/configuracion', require('./routes/configuracion'));
 const { repartidoresRouter, vehiculosRouter } = require('./routes/logistica');
@@ -148,6 +149,20 @@ async function arrancar() {
   setInterval(() => {
     try { sincronizarCobros(load()); } catch (error) { console.error('[cobranzas]', error.message); }
   }, 5 * 60 * 1000).unref();
+  // Reportes automáticos: prepara los chats wa.me a la hora configurada.
+  // No envía por sí solo (no hay Business API): deja los links listos para abrir.
+  const reportesAuto = require('./reportes-auto');
+  setInterval(() => {
+    try {
+      const db = load();
+      const cfg = reportesAuto.asegurar(db);
+      if (!reportesAuto.debeEjecutar(cfg)) return;
+      const mensaje = reportesAuto.generarMensaje(db, cfg, reportesAuto.hoyLocal());
+      const { envios } = reportesAuto.preparar(db, cfg, mensaje);
+      save();
+      console.log(`[reportes-auto] ${envios.length} chat(s) preparados para ${cfg.hora}`);
+    } catch (error) { console.error('[reportes-auto]', error.message); }
+  }, 60 * 1000).unref();
   const servidor = app.listen(PORT, () => {
     console.log(`\n  DADINI SaaS API escuchando en http://localhost:${PORT}`);
     console.log(`  Motor de datos: ${motor()} · ${base()}`);

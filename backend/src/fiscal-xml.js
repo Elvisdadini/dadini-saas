@@ -73,4 +73,32 @@ ${items || '    <item numero="1"><descripcion>SIN DETALLE</descripcion><cantidad
 </documento_fiscal_digital>`;
 }
 
-module.exports = { generarXml };
+function generarNotaXml(fiscal, nota, factura) {
+  const cfg = fiscal || {};
+  const n = nota || {};
+  const f = factura || {};
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<documento_fiscal_digital version="3.0" tipo="nota_${esc(n.tipo || 'credito')}" ambiente="${esc(cfg.siat?.ambiente || 'piloto')}">
+  <cabecera>
+    <fecha_emision>${esc(n.fecha)}</fecha_emision>
+    <numero_nota>${esc(n.numero)}</numero_nota>
+    <factura_relacionada>${esc(f.numero || '')}</factura_relacionada>
+    <cuf>${esc(n.cuf || '')}</cuf>
+  </cabecera>
+  <emisor>
+    <nit>${esc(cfg.nit || '')}</nit>
+    <razon_social>${esc(cfg.razon_social || '')}</razon_social>
+  </emisor>
+  <receptor><nombre>${esc(n.cliente_nombre || 'S/N')}</nombre><nit_ci>${esc(n.cliente_nit || '0')}</nit_ci></receptor>
+  <detalle><motivo>${esc(n.motivo || '')}</motivo></detalle>
+  <totales>
+    <monto>${numero(n.monto)}</monto>
+    <moneda>BOB</moneda>
+  </totales>
+  <normativa><version>${esc(n.normativa_version || '')}</version></normativa>
+  <control><estado>${esc(n.estado || 'vigente')}</estado><generado_en>${esc(new Date().toISOString())}</generado_en></control>
+</documento_fiscal_digital>`;
+}
+
+module.exports = { generarXml, generarNotaXml };
+

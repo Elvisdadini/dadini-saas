@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Calculator, CheckCircle2, Download, FileText, Pencil, RefreshCcw, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertTriangle, CalendarX2, Calculator, CheckCircle2, Download, FileText, Pencil, Plus, RefreshCcw, Send, ShieldCheck, XCircle } from 'lucide-react';
 import { api } from '../api';
 import { Badge, Confirm, EmptyState, Fecha, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 import { Money, Num } from '../ui';
@@ -26,13 +26,21 @@ export default function Facturacion() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [siatForm, setSiatForm] = useState({});
   const [guardandoSiat, setGuardandoSiat] = useState(false);
+  const [notas, setNotas] = useState([]);
+  const [emitirNota, setEmitirNota] = useState(null);
+  const [notaForm, setNotaForm] = useState({ tipo: 'credito', monto: '', motivo: '' });
+  const [anularNota, setAnularNota] = useState(null);
+  const [fueraPlazo, setFueraPlazo] = useState(null);
+  const [fueraPlazoForm, setFueraPlazoForm] = useState({ motivo: '', documento: '' });
+  const [notaBusy, setNotaBusy] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [d, f] = await Promise.all([api.get('/fiscal'), api.get('/fiscal/facturas')]);
+      const [d, f, n] = await Promise.all([api.get('/fiscal'), api.get('/fiscal/facturas'), api.get('/fiscal/notas')]);
       setDatos(d);
       setFacturas(f.facturas || []);
+      setNotas(n.notas || []);
       setConfig({
         nit: d.fiscal?.nit || '', razon_social: d.fiscal?.razon_social || '',
         actividad: d.fiscal?.actividad || '', sucursal: d.fiscal?.sucursal || 'Casa Matriz',
@@ -108,6 +116,69 @@ export default function Facturacion() {
       toast(`Factura enviada al SIN · HTTP ${r.status}`);
       await cargar();
     } catch (error) { toast(error.message, 'error'); } finally { setPdfBusy(false); }
+  };
+
+  const abrirNota = (factura) => {
+    setEmitirNota(factura);
+    setNotaForm({ tipo: 'credito', monto: '', motivo: '' });
+  };
+
+  const guardarNota = async () => {
+    setNotaBusy(true);
+    try {
+      await api.post('/fiscal/notas', {
+        pedido_id: emitirNota.pedido_id,
+        tipo: notaForm.tipo,
+        monto: Number(notaForm.monto),
+        motivo: notaForm.motivo,
+      });
+      toast('Nota fiscal emitida y saldo actualizado');
+      setEmitirNota(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setNotaBusy(false); }
+  };
+
+  const generarXmlNota = async (nota) => {
+    setNotaBusy(true);
+    try {
+      const r = await api.post(`/fiscal/notas/${nota.id}/xml`, {});
+      toast('XML de la nota generado y guardado');
+      if (r.url) window.open(r.url, '_blank', 'noopener,noreferrer');
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setNotaBusy(false); }
+  };
+
+  const enviarNotaSin = async (nota) => {
+    setNotaBusy(true);
+    try {
+      const r = await api.post(`/fiscal/notas/${nota.id}/enviar`, {});
+      toast(`Nota enviada al SIN · HTTP ${r.status}`);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setNotaBusy(false); }
+  };
+
+  const confirmarAnulacionNota = async () => {
+    try {
+      await api.post(`/fiscal/notas/${anularNota.id}/anular`, {});
+      toast('Nota anulada');
+      setAnularNota(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const abrirFueraPlazo = (factura) => {
+    setFueraPlazo(factura);
+    setFueraPlazoForm({ motivo: '', documento: '' });
+  };
+
+  const confirmarFueraPlazo = async () => {
+    setNotaBusy(true);
+    try {
+      await api.post(`/fiscal/facturas/${fueraPlazo.pedido_id}/anular-fuera-plazo`, fueraPlazoForm);
+      toast('Solicitud de anulación registrada. El SIN resuelve en hasta 6 meses (RND 102600000025).');
+      setFueraPlazo(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setNotaBusy(false); }
   };
 
   const guardarNorma = async () => {
@@ -345,7 +416,43 @@ export default function Facturacion() {
                       <button className="icon-btn" title="Descargar PDF" disabled={pdfBusy || f.estado === 'anulada'} onClick={() => generarPdf(f)}><Download size={14} /></button>
                       <button className="btn btn-soft btn-sm" title="Generar XML" disabled={pdfBusy || f.estado === 'anulada'} onClick={() => generarXmlFactura(f)}>XML</button>
                       <button className="btn btn-outline btn-sm" title="Enviar al SIN" disabled={pdfBusy || f.estado === 'anulada'} onClick={() => enviarAlSin(f)}>Enviar al SIN</button>
+                      {f.estado !== 'anulada' && <button className="btn btn-soft btn-sm" title="Emitir nota de crédito o débito" onClick={() => abrirNota(f)}><Plus size={12} /> Nota</button>}
+                      {f.solicitud_anulacion
+                        ? <Badge tone="amber">Anulación {f.solicitud_anulacion.estado}</Badge>
+                        : <button className="btn btn-ghost btn-sm" title="Solicitar anulación fuera de plazo (RND 102600000025)" onClick={() => abrirFueraPlazo(f)}><CalendarX2 size={12} /> Fuera de plazo</button>}
                       {f.estado !== 'anulada' && <button className="icon-btn danger" title="Anular factura" onClick={() => setAnular(f)}><XCircle size={14} /></button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="panel mt-16">
+        <div className="panel-head">
+          <div><h3>Notas de crédito y débito</h3><p>Ligadas a una factura. RND 102600000025: anulación fuera de plazo hasta el día 9 del mes siguiente.</p></div>
+          <Badge tone="blue">{notas.length} notas</Badge>
+        </div>
+        {!notas.length ? <div className="table-empty">Aún no hay notas. Usa el botón <b>Nota</b> en una factura para emitir la primera.</div> : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead><tr><th>Número</th><th>Factura</th><th>Cliente</th><th>Tipo</th><th className="num">Monto</th><th>Motivo</th><th>Estado</th><th /></tr></thead>
+              <tbody>
+                {notas.map((n) => (
+                  <tr key={n.id}>
+                    <td className="cell-strong">{n.numero}<span className="cell-sub"><Fecha value={n.fecha} /></span></td>
+                    <td>{n.factura_numero}<span className="cell-sub">{n.pedido_codigo || ''}</span></td>
+                    <td>{n.cliente_nombre}</td>
+                    <td><Badge tone={n.tipo === 'credito' ? 'blue' : 'orange'}>{n.tipo === 'credito' ? 'Crédito' : 'Débito'}</Badge></td>
+                    <td className="num"><Money value={n.monto} /></td>
+                    <td>{n.motivo || '—'}{n.error_envio && <span className="cell-sub">{n.error_envio}</span>}</td>
+                    <td><Badge tone={n.estado === 'anulada' ? 'red' : n.estado === 'enviada' ? 'green' : n.estado === 'error_envio' ? 'red' : 'gray'}>{n.estado}</Badge></td>
+                    <td className="actions">
+                      <button className="btn btn-soft btn-sm" title="Generar XML" disabled={notaBusy || n.estado === 'anulada'} onClick={() => generarXmlNota(n)}>XML</button>
+                      <button className="btn btn-outline btn-sm" title="Enviar al SIN" disabled={notaBusy || n.estado === 'anulada'} onClick={() => enviarNotaSin(n)}><Send size={12} /> SIN</button>
+                      {n.estado !== 'anulada' && <button className="icon-btn danger" title="Anular nota" onClick={() => setAnularNota(n)}><XCircle size={14} /></button>}
                     </td>
                   </tr>
                 ))}
@@ -388,7 +495,34 @@ export default function Facturacion() {
         </div>
       </Modal>
 
+      <Modal open={Boolean(emitirNota)} onClose={() => setEmitirNota(null)} title="Emitir nota fiscal" subtitle={`Factura ${emitirNota?.numero || ''}`}
+        footer={<><button className="btn btn-ghost" onClick={() => setEmitirNota(null)}>Cancelar</button><button className="btn btn-primary" disabled={notaBusy} onClick={guardarNota}>{notaBusy ? 'Guardando…' : 'Emitir nota'}</button></>}
+      >
+        <div className="form-stack">
+          <div className="notice notice-info"><FileText size={14} /> La nota queda ligada a la factura {emitirNota?.numero || ''} y corrige el saldo del cliente.</div>
+          <div className="field"><label>Tipo</label>
+            <select className="select" value={notaForm.tipo} onChange={(e) => setNotaForm({ ...notaForm, tipo: e.target.value })}>
+              <option value="credito">Nota de crédito (reduce saldo / devolución)</option>
+              <option value="debito">Nota de débito (aumenta saldo / cargo adicional)</option>
+            </select>
+          </div>
+          <div className="field"><label>Monto (Bs)</label><input className="input" type="number" min="0.01" step="0.01" value={notaForm.monto} onChange={(e) => setNotaForm({ ...notaForm, monto: e.target.value })} /></div>
+          <div className="field"><label>Motivo</label><textarea className="textarea" value={notaForm.motivo} onChange={(e) => setNotaForm({ ...notaForm, motivo: e.target.value })} placeholder="Ej. Devolución parcial de mercadería" /></div>
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(fueraPlazo)} onClose={() => setFueraPlazo(null)} title="Anulación fuera de plazo" subtitle={`Factura ${fueraPlazo?.numero || ''}`}
+        footer={<><button className="btn btn-ghost" onClick={() => setFueraPlazo(null)}>Cancelar</button><button className="btn btn-primary" disabled={notaBusy} onClick={confirmarFueraPlazo}>{notaBusy ? 'Guardando…' : 'Registrar solicitud'}</button></>}
+      >
+        <div className="form-stack">
+          <div className="notice notice-warn"><AlertTriangle size={14} /> Según la RND 102600000025, pasados los plazos se solicita la anulación al SIN (resolución en hasta 6 meses). Aquí solo se registra la solicitud y su estado.</div>
+          <div className="field"><label>Motivo de la solicitud</label><textarea className="textarea" value={fueraPlazoForm.motivo} onChange={(e) => setFueraPlazoForm({ ...fueraPlazoForm, motivo: e.target.value })} placeholder="Explica por qué se solicita la anulación" /></div>
+          <div className="field"><label>Documento de respaldo (URL o número, opcional)</label><input className="input" value={fueraPlazoForm.documento} onChange={(e) => setFueraPlazoForm({ ...fueraPlazoForm, documento: e.target.value })} /></div>
+        </div>
+      </Modal>
+
       <Confirm open={Boolean(anular)} onClose={() => setAnular(null)} onConfirm={confirmarAnulacion} title="Anular factura" message={`¿Anular ${anular?.numero || ''}? La factura quedará marcada como anulada.`} danger />
+      <Confirm open={Boolean(anularNota)} onClose={() => setAnularNota(null)} onConfirm={confirmarAnulacionNota} title="Anular nota" message={`¿Anular la nota ${anularNota?.numero || ''}? Se conservará para auditoría.`} danger />
     </>
   );
 }

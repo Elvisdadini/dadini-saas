@@ -298,6 +298,13 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - **Credenciales listas para cuando las tengas**: panel "Credenciales SIAT / envío XML" con ambiente (piloto/producción), URL del endpoint, modalidad, código del sistema, autorización, NIT/actividad y campos para token, usuario, contraseña, certificado y clave privada. Se guardan con el botón **Guardar credenciales SIAT**; los secretos se cifran AES-256-GCM con `SIAT_SECRET_KEY` (variable configurada en Render) y **nunca se devuelven al frontend** (solo se indica si están cargados). Dejar un secreto vacío conserva el valor anterior.
 - **XML y envío**: cada factura tiene **Generar XML** (guarda el Documento Fiscal Digital en el bucket `facturas`) y **Enviar al SIN** (usa las credenciales guardadas y registra estado/respuesta). Sin credenciales o con envío desactivado, responde un mensaje claro. El XML generado es un borrador con los datos obligatorios; debe validarse contra el Anexo Técnico/XSD de la modalidad asignada por el SIN antes de producción.
 
+### Notas de crédito/débito y anulación fuera de plazo
+
+- Desde **Facturación SIAT**, cada factura tiene un botón **Nota** para emitir una **nota de crédito** (reduce el saldo, devoluciones) o de **débito** (aumenta el saldo, cargos adicionales), ligada a la factura y con motivo obligatorio. El correlativo se guarda en la dosificación y el cliente se recalcula automáticamente.
+- Cada nota tiene **Generar XML** (Documento Fiscal Digital en `facturas`), **Enviar al SIN** con las credenciales cifradas y **Anular**; el estado y la respuesta quedan registrados.
+- Según la **RND 102600000025** (anulación fuera de plazo, hasta el día 9 del mes siguiente), el botón **Fuera de plazo** registra la solicitud con motivo y documento de respaldo; el SIN resuelve en hasta 6 meses. El estado de la solicitud se muestra en la factura.
+- Endpoints: `GET /api/fiscal/notas`, `POST /notas`, `/notas/:id/xml`, `/notas/:id/enviar`, `/notas/:id/anular` y `POST /facturas/:id/anular-fuera-plazo`. El detalle de lotes y notas se persiste en `ENTIDADES` para modo PostgreSQL.
+
 ### Kardex con lotes y FEFO
 
 - Nueva página **Catálogo → Kardex y lotes** (`/inventario/kardex`). Desde Inventario, el ícono de lista de cada producto abre el kardex filtrado.
@@ -305,6 +312,13 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - **Salida FEFO**: al vender se consumen primero los lotes con vencimiento más próximo; los vencidos quedan excluidos de la venta. Se guarda en cada línea del pedido el lote consumido para que la anulación reingrese exactamente ese lote.
 - `db.stock` sigue siendo el agregado oficial; `db.lotes`/`db.kardex` son el detalle. `kardex.sincronizar` reconcilia escrituras antiguas y el stock del camión sin mezclarlo con el almacén físico.
 - Panel de **vencidos y próximos a vencer (60 días)** y alerta en el dashboard. Endpoints `GET /api/kardex`, `/producto/:id`, `/alertas`, `POST /entrada` y `/transferencia`.
+
+### Reportes automáticos por WhatsApp
+
+- Nueva página **Análisis → Reportes automáticos** (`/reportes/automatico`). Permite activar un resumen diario, elegir **hora** (HH:MM), frecuencia (**diario** o **lunes a viernes**), destinatarios (empleados con WhatsApp) y qué secciones incluir: ventas del día, cobranzas/vencidas, stock bajo, vencimientos de lotes y visitas.
+- La **vista previa** muestra en vivo el mensaje exacto. El botón **Generar ahora** lo prepara de inmediato y el job del servidor (cada minuto) lo prepara solo a la hora configurada, una vez por día.
+- No hay WhatsApp Business API: se generan enlaces `wa.me` con el texto prellenado y se deja trazabilidad en `mensajes_whatsapp` (`referencia: "Reporte automático · fecha"`). El panel **Último reporte preparado** permite abrir cada chat o **Abrir todos los chats** (escalón de 250 ms para evitar bloqueo de popups); una persona confirma el envío final.
+- La generación de links masivos se centralizó en `whatsapp-links.js`, compartida por `/api/whatsapp/masivo` y el reporte automático. Endpoints: `GET/PUT /api/reportes/automatico`, `POST /vista-previa` y `POST /enviar`.
 
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.

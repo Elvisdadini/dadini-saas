@@ -1,11 +1,11 @@
 const express = require('express');
 const { load, save } = require('../db');
 const { authRequired, allow } = require('../auth');
-const { audit } = require('../utils');
+const { audit, nextId, round2 } = require('../utils');
 const { VERSION, REGISTRO, normativaVigente, calcularImpuestos } = require('../fiscal-normativa');
 const { guardarDocumento, guardarArchivo } = require('../documentos');
 const { cifrar, descifrar, configuradoParaCifrar } = require('../cripto');
-const { generarXml } = require('../fiscal-xml');
+const { generarXml, generarNotaXml } = require('../fiscal-xml');
 
 const router = express.Router();
 router.use(authRequired);
@@ -237,6 +237,145 @@ router.post('/facturas/:id/enviar', allow('admin', 'dueno'), async (req, res) =>
     save();
     return res.status(502).json({ ok: false, error: error.message });
   }
+});
+
+function notas(db) {
+  if (!Array.isArray(db.notas_fiscales)) db.notas_fiscales = [];
+  return db.notas_fiscales;
+}
+
+function notaPublica(db, nota) {
+  const cliente = (db.clientes || []).find((c) => c.id === nota.cliente_id);
+  const pedido = (db.pedidos || []).find((p) => p.id === nota.pedido_id);
+  return { ...nota, cliente_nombre: cliente?.nombre || '—', pedido_codigo: pedido?.codigo || null };
+}
+
+router.get('/notas', (req, res) => {
+  const db = load();
+  const lista = notas(db).map((n) => notaPublica(db, n))
+    .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+  res.json({ notas: lista, total: lista.length });
+});
+
+// Nota de crédito reduce saldo; nota de débito lo aumenta.
+router.post('/notas', allow('admin', 'dueno', 'cobranzas', 'ventas'), (req, res) => {
+  const db = load();
+  const fiscal = asegurarFiscal(db);
+  const b = req.body || {};
+  const tipo = b.tipo === 'debito' ? 'debito' : 'credito';
+  const pedido = (db.pedidos || []).find((p) => p.id === Number(b.pedido_id));
+  if (!pedido?.factura) return res.status(404).json({ error: 'El pedido no tiene factura relacionada.' });
+  const monto = Math.round(Number(b.monto) * 100) / 100;
+  if (!(monto > 0)) return res.status(400).json({ error: 'El monto debe ser mayor a cero.' });
+  if (tipo === 'credito' && monto > Number(pedido.total)) {
+    return res.status(400).json({ error: `La nota de crédito no puede superar el total de la factura (Bs ${pedido.total}).` });
+  }
+  const correlativo = (fiscal.dosificacion?.ultimo_numero_nota || 0) + 1;
+  fiscal.dosificacion = { ...(fiscal.dosificacion || {}), ultimo_numero_nota: correlativo };
+  const cliente = (db.clientes || []).find((c) => c.id === pedido.cliente_id);
+  const nota = {
+    id: nextId(notas(db)),
+    codigo: `NC-${String(correlativo).padStart(6, '0')}`,
+    numero: `${tipo === 'credito' ? 'NC' : 'ND'}-${String(correlativo).padStart(6, '0')}`,
+    correlativo, tipo, factura_numero: pedido.factura.numero,
+    pedido_id: pedido.id, factura_id: pedido.factura.numero, cliente_id: pedido.cliente_id,
+    cliente_nit: cliente?.nit || '0', monto, motivo: String(b.motivo || '').trim(),
+    estado: 'vigente', fecha: new Date().toISOString().slice(0, 10),
+    normativa_version: fiscal.normativa?.version || null, xml_url: null, pdf_url: null,
+    created_at: new Date().toISOString(),
+  };
+  if (!nota.motivo) return res.status(400).json({ error: 'Indica el motivo de la nota.' });
+  notas(db).push(nota);
+
+  if (tipo === 'credito') {
+    pedido.saldo = Math.max(0, round2((pedido.saldo || 0) - monto));
+    if (pedido.saldo === 0 && (pedido.pagado || 0) + monto >= pedido.total) pedido.estado_pago = 'pagado';
+  } else {
+    pedido.saldo = round2((pedido.saldo || 0) + monto);
+    pedido.estado_pago = 'parcial';
+  }
+  require('./services').recalcularCliente(db, pedido.cliente_id);
+  audit(db, req, `Nota de ${tipo === 'credito' ? 'crédito' : 'débito'} emitida`, 'Facturación', `${nota.numero} · Bs ${monto}`);
+  save();
+  return res.status(201).json({ ok: true, nota: notaPublica(db, nota) });
+});
+
+router.post('/notas/:id/xml', allow('admin', 'dueno', 'ventas', 'cobranzas'), async (req, res) => {
+  const db = load();
+  const fiscal = asegurarFiscal(db);
+  const nota = notas(db).find((n) => n.id === Number(req.params.id));
+  if (!nota) return res.status(404).json({ error: 'Nota no encontrada.' });
+  const pedido = (db.pedidos || []).find((p) => p.id === nota.pedido_id);
+  const xml = generarNotaXml(fiscal, nota, pedido?.factura);
+  try {
+    const guardado = await guardarArchivo(`data:application/xml;base64,${Buffer.from(xml, 'utf8').toString('base64')}`,
+      'application/xml', 'facturas', `nota-${nota.numero}`, 'xml');
+    nota.xml_url = guardado.url;
+    save();
+    return res.json({ ok: true, ...guardado });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+router.post('/notas/:id/enviar', allow('admin', 'dueno'), async (req, res) => {
+  const db = load();
+  const fiscal = asegurarFiscal(db);
+  const s = fiscal.siat || {};
+  const nota = notas(db).find((n) => n.id === Number(req.params.id));
+  if (!nota) return res.status(404).json({ error: 'Nota no encontrada.' });
+  if (!s.habilitado || !s.url || (!s.token && !s.usuario)) {
+    return res.status(400).json({ error: 'Credenciales SIAT no configuradas o envío desactivado.' });
+  }
+  const pedido = (db.pedidos || []).find((p) => p.id === nota.pedido_id);
+  const xml = generarNotaXml(fiscal, nota, pedido?.factura);
+  const headers = { 'Content-Type': 'application/xml; charset=utf-8', Accept: 'application/xml' };
+  if (s.token) headers.Authorization = `Bearer ${descifrar(s.token) || ''}`;
+  if (s.usuario) headers.Authorization = `Basic ${Buffer.from(`${descifrar(s.usuario) || ''}:${descifrar(s.contrasena) || ''}`).toString('base64')}`;
+  try {
+    const respuesta = await fetch(s.url, { method: 'POST', headers, body: xml });
+    const texto = await respuesta.text();
+    if (!respuesta.ok) throw new Error(`SIAT respondió ${respuesta.status}: ${texto.slice(0, 300)}`);
+    nota.estado = 'enviada';
+    nota.enviada_en = new Date().toISOString();
+    nota.respuesta_siat = texto.slice(0, 2000);
+    save();
+    return res.json({ ok: true, status: respuesta.status });
+  } catch (error) {
+    nota.estado = 'error_envio';
+    nota.error_envio = error.message;
+    save();
+    return res.status(502).json({ ok: false, error: error.message });
+  }
+});
+
+router.post('/notas/:id/anular', allow('admin', 'dueno'), (req, res) => {
+  const db = load();
+  const nota = notas(db).find((n) => n.id === Number(req.params.id));
+  if (!nota) return res.status(404).json({ error: 'Nota no encontrada.' });
+  if (nota.estado === 'anulada') return res.status(400).json({ error: 'La nota ya está anulada.' });
+  nota.estado = 'anulada';
+  nota.anulada_en = new Date().toISOString();
+  audit(db, req, 'Nota fiscal anulada', 'Facturación', nota.numero);
+  save();
+  return res.json({ ok: true, nota });
+});
+
+// RND 102600000025: anulación fuera de plazo (día 9 del mes siguiente).
+// El SIN resuelve en hasta 6 meses; aquí se registra la solicitud y su estado.
+router.post('/facturas/:id/anular-fuera-plazo', allow('admin', 'dueno'), (req, res) => {
+  const db = load();
+  const pedido = (db.pedidos || []).find((p) => p.id === Number(req.params.id));
+  if (!pedido?.factura) return res.status(404).json({ error: 'Factura no encontrada.' });
+  if (!req.body?.motivo) return res.status(400).json({ error: 'Indica el motivo de la solicitud.' });
+  pedido.factura.solicitud_anulacion = {
+    motivo: String(req.body.motivo),
+    documento: String(req.body?.documento || ''),
+    solicitada_en: new Date().toISOString(),
+    estado: 'pendiente',
+    respuesta_siat: null,
+  };
+  audit(db, req, 'Solicitud de anulación fuera de plazo', 'Facturación', pedido.factura.numero);
+  save();
+  return res.json({ ok: true, solicitud: pedido.factura.solicitud_anulacion });
 });
 
 router.get('/facturas', (req, res) => {
