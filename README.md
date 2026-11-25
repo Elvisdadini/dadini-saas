@@ -289,6 +289,13 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - **Banner de conexión** en el Shell: muestra "Sin conexión · N cambios guardados", progreso del reenvío y botón **Reenviar ahora**. Los callers reciben un mensaje claro en vez de un error críptico.
 - **Firma/POD**: componente `FirmaCanvas` (canvas táctil, PNG) disponible en entregas de ruta (flujo detallado y parcial/cerrado), Pedidos programados, "Pasar a entregado" del detalle de pedido y visitas de preventa. El backend sube la firma al bucket `comprobantes` con `subirFoto(..., 'firma')` y guarda `firma_url` en la parada, el pedido (`fecha_entrega`, `entregado_por`) y la visita. La firma se muestra en comprobantes, detalle de pedido y ficha del cliente.
 
+### Caja y facturación SIAT
+
+- **Caja y arqueo** (`/caja`): apertura con saldo inicial, ingresos/egresos (los cobros y ventas al contado se registran solos, abriendo la caja automáticamente si no existía), cierre con saldo declarado y **diferencia**. Historial de cajas por fecha.
+- **Facturación SIAT** (`/facturacion`): registro de normativas con **vigencia por fecha** —IVA 13% "por dentro" (efectivo 14,94%), IT 3%, Ley 1733 "por fuera" pendiente de Decreto Supremo, crédito fiscal de combustible 100%, requisitos de comprador/ventas menores/TCO, prescripción 4 años—. El botón **Actualizar normativa SIAT** consulta el feed opcional `SIAT_NORMATIVA_URL` o el registro integrado (`2026.11.25`), fusiona cambios y reporta nuevas/actualizadas/vigentes. Las normas editadas a mano no se sobrescriben.
+- Cada venta genera una **factura** con correlativo de dosificación, NIT/razón social, comprador (S/N y NIT 0 hasta Bs 1.000), desglose de IVA e IT según la norma vigente a la fecha, y versión de normativa aplicada. Se puede **ver, descargar PDF y anular**.
+- La calculadora de impuestos aplica la normativa vigente a una fecha y monto dados, permitiendo aumentos, reducciones y leyes temporales sin cambiar código.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.
