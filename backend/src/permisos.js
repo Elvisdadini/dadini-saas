@@ -175,7 +175,7 @@ function tienePermiso(usuario, codigo) {
 // Agrega las colecciones nuevas y los permisos de los usuarios ya creados.
 function asegurarEstructura(db) {
   let cambio = false;
-  ['zonas', 'tipos_cliente', 'rutas_venta', 'producto_categorias', 'producto_marcas', 'conteos_inventario', 'qrs_pago', 'notificaciones', 'cajas', 'movimientos_caja', 'lotes', 'kardex', 'notas_fiscales'].forEach((clave) => {
+  ['zonas', 'tipos_cliente', 'rutas_venta', 'producto_categorias', 'producto_marcas', 'conteos_inventario', 'qrs_pago', 'notificaciones', 'cajas', 'movimientos_caja', 'lotes', 'kardex', 'notas_fiscales', 'crm_notas'].forEach((clave) => {
     if (!Array.isArray(db[clave])) { db[clave] = []; cambio = true; }
   });
   const ahora = new Date().toISOString();

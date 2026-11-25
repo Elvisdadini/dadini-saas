@@ -320,6 +320,14 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - No hay WhatsApp Business API: se generan enlaces `wa.me` con el texto prellenado y se deja trazabilidad en `mensajes_whatsapp` (`referencia: "Reporte automático · fecha"`). El panel **Último reporte preparado** permite abrir cada chat o **Abrir todos los chats** (escalón de 250 ms para evitar bloqueo de popups); una persona confirma el envío final.
 - La generación de links masivos se centralizó en `whatsapp-links.js`, compartida por `/api/whatsapp/masivo` y el reporte automático. Endpoints: `GET/PUT /api/reportes/automatico`, `POST /vista-previa` y `POST /enviar`.
 
+### CRM 360 + scoring RFM
+
+- Nueva página **Análisis → CRM 360** (`/crm`), también accesible desde **Clientes → CRM 360**. Clasifica cada cliente con **Recencia, Frecuencia y Monetario (1–5)** calculados en memoria a partir de pedidos, visitas, pagos y saldos ya persistidos (sin migraciones).
+- **10 segmentos** (Campeones, Leales, Potencial leal, Nuevos, Prometedores, Necesitan atención, Hibernando, En riesgo, Perdidos, Sin actividad), cada uno con una **acción recomendada** y una **prioridad P1–P5** que sube automáticamente si hay facturas vencidas.
+- Ranking filtrable por segmento, zona, vendedor, riesgo y búsqueda, ordenable por score/recencia/monto/frecuencia/saldo, con **exportación CSV**. El M se calcula por **quintiles relativos** a la cartera, para que el score se adapte al tamaño real del negocio.
+- **Ficha 360** (modal): resistencia RFM, ciclo de compra y próxima visita sugerida, productos favoritos, pestañas de pedidos, visitas (timeline), cobros/pagos y **notas de seguimiento** persistidas en `crm_notas`. Incluye accesos a nueva venta, cobranzas y WhatsApp prellenado para reactivar o cobrar.
+- Endpoints: `GET /api/crm/clientes`, `GET /api/crm/clientes/:id`, `GET /api/crm/segmentos`, `POST /api/crm/clientes/:id/notas` y `DELETE /api/crm/notas/:id`. `crm_notas` se agregó a `ENTIDADES` para sobrevivir en PostgreSQL.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.

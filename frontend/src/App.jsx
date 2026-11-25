@@ -29,6 +29,7 @@ const AgendaPreventa = lazy(() => import('./pages/AgendaPreventa'));
 const PedidosProgramados = lazy(() => import('./pages/PedidosProgramados'));
 const PedidoDetalle = lazy(() => import('./pages/PedidoDetalle'));
 const Clientes = lazy(() => import('./pages/Clientes'));
+const CRM = lazy(() => import('./pages/CRM'));
 const Cobranzas = lazy(() => import('./pages/Cobranzas'));
 const Inventario = lazy(() => import('./pages/Inventario'));
 const ActualizarPrecios = lazy(() => import('./pages/ActualizarPrecios'));
@@ -91,6 +92,7 @@ export default function App() {
             <Route path="ventas/:id" element={<Guard module="ventas"><PedidoDetalle /></Guard>} />
             <Route path="mi-camion" element={<Guard module="mi_camion"><MiCamion /></Guard>} />
             <Route path="clientes" element={<Guard module="clientes"><Clientes /></Guard>} />
+            <Route path="crm" element={<Guard module="clientes"><CRM /></Guard>} />
             <Route path="clientes/categorias" element={<Guard module="clientes"><CategoriasClientes /></Guard>} />
             <Route path="cobranzas" element={<Guard module="cobranzas"><Cobranzas /></Guard>} />
             <Route path="caja" element={<Guard module="cobranzas"><Caja /></Guard>} />

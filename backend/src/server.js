@@ -75,6 +75,7 @@ app.use('/api/productos-imagenes', require('./routes/productos-imagenes'));
 app.use('/api/catalogo-pdf', require('./routes/catalogo-pdf'));
 app.use('/api/almacenes', require('./routes/almacenes'));
 app.use('/api/clientes', require('./routes/clientes'));
+app.use('/api/crm', require('./routes/crm'));
 app.use('/api/pedidos', require('./routes/pedidos'));
 app.use('/api/rutas', require('./routes/rutas'));
 app.use('/api/cobranzas', require('./routes/cobranzas'));

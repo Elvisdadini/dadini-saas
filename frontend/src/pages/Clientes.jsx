@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { descargarPlantilla, leerExcel } from '../excel';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Building2, CalendarCheck, CheckCircle2, CircleDollarSign, Crosshair, Eye, ExternalLink, FileSpreadsheet, Lock, Mail, MapPin, MessageCircle, Navigation, Pencil, Phone, Plus, Search, ShieldAlert, ShieldCheck, ShoppingCart, Tag, Truck, Unlock, Upload, UserRound, Users, Wallet,
+  Building2, CalendarCheck, CheckCircle2, CircleDollarSign, Crosshair, Eye, ExternalLink, FileSpreadsheet, Lock, Mail, MapPin, MessageCircle, Navigation, Pencil, Phone, Plus, Search, ShieldAlert, ShieldCheck, ShoppingCart, Sparkles, Tag, Truck, Unlock, Upload, UserRound, Users, Wallet,
 } from 'lucide-react';
 import { api, qs } from '../api';
 import { puede, useAuth } from '../auth';
@@ -307,15 +307,16 @@ export default function Clientes() {
         eyebrow="Cartera comercial"
         title="Clientes"
         subtitle="Gestiona mayoristas, minoristas, zonas de reparto y cupos de crédito."
-        actions={puedeEditar && (
-          <>
+        actions={<>
+            <Link className="btn btn-ghost" to="/crm"><Sparkles size={14} /> CRM 360</Link>
+            {puedeEditar && <>
             <Link className="btn btn-ghost" to="/clientes/categorias"><Tag size={14} /> Categorías</Link>
             <Link className="btn btn-ghost" to="/ventas/rutas"><MapPin size={14} /> Rutas y zonas</Link>
             {puedeAsignar && <button className="btn btn-outline" onClick={() => setAsignarModal(true)}><Users size={14} /> Asignar vendedores</button>}
             {puedeCrear && <button className="btn btn-outline" onClick={() => setImportOpen(true)}><Upload size={14} /> Importar Excel</button>}
             {puedeCrear && <button className="btn btn-primary" onClick={abrirNuevo}><Plus size={15} /> Nuevo cliente</button>}
-          </>
-        )}
+            </>}
+        </>}
       />
 
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>

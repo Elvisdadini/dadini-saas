@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   BadgePercent, Bell, BarChart3, Building2, ChevronDown, ClipboardList, Crown, LayoutDashboard, LogOut, Menu, Palette, Receipt, Tag, Target, TrendingUp, Undo2,
   MapPin, Package, PackageCheck, Search, Settings, ShoppingCart, Truck, Users, Wallet, X, UserRound, Lock,
-  FileText, ArrowUpRight, CheckCircle2, AlertTriangle, RefreshCw, Crosshair, WifiOff, CloudUpload, MessageCircle,
+  FileText, ArrowUpRight, CheckCircle2, AlertTriangle, RefreshCw, Crosshair, WifiOff, CloudUpload, MessageCircle, HeartHandshake,
 } from 'lucide-react';
 import { api, contarCola, reenviarCola } from '../api';
 import { useAuth, puede, ROL_LABEL } from '../auth';
@@ -55,6 +55,7 @@ const NAV = [
   { group: 'Análisis', items: [
     { to: '/reportes', label: 'Reportes', icon: BarChart3, key: 'reportes' },
     { to: '/reportes/automatico', label: 'Reportes automáticos', icon: MessageCircle, key: 'reportes' },
+    { to: '/crm', label: 'CRM 360', icon: HeartHandshake, key: 'clientes' },
   ] },
   {
     group: 'Sistema',
@@ -101,6 +102,7 @@ const PAGE_TITLES = {
   '/inventario/devoluciones': ['Devoluciones', 'Verificación y reingreso'],
   '/reportes': ['Reportes', 'Análisis del negocio'],
   '/reportes/automatico': ['Reportes automáticos', 'Resumen diario preparado para WhatsApp'],
+  '/crm': ['CRM 360', 'Scoring RFM y plan de acción por cliente'],
   '/dueno': ['Panel del dueño', 'Planes, precios y descuentos'],
   '/administracion': ['Administración', 'Configuración del sistema'],
   '/administracion/personalizacion': ['Marca y APK', 'Identidad visual y nube'],
