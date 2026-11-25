@@ -282,6 +282,13 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Sin librerías nuevas: se usa `useMapEvents` + `Polygon` de react-leaflet y ray-casting propio (`puntoDentroPoligono`). `zonas`, `tipos_cliente` y `rutas_venta` se agregaron a `ENTIDADES` para sobrevivir en modo PostgreSQL.
 - Los mapas usan tiles de **Esri World Street Map** sin API key, con su atribución visible, en el componente compartido `CapaMapa`. El servidor público de OpenStreetMap bloqueaba con 403 ("App is not following the tile usage policy") y CARTO empezó a exigir clave el 25/09/2026 ("API KEY REQUIRED"); con Esri los tiles cargan correctamente en todos los mapas del sistema.
 
+### PWA offline y firma/POD
+
+- **PWA instalable**: `manifest.webmanifest` + `sw.js` (app shell cacheado, API con network-first y fallback). El service worker se registra en producción y se habilita explícitamente en el WebView de la APK (`ServiceWorkerController`).
+- **Cola offline**: `api.js` detecta `navigator.onLine === false` (o fallo de fetch) en POST/PUT/PATCH/DELETE y guarda la operación en `localStorage` (`dadini_cola_offline`). Al volver la red, `reenviarCola()` las envía en orden, quita las exitosas y conserva las fallidas por 5xx/red. Se excluyen login, PIN, perfil, APK y PDFs grandes.
+- **Banner de conexión** en el Shell: muestra "Sin conexión · N cambios guardados", progreso del reenvío y botón **Reenviar ahora**. Los callers reciben un mensaje claro en vez de un error críptico.
+- **Firma/POD**: componente `FirmaCanvas` (canvas táctil, PNG) disponible en entregas de ruta (flujo detallado y parcial/cerrado), Pedidos programados, "Pasar a entregado" del detalle de pedido y visitas de preventa. El backend sube la firma al bucket `comprobantes` con `subirFoto(..., 'firma')` y guarda `firma_url` en la parada, el pedido (`fecha_entrega`, `entregado_por`) y la visita. La firma se muestra en comprobantes, detalle de pedido y ficha del cliente.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.
