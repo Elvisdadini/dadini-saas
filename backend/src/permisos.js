@@ -150,11 +150,36 @@ function normalizarPermisos(lista) {
   return [...new Set(lista.filter((c) => TODOS.includes(c)))];
 }
 
+// Techo de acceso por puesto. Aunque un usuario tenga permisos guardados
+// amplios (heredados de otro rol o marcados por error), NUNCA puede exceder
+// las funciones de su puesto. Es la misma regla para la web y para la APK,
+// porque ambas consumen esta API.
+const TECHO_POR_ROL = {
+  ventas: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'cobranzas', 'catalogo', 'cambios',
+    'rutas_venta', 'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'reportes', 'geocerca'],
+  preventista: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'cobranzas', 'catalogo', 'cambios',
+    'rutas_venta', 'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'reportes', 'geocerca'],
+  vendedor_camion: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'mi_camion', 'cambios', 'catalogo',
+    'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'geocerca'],
+  distribucion: ['dashboard', 'ventas', 'clientes', 'distribucion', 'cambios', 'catalogo', 'visitas',
+    'whatsapp', 'notificaciones', 'objetivos', 'bi', 'logistica', 'geocerca'],
+  almacen: ['dashboard', 'inventario', 'kardex', 'compras', 'cambios', 'distribucion', 'catalogo',
+    'notificaciones', 'bi', 'reportes', 'logistica', 'inventario.ver_costos'],
+  supervisor: ['dashboard', 'ventas', 'clientes', 'cobranzas', 'distribucion', 'inventario', 'kardex',
+    'caja', 'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'reportes', 'catalogo',
+    'logistica', 'cambios', 'rutas_venta', 'geocerca', 'mi_camion', 'datos.ver_todos'],
+  cobranzas: ['dashboard', 'cobranzas', 'clientes', 'ventas', 'caja', 'bi', 'notificaciones',
+    'whatsapp', 'reportes', 'objetivos'],
+};
+
 function permisosUsuario(usuario) {
   if (!usuario) return [];
   if (usuario.rol === 'admin' || usuario.rol === 'dueno') return [...TODOS];
-  if (Array.isArray(usuario.permisos)) return usuario.permisos;
-  return permisosPorRol(usuario.rol);
+  const guardados = Array.isArray(usuario.permisos) ? usuario.permisos : permisosPorRol(usuario.rol);
+  const techo = TECHO_POR_ROL[usuario.rol];
+  if (!techo) return [...new Set(guardados.filter((c) => TODOS.includes(c)))];
+  return [...new Set(guardados.filter((c) => TODOS.includes(c)
+    && (techo.includes(c) || (c.includes('.') && techo.includes(c.split('.')[0])))))];
 }
 
 const LEGACY = {
@@ -240,6 +265,6 @@ function asegurarEstructura(db) {
 }
 
 module.exports = {
-  MODULOS, ACCIONES, TODOS, PLANTILLAS, CATALOGO, CRUD, CODIGOS_DETALLADOS, expandir,
+  MODULOS, ACCIONES, TODOS, PLANTILLAS, CATALOGO, CRUD, CODIGOS_DETALLADOS, expandir, TECHO_POR_ROL,
   permisosPorRol, permisosPorPlantilla, normalizarPermisos, permisosUsuario, tienePermiso, asegurarEstructura,
 };

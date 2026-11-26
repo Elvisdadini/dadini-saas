@@ -19,6 +19,37 @@ function verify(token) {
   return jwt.verify(token, SECRET);
 }
 
+// Información financiera sensible: nunca sale para vendedores, distribuidores
+// ni supervisores. El filtro se aplica a TODA respuesta JSON de la API, así
+// la APK ( mismo SPA ) y la web reciben exactamente los mismos datos.
+const OCULTOS = {
+  'finanzas.ver_margenes': ['margen', 'margen_bruto', 'utilidad', 'utilidad_neta', 'utilidad_porcentaje',
+    'rentabilidad', 'ganancia', 'ganancia_neta', 'costo_ventas', 'capital_total', 'capital_almacenes', 'capital_movil'],
+  'inventario.ver_costos': ['costo', 'costo_unitario', 'costo_total', 'valor_inventario'],
+};
+
+function limpiar(value, bloqueados, profundidad = 0) {
+  if (profundidad > 12 || value === null || typeof value !== 'object' || value instanceof Date || Buffer.isBuffer(value)) return value;
+  if (Array.isArray(value)) return value.map((v) => limpiar(v, bloqueados, profundidad + 1));
+  const resultado = {};
+  Object.entries(value).forEach(([clave, v]) => {
+    if (bloqueados.has(clave)) return;
+    resultado[clave] = limpiar(v, bloqueados, profundidad + 1);
+  });
+  return resultado;
+}
+
+function protegerRespuesta(req, res) {
+  if (['admin', 'dueno'].includes(req.user.rol)) return;
+  const bloqueados = new Set();
+  Object.entries(OCULTOS).forEach(([permiso, claves]) => {
+    if (!tienePermiso(req.user, permiso)) claves.forEach((c) => bloqueados.add(c));
+  });
+  if (!bloqueados.size) return;
+  const json = res.json.bind(res);
+  res.json = (cuerpo) => json(limpiar(cuerpo, bloqueados));
+}
+
 function authRequired(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -45,6 +76,7 @@ function authRequired(req, res, next) {
       bloqueos: user.bloqueos || null,
     };
     req.db = db;
+    protegerRespuesta(req, res);
     const tenant = require('./tenant');
     return tenant.ejecutar(tenant.resolver(req), () => {
       req.db = require('./db').load();
@@ -88,4 +120,4 @@ function compareAsync(password, hashed) {
   return bcrypt.compare(password, hashed);
 }
 
-module.exports = { sign, verify, authRequired, allow, requirePermiso, hash, compare, compareAsync };
+module.exports = { sign, verify, authRequired, allow, requirePermiso, hash, compare, compareAsync, limpiar };

@@ -65,6 +65,9 @@ const CATALOGO = [
       { codigo: 'fiscal.enviar_sin', etiqueta: 'Enviar XML al SIN' },
       { codigo: 'fiscal.configurar', etiqueta: 'Configurar NIT, dosificación, normativa y credenciales SIAT' },
     ] },
+    { base: 'finanzas', etiqueta: 'Finanzas de la empresa', sub: [
+      { codigo: 'finanzas.ver_margenes', etiqueta: 'Ver utilidad, márgenes y rentabilidad (solo administración)' },
+    ] },
     { base: 'sueldos', etiqueta: 'Sueldos y boletas', sub: [] },
     { base: 'ordenes_pago', etiqueta: 'Órdenes de pagos', sub: [] },
     { base: 'rentabilidad', etiqueta: 'Rentabilidad', sub: [] },
@@ -80,7 +83,9 @@ const CATALOGO = [
     ] },
   ] },
   { grupo: 'Inventario', modulos: [
-    { base: 'inventario', etiqueta: 'Productos stock', sub: [] },
+    { base: 'inventario', etiqueta: 'Productos stock', sub: [
+      { codigo: 'inventario.ver_costos', etiqueta: 'Ver costos, valorización y margen de productos' },
+    ] },
     { base: 'conteo_inventario', etiqueta: 'Conteo de inventario', sub: [] },
     { base: 'almacenes_moviles', etiqueta: 'Almacenes móviles', sub: [] },
     { base: 'preparado_carga', etiqueta: 'Preparado de carga', sub: [] },

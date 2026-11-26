@@ -9,7 +9,7 @@ import {
 import { api, qs } from '../api';
 import { optimizarImagen, pesoDeDataUrl, skuDeArchivo } from '../imagen';
 import BotonExcel from '../components/BotonExcel';
-import { useAuth } from '../auth';
+import { puede, useAuth } from '../auth';
 import {
   Badge, Confirm, EmptyState, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, Tabs, useToast,
 } from '../ui';
@@ -19,6 +19,7 @@ const ALMACEN_VACIO = { nombre: '', direccion: '', zona: '', ciudad: 'Cochabamba
 
 export default function Inventario() {
   const { user } = useAuth();
+  const veCostos = puede(user, 'inventario.ver_costos');
   const toast = useToast();
   const [tab, setTab] = useState('productos');
   const [productos, setProductos] = useState([]);
@@ -296,7 +297,7 @@ export default function Inventario() {
         subtitle="Controla existencias por almacén, movimientos, transferencias y alertas de reposición."
         actions={(
           <>
-            <BotonExcel filas={productos} nombre="productos" columnas={['sku', 'nombre', 'categoria', 'unidad', 'precio', 'costo', 'stock_total', 'stock_minimo']} />
+            <BotonExcel filas={productos} nombre="productos" columnas={['sku', 'nombre', 'categoria', 'unidad', 'precio', ...(veCostos ? ['costo'] : []), 'stock_total', 'stock_minimo']} />
             <Link className="btn btn-ghost" to="/inventario/promociones"><BadgePercent size={14} /> Promociones</Link>
             <Link className="btn btn-ghost" to="/inventario/almacenes-moviles"><Truck size={14} /> Almacenes móviles</Link>
             <Link className="btn btn-ghost" to="/inventario/devoluciones"><Undo2 size={14} /> Devoluciones</Link>
@@ -311,7 +312,7 @@ export default function Inventario() {
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>
         <StatCard label="Productos activos" value={resumen.total || 0} icon={Package} tone="blue" hint={`${resumen.inactivos || 0} inactivos · ${categorias.length} categorías`} />
         <StatCard label="Unidades en stock" value={<Num value={resumen.unidades || 0} />} icon={Boxes} tone="green" hint={`${almacenes.filter((a) => a.activo).length} almacenes activos`} />
-        <StatCard label="Valor del inventario" value={<Money value={resumen.valor_inventario} />} icon={Building2} tone="purple" hint="Valorizado al costo" />
+        {veCostos && <StatCard label="Valor del inventario" value={<Money value={resumen.valor_inventario} />} icon={Building2} tone="purple" hint="Valorizado al costo" />}
         <StatCard label="Stock bajo" value={resumen.bajo_stock || 0} icon={SlidersHorizontal} tone="amber" hint="Productos a reponer" />
       </div>
 
@@ -338,15 +339,17 @@ export default function Inventario() {
             {loading ? <SkeletonRows rows={8} /> : productos.length === 0 ? <EmptyState icon={Package} title="Sin productos" message="No hay productos con esos filtros." /> : (
               <div className="table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>Producto</th><th>Categoría</th><th className="num">Precio</th><th className="num">Costo</th><th className="num">Margen</th><th>Stock por almacén</th><th className="num">Total</th><th /></tr></thead>
+                  <thead><tr><th>Producto</th><th>Categoría</th><th className="num">Precio</th>{veCostos && <><th className="num">Costo</th><th className="num">Margen</th></>}<th>Stock por almacén</th><th className="num">Total</th><th /></tr></thead>
                   <tbody>
                     {productos.map((p) => (
                       <tr key={p.id}>
                         <td><div className="inline" style={{ gap: 8 }}><span className="product-thumb" style={{ width: 32, height: 32, fontSize: 16 }}>{p.emoji}</span><div><span className="cell-strong">{p.nombre}</span><span className="cell-sub">{p.sku} · {p.unidad}</span></div>{!p.activo && <Badge tone="red">Inactivo</Badge>}</div></td>
                         <td><Badge tone="gray">{p.categoria}</Badge></td>
                         <td className="num"><Money value={p.precio} /></td>
-                        <td className="num muted"><Money value={p.costo} /></td>
-                        <td className="num"><span className="text-green">{p.precio ? Math.round(((p.precio - p.costo) / p.precio) * 100) : 0}%</span></td>
+                        {veCostos && <>
+                          <td className="num muted"><Money value={p.costo} /></td>
+                          <td className="num"><span className="text-green">{p.precio ? Math.round(((p.precio - p.costo) / p.precio) * 100) : 0}%</span></td>
+                        </>}
                         <td>
                           <div className="inline" style={{ gap: 5 }}>
                             {p.stock_por_almacen.map((s) => (
@@ -516,10 +519,10 @@ export default function Inventario() {
           </div>
           <div className="field-row-3">
             <div className="field"><label>Precio venta (Bs) <span className="req">*</span></label><input className="input" type="number" min="0" step="0.1" value={form.precio} onChange={(e) => setForm({ ...form, precio: e.target.value })} /></div>
-            <div className="field"><label>Costo (Bs)</label><input className="input" type="number" min="0" step="0.1" value={form.costo} onChange={(e) => setForm({ ...form, costo: e.target.value })} /></div>
+            {veCostos && <div className="field"><label>Costo (Bs)</label><input className="input" type="number" min="0" step="0.1" value={form.costo} onChange={(e) => setForm({ ...form, costo: e.target.value })} /></div>}
             <div className="field"><label>Stock mínimo</label><input className="input" type="number" min="0" value={form.stock_minimo} onChange={(e) => setForm({ ...form, stock_minimo: e.target.value })} /></div>
           </div>
-          {Number(form.precio) > 0 && (
+          {veCostos && Number(form.precio) > 0 && (
             <div className={`notice ${((form.precio - form.costo) / form.precio * 100) >= 20 ? 'notice-info' : 'notice-warn'}`}>
               <BadgePercent size={14} /> Margen bruto: <strong>{(((form.precio - form.costo) / form.precio) * 100).toFixed(1)}%</strong>
               {' · '}Ganancia por unidad: <strong>Bs {(Number(form.precio) - Number(form.costo)).toFixed(2)}</strong>

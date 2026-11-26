@@ -14,6 +14,9 @@ const { evaluar: evaluarPromociones } = require('../promociones');
 const { buildIndices, porId } = require('../indexes');
 const { tienePermiso } = require('../permisos');
 const { requireActividad } = require('../actividades');
+const horario = require('../horario');
+
+const DOCUMENTOS_ENTREGA = ['factura_siat', 'comprobante_entrega'];
 
 const router = express.Router();
 router.use(authRequired);
@@ -59,7 +62,9 @@ router.get('/programados', (req, res) => {
   const db = load();
   const { fecha, ruta_venta, forma_pago, estado, distribuidor_id, cliente_id } = req.query;
   const fechaObjetivo = fecha || addDaysISO(new Date(), 1);
-  let pedidos = db.pedidos.filter((p) => p.es_preventa && p.estado !== 'cancelado' && p.fecha_entrega_programada === fechaObjetivo);
+  let pedidos = require('../alcance').filtrar(req,
+    db.pedidos.filter((p) => p.es_preventa && p.estado !== 'cancelado' && p.fecha_entrega_programada === fechaObjetivo),
+    ['vendedor_id', 'repartidor_asignado_id', 'usuario_id']);
   if (ruta_venta && ruta_venta !== 'todas') pedidos = pedidos.filter((p) => p.ruta_venta === ruta_venta);
   if (forma_pago && forma_pago !== 'todos') pedidos = pedidos.filter((p) => p.forma_pago === forma_pago);
   if (estado && estado !== 'todos') pedidos = pedidos.filter((p) => p.estado === estado);
@@ -83,14 +88,17 @@ router.get('/:id', (req, res) => {
   const db = load();
   const pedido = db.pedidos.find((p) => p.id === Number(req.params.id));
   if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado.' });
+  if (!require('../alcance').esMio(pedido, req, ['vendedor_id', 'repartidor_asignado_id', 'usuario_id'])) {
+    return res.status(403).json({ error: 'Este pedido pertenece a otro usuario. No tienes acceso.' });
+  }
   return res.json({ pedido: pedidoResumen(db, pedido, true), configuracion: db.configuracion.empresa });
 });
 
-router.post('/', requireActividad('vender'), requirePermiso('ventas.crear'), allow('ventas', 'preventista', 'vendedor_camion'), (req, res) => {
+router.post('/', requireActividad('vender'), requireHorarioVentas, requirePermiso('ventas.crear'), allow('ventas', 'preventista', 'vendedor_camion'), (req, res) => {
   const db = load();
   kardex.sincronizar(db);
   const indices = buildIndices(db);
-  const { cliente_id, items, canal, forma_pago, almacen_id, descuento, descuento_porcentaje, envio, notas, entrega_direccion, vendedor_id, dias_credito: diasSolicitados, latitud, longitud, precision, almacen_movil_id, whatsapp_cliente } = req.body || {};
+  const { cliente_id, items, canal, forma_pago, almacen_id, descuento, descuento_porcentaje, envio, notas, entrega_direccion, vendedor_id, dias_credito: diasSolicitados, latitud, longitud, precision, almacen_movil_id, whatsapp_cliente, documento_entrega } = req.body || {};
   const cliente = indices.clientes.get(Number(cliente_id));
   if (!cliente) return res.status(400).json({ error: 'Selecciona un cliente válido.' });
   if (cliente.bloqueado_por_deuda || !cliente.activo) return res.status(403).json({ error: `Cliente bloqueado: ${cliente.motivo_bloqueo || 'cuenta pendiente con la empresa'}. Regulariza la deuda para venderle.` });
@@ -171,6 +179,10 @@ router.post('/', requireActividad('vender'), requirePermiso('ventas.crear'), all
   if ((pctSolicitado > 0 || bsSolicitado > 0) && !tienePermiso(req.user, 'ventas.aplicar_descuento')) {
     return res.status(403).json({ error: 'No tienes autorización para aplicar descuentos.' });
   }
+  const tipoDocumento = DOCUMENTOS_ENTREGA.includes(documento_entrega) ? documento_entrega : 'comprobante_entrega';
+  if (tipoDocumento === 'factura_siat' && !tienePermiso(req.user, 'fiscal.emitir')) {
+    return res.status(403).json({ error: 'No tienes autorización para registrar una factura con registro en el SIN. Elige comprobante de entrega o solicita el permiso a administración.' });
+  }
   const maxPct = Number(db.configuracion?.ventas?.descuento_max_pct) || 100;
   const pct = Math.min(maxPct, pctSolicitado);
   const desc = pct > 0 ? Math.min(subtotal, round2(subtotal * pct / 100)) : Math.min(subtotal, round2(bsSolicitado));
@@ -223,6 +235,7 @@ router.post('/', requireActividad('vender'), requirePermiso('ventas.crear'), all
     bonificaciones: evaluacion.bonificaciones,
     envio: costoEnvio,
     total,
+    documento_entrega: tipoDocumento,
     pagado: forma_pago === 'credito' ? 0 : total,
     saldo: forma_pago === 'credito' ? total : 0,
     items: lineas,
@@ -419,7 +432,13 @@ router.patch('/:id/estado', allow('ventas', 'preventista', 'distribucion'), asyn
     return res.status(400).json({ error: `No se puede pasar de "${pedido.estado}" a "${estado}".` });
   }
   if (estado === 'cancelado') {
-    if (!['admin', 'dueno'].includes(req.user.rol) && !(req.user.permisos || []).includes('pedidos_editar')) {
+    const esVendedor = horario.VENDEDORES.includes(req.user.rol);
+    if (esVendedor) {
+      const estadoHorario = horario.estadoVentas();
+      if (!estadoHorario.permitido) return res.status(403).json({ error: estadoHorario.motivo, horario: estadoHorario });
+      if (!horario.esPedidoDeHoy(pedido)) return res.status(403).json({ error: 'Solo puedes anular pedidos registrados hoy. Los pedidos de otros días los gestiona almacén o supervisión.' });
+      if (Number(pedido.vendedor_id || pedido.usuario_id) !== req.user.id) return res.status(403).json({ error: 'Este pedido pertenece a otro vendedor.' });
+    } else if (!['admin', 'dueno'].includes(req.user.rol) && !(req.user.permisos || []).includes('pedidos_editar')) {
       return res.status(403).json({ error: 'Solo supervisión o administración puede cancelar pedidos.' });
     }
     pedido.items.forEach((l) => {
@@ -609,14 +628,171 @@ router.patch('/:id/asignar-ruta', allow('distribucion', 'ventas'), (req, res) =>
   return res.json({ pedido: pedidoResumen(db, pedido, true) });
 });
 
-router.put('/:id', requirePermiso('pedidos_editar'), allow('ventas'), (req, res) => {
+function listaAjustes(valor) {
+  if (!Array.isArray(valor)) return [];
+  return valor.map((x) => ({ producto_id: Number(x?.producto_id), cantidad: Math.round(num(x?.cantidad)) }))
+    .filter((x) => x.producto_id > 0 && x.cantidad > 0);
+}
+
+// Agregar o quitar productos de un pedido: solo el día de hoy, dentro del
+// horario y únicamente del propio vendedor. El stock se ajusta por FEFO.
+router.patch('/:id/items', requireActividad('vender'), horario.requireHorarioVentas,
+  allow('ventas', 'preventista', 'vendedor_camion'), (req, res) => {
+    const db = load();
+    kardex.sincronizar(db);
+    const pedido = db.pedidos.find((p) => p.id === Number(req.params.id));
+    if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado.' });
+    if (!['pendiente', 'preparando'].includes(pedido.estado)) {
+      return res.status(400).json({ error: 'Solo puedes ajustar pedidos pendientes o en preparación.' });
+    }
+    if (!horario.esPedidoDeHoy(pedido)) return res.status(403).json({ error: 'Solo puedes ajustar pedidos registrados hoy.' });
+    if (Number(pedido.vendedor_id || pedido.usuario_id) !== req.user.id) {
+      return res.status(403).json({ error: 'Este pedido pertenece a otro vendedor.' });
+    }
+    const cliente = (db.clientes || []).find((c) => c.id === Number(pedido.cliente_id));
+    const agregar = listaAjustes(req.body?.agregar);
+    const disminuir = listaAjustes(req.body?.disminuir);
+    if (!agregar.length && !disminuir.length) return res.status(400).json({ error: 'Indica productos para agregar o quitar.' });
+
+    const porProducto = new Map();
+    (pedido.items || []).forEach((l) => {
+      porProducto.set(Number(l.producto_id), (porProducto.get(Number(l.producto_id)) || 0) + Number(l.cantidad || 0));
+    });
+    for (const item of disminuir) {
+      if ((porProducto.get(item.producto_id) || 0) < item.cantidad) {
+        return res.status(400).json({ error: `No puedes quitar ${item.cantidad} unidades de un producto que no está en el pedido.` });
+      }
+    }
+    const delta = new Map();
+    agregar.forEach((i) => delta.set(i.producto_id, (delta.get(i.producto_id) || 0) + i.cantidad));
+    disminuir.forEach((i) => delta.set(i.producto_id, (delta.get(i.producto_id) || 0) - i.cantidad));
+    const indices = buildIndices(db);
+    for (const [id, cantidad] of delta) {
+      if (cantidad <= 0) continue;
+      const producto = indices.productos.get(id);
+      if (!producto || producto.activo === false) return res.status(400).json({ error: `El producto #${id} no está activo.` });
+      const permitido = !producto.categorias_clientes?.length || producto.categorias_clientes.map(Number).includes(Number(cliente?.categoria_cliente_id));
+      if (!permitido) return res.status(400).json({ error: `${producto.nombre} no está disponible para la categoría del cliente.` });
+      const hoyStock = horario.fechaBolivia();
+      const disponible = kardex.lotesDe(db, id, pedido.almacen_id, pedido.almacen_movil_id || null)
+        .filter((l) => Number(l.cantidad) > 0 && (!l.fecha_vencimiento || l.fecha_vencimiento >= hoyStock))
+        .reduce((s, l) => s + Number(l.cantidad), 0);
+      if (disponible < cantidad) return res.status(400).json({ error: `Stock insuficiente de ${producto.nombre}. Disponible: ${disponible}.` });
+    }
+
+    const ahora = new Date().toISOString();
+    disminuir.forEach((item) => {
+      let restante = item.cantidad;
+      for (const linea of pedido.items) {
+        if (restante <= 0) break;
+        if (Number(linea.producto_id) !== item.producto_id || Number(linea.cantidad) <= 0) continue;
+        const quitar = Math.min(restante, Number(linea.cantidad));
+        (Array.isArray(linea.lotes) ? linea.lotes : []).forEach((lote) => {
+          const devuelto = Math.min(Number(lote.cantidad) || 0, Math.round((Number(lote.cantidad) || 0) * quitar / Number(linea.cantidad)));
+          if (devuelto <= 0) return;
+          try {
+            kardex.registrarEntrada(db, {
+              producto_id: item.producto_id, almacen_id: pedido.almacen_id,
+              almacen_movil_id: pedido.almacen_movil_id || null, cantidad: devuelto,
+              lote: lote.lote, fecha_vencimiento: lote.fecha_vencimiento,
+              tipo: 'ajuste_pedido', motivo: `Ajuste de pedido ${pedido.codigo}`,
+              referencia: pedido.codigo, usuario_id: req.user.id,
+            });
+          } catch (error) { console.error('[pedidos] devolución de lote:', error.message); }
+        });
+        db.movimientos.unshift({
+          id: nextId(db.movimientos), producto_id: item.producto_id,
+          almacen_id: pedido.almacen_movil_id ? null : pedido.almacen_id, tipo: 'entrada',
+          cantidad: quitar, motivo: `Ajuste de pedido ${pedido.codigo}`, referencia: pedido.codigo,
+          usuario_id: req.user.id, fecha: ahora,
+        });
+        linea.cantidad -= quitar;
+        linea.subtotal = round2(Math.max(0, Number(linea.precio || 0) * linea.cantidad - Number(linea.descuento || 0)));
+        restante -= quitar;
+      }
+      pedido.items = pedido.items.filter((l) => Number(l.cantidad) > 0 || l.bonificacion);
+    });
+
+    agregar.forEach((item) => {
+      const producto = indices.productos.get(item.producto_id);
+      const precio = precioParaCliente(db, producto, cliente);
+      const consumo = kardex.consumir(db, {
+        producto_id: producto.id, almacen_id: pedido.almacen_id,
+        almacen_movil_id: pedido.almacen_movil_id || null, cantidad: item.cantidad,
+        motivo: `Ajuste de pedido ${pedido.codigo}`, referencia: pedido.codigo,
+        usuario_id: req.user.id, fecha: ahora, almacen_nombre: `almacén ${pedido.almacen_id}`,
+      });
+      let linea = pedido.items.find((l) => Number(l.producto_id) === producto.id && !l.bonificacion);
+      if (linea) {
+        linea.cantidad += item.cantidad;
+        linea.subtotal = round2(Math.max(0, Number(linea.precio || 0) * linea.cantidad - Number(linea.descuento || 0)));
+        linea.lotes = [...(Array.isArray(linea.lotes) ? linea.lotes : []), ...consumo.lotes];
+      } else {
+        pedido.items.push({
+          producto_id: producto.id, nombre: producto.nombre, emoji: producto.emoji,
+          cantidad: item.cantidad, precio, costo_unitario: num(producto.costo), descuento: 0,
+          subtotal: round2(precio * item.cantidad), lotes: consumo.lotes,
+        });
+      }
+      db.movimientos.unshift({
+        id: nextId(db.movimientos), producto_id: producto.id,
+        almacen_id: pedido.almacen_movil_id ? null : pedido.almacen_id, tipo: 'salida',
+        cantidad: item.cantidad, motivo: `Ajuste de pedido ${pedido.codigo}`, referencia: pedido.codigo,
+        usuario_id: req.user.id, fecha: ahora,
+      });
+    });
+
+    const subtotal = round2((pedido.items || []).reduce((s, l) => s + Number(l.subtotal || 0), 0));
+    const pctAjuste = Number(pedido.descuento_porcentaje || 0);
+    const descAjuste = pctAjuste > 0 ? Math.min(subtotal, round2(subtotal * pctAjuste / 100)) : Math.min(subtotal, round2(num(pedido.descuento)));
+    const totalAnterior = Number(pedido.total || 0);
+    const totalAjustado = round2(subtotal - descAjuste + num(pedido.envio));
+    pedido.subtotal = subtotal;
+    pedido.descuento = descAjuste;
+    pedido.total = totalAjustado;
+    pedido.saldo = round2(Math.max(0, totalAjustado - Number(pedido.pagado || 0)));
+    pedido.estado_pago = pedido.saldo <= 0 ? 'pagado' : 'parcial';
+    pedido.updated_at = ahora;
+
+    const pago = (db.pagos || []).find((p) => Number(p.pedido_id) === Number(pedido.id));
+    if (pago && pedido.forma_pago !== 'credito') {
+      const diferencia = round2(totalAjustado - totalAnterior);
+      pago.monto = totalAjustado;
+      if (Math.abs(diferencia) > 0.005) {
+        try {
+          const caja = cajaModule.asegurarCaja(db, req);
+          cajaModule.registrarMovimiento(db, req, {
+            caja, tipo: diferencia > 0 ? 'ingreso' : 'egreso', monto: Math.abs(diferencia),
+            motivo: `Ajuste pedido ${pedido.codigo}`, referencia: pedido.codigo, pedido_id: pedido.id,
+          });
+        } catch (error) { console.error('[pedidos] caja ajuste:', error.message); }
+      }
+    }
+    recalcularCliente(db, pedido.cliente_id);
+    audit(db, req, 'Pedido ajustado por vendedor', 'Ventas', `${pedido.codigo} · +${agregar.length} / -${disminuir.length}`);
+    save();
+    return res.json({ pedido: pedidoResumen(db, pedido, true) });
+  });
+
+router.put('/:id', requireActividad('vender'), horario.requireHorarioVentas, requirePermiso('pedidos_editar'), allow('ventas'), (req, res) => {
   const db = load();
   const pedido = db.pedidos.find((p) => p.id === Number(req.params.id));
   if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado.' });
   if (!['pendiente', 'preparando'].includes(pedido.estado)) return res.status(400).json({ error: 'Solo puedes editar pedidos pendientes o en preparación.' });
-  const { notas, entrega_direccion } = req.body || {};
+  if (!horario.esPedidoDeHoy(pedido)) return res.status(403).json({ error: 'Solo puedes editar pedidos registrados hoy.' });
+  if (Number(pedido.vendedor_id || pedido.usuario_id) !== req.user.id && !['admin', 'dueno', 'supervisor'].includes(req.user.rol)) {
+    return res.status(403).json({ error: 'Este pedido pertenece a otro vendedor.' });
+  }
+  const { notas, entrega_direccion, documento_entrega: docEdit } = req.body || {};
   if (notas !== undefined) pedido.notas = notas;
   if (entrega_direccion !== undefined) pedido.entrega_direccion = entrega_direccion;
+  if (docEdit !== undefined) {
+    if (!DOCUMENTOS_ENTREGA.includes(docEdit)) return res.status(400).json({ error: 'Tipo de documento a entregar no válido.' });
+    if (docEdit === 'factura_siat' && !tienePermiso(req.user, 'fiscal.emitir')) {
+      return res.status(403).json({ error: 'No tienes autorización para facturar en el SIN.' });
+    }
+    pedido.documento_entrega = docEdit;
+  }
   pedido.updated_at = new Date().toISOString();
   audit(db, req, 'Pedido actualizado', 'Ventas', pedido.codigo);
   save();

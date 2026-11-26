@@ -5,6 +5,7 @@ import {
   Play, Plus, Printer, RefreshCcw, Truck,
 } from 'lucide-react';
 import { api, qs } from '../api';
+import { useAuth } from '../auth';
 import { Badge, EmptyState, Fecha, Modal, Money, PageHeader, SkeletonRows, StatCard, Tabs, useToast } from '../ui';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
@@ -13,6 +14,8 @@ const ESTADO_TONE = { preparando: 'amber', preparada: 'blue', en_ruta: 'purple',
 
 export default function PreparadoCarga() {
   const toast = useToast();
+  const { user } = useAuth();
+  const [estadoVentas, setEstadoVentas] = useState(null);
   const [data, setData] = useState(null);
   const [preview, setPreview] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -47,8 +50,20 @@ export default function PreparadoCarga() {
   useEffect(() => {
     cargar();
     calcular();
+    api.get('/configuracion/estado-ventas').then(setEstadoVentas).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cargar]);
+
+  const cambiarDia = async (accion) => {
+    try {
+      const r = await api.post(`/configuracion/${accion}-dia`, {});
+      if (!r.ok) throw new Error(r.error);
+      setEstadoVentas(r.estado);
+      toast(accion === 'cerrar' ? 'Día cerrado: los vendedores ya no pueden modificar pedidos.' : 'Día reabierto para ventas.');
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const puedeCerrarDia = ['admin', 'dueno', 'supervisor', 'almacen'].includes(user?.rol);
 
   const calcular = async () => {
     setCalculando(true);
@@ -174,6 +189,9 @@ export default function PreparadoCarga() {
         subtitle="Agrupa las unidades de todos los pedidos, conviértelas en cajas y carga el camión como almacén móvil."
         actions={<>
           <button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>
+          {puedeCerrarDia && (estadoVentas?.cerrado
+            ? <button className="btn btn-soft" onClick={() => cambiarDia('abrir')}><Play size={14} /> Reabrir día</button>
+            : <button className="btn btn-danger-soft" onClick={() => cambiarDia('cerrar')}><CheckCircle2 size={14} /> Cerrar día</button>)}
           {tab === 'manifiesto' && <>
             <button className="btn btn-outline" onClick={() => imprimir('productos')}><Printer size={14} /> Imprimir productos</button>
             <button className="btn btn-primary" onClick={() => imprimir('clientes')}><Printer size={14} /> Imprimir clientes</button>

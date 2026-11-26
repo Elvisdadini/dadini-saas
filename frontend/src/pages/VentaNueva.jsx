@@ -31,6 +31,7 @@ export default function VentaNueva() {
   const toast = useToast();
   const { user, empresa } = useAuth();
   const puedeDescuento = puede(user, 'ventas.aplicar_descuento');
+  const puedeFacturar = puede(user, 'fiscal.emitir');
   const [productos, setProductos] = useState([]);
   const [almacenes, setAlmacenes] = useState([]);
   const [clientes, setClientes] = useState([]);
@@ -56,6 +57,7 @@ export default function VentaNueva() {
   const [qrOpen, setQrOpen] = useState(false);
   const [ventaExitosa, setVentaExitosa] = useState(null);
   const [telComprobante, setTelComprobante] = useState('');
+  const [estadoVentas, setEstadoVentas] = useState(null);
   const [form, setForm] = useState({
     cliente_id: '',
     whatsapp_cliente: '',
@@ -69,6 +71,7 @@ export default function VentaNueva() {
     envio: 0,
     notas: '',
     entrega_direccion: '',
+    documento_entrega: 'comprobante_entrega',
   });
 
   useEffect(() => {
@@ -81,8 +84,10 @@ export default function VentaNueva() {
       api.get('/promociones?estado=activas'),
       api.get('/categorias'),
       esVendedor ? api.get('/almacenes-moviles/mio') : Promise.resolve({ almacen: null }),
+      api.get('/configuracion/estado-ventas'),
     ])
-      .then(([p, a, c, cfg, prom, cat, mov]) => {
+      .then(([p, a, c, cfg, prom, cat, mov, estado]) => {
+        setEstadoVentas(estado);
         setPromociones(prom.promociones || []);
         setCategoriasCliente(cat.categorias || []);
         setAlmacenMovil(mov.almacen || null);
@@ -283,6 +288,7 @@ export default function VentaNueva() {
         envio,
         notas: form.notas,
         entrega_direccion: form.entrega_direccion || cliente?.direccion,
+        documento_entrega: form.documento_entrega,
         items: lineas.map((l) => ({ producto_id: l.producto.id, cantidad: l.cantidad })),
       });
       toast(`Venta ${data.pedido.codigo} registrada correctamente`);
@@ -504,6 +510,15 @@ export default function VentaNueva() {
               <div className="field"><label>Envío (Bs)</label><input type="number" min="0" step="0.5" className="input" value={form.envio} onChange={(e) => setForm({ ...form, envio: e.target.value })} /></div>
             </div>
 
+            <div className="field-row mb-12">
+              <div className="field"><label>Documento a entregar con el pedido</label>
+                <select className="select" value={form.documento_entrega} onChange={(e) => setForm({ ...form, documento_entrega: e.target.value })}>
+                  <option value="comprobante_entrega">Comprobante de entrega</option>
+                  <option value="factura_siat" disabled={!puedeFacturar}>Factura con registro legal en el SIN{puedeFacturar ? '' : ' (sin autorización)'}</option>
+                </select>
+                <span className="hint">El comprobante lo imprime almacén o el distribuidor, o se envía por WhatsApp. La factura SIN requiere autorización de administración.</span>
+              </div>
+            </div>
             <div className="field mb-12"><label>Notas del pedido</label><input className="input" placeholder="Referencia, horario o indicaciones…" value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} /></div>
 
             {form.canal === 'delivery' && (
@@ -597,7 +612,10 @@ export default function VentaNueva() {
               <div className="t-total"><span>Total</span><Money value={total} /></div>
             </div>
 
-            <button className="btn btn-primary btn-lg btn-block mt-16" onClick={guardar} disabled={saving || !lineas.length} style={{ marginTop: 16 }}>
+            {estadoVentas && !estadoVentas.permitido && ['ventas', 'preventista', 'vendedor_camion'].includes(user?.rol) && (
+              <div className="notice notice-warn mt-8"><AlertTriangle size={14} /> {estadoVentas.motivo}</div>
+            )}
+            <button className="btn btn-primary btn-lg btn-block mt-16" onClick={guardar} disabled={saving || !lineas.length || (estadoVentas && !estadoVentas.permitido && ['ventas', 'preventista', 'vendedor_camion'].includes(user?.rol))} style={{ marginTop: 16 }}>
               {saving ? 'Registrando venta…' : `Registrar venta · Bs ${total.toFixed(2)}`}
             </button>
           </div>

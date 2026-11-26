@@ -19,6 +19,7 @@ const CANAL_LABEL = { mostrador: 'Mostrador', delivery: 'Delivery', ruta: 'Ruta'
 
 export default function Dashboard() {
   const { user, empresa } = useAuth();
+  const veFinanzas = puede(user, 'finanzas.ver_margenes');
   const navigate = useNavigate();
   const toast = useToast();
   const [periodo, setPeriodo] = useState('30d');
@@ -119,10 +120,10 @@ export default function Dashboard() {
               <span className="small muted">Ticket promedio</span>
               <strong style={{ fontSize: 14 }}><Money value={k.ticket_promedio} /></strong>
             </div>
-            <div className="inline" style={{ justifyContent: 'space-between', marginTop: 7 }}>
+            {veFinanzas && <div className="inline" style={{ justifyContent: 'space-between', marginTop: 7 }}>
               <span className="small muted">Margen bruto período</span>
               <strong style={{ fontSize: 14, color: 'var(--green)' }}><Money value={k.margen_periodo} /></strong>
-            </div>
+            </div>}
             <div className="inline" style={{ justifyContent: 'space-between', marginTop: 7 }}>
               <span className="small muted">Clientes activos</span>
               <strong style={{ fontSize: 14 }}>{k.clientes_activos}</strong>
@@ -224,7 +225,7 @@ export default function Dashboard() {
               <div className="mini-stat"><span>Ventas período</span><strong><Money value={k.ventas_periodo} /></strong></div>
               <div className="mini-stat"><span>Ticket promedio</span><strong><Money value={k.ticket_promedio} /></strong></div>
               <div className="mini-stat"><span>Monto vencido</span><strong style={{ color: 'var(--red)' }}><Money value={k.monto_vencido} /></strong></div>
-              <div className="mini-stat"><span>Margen bruto</span><strong style={{ color: 'var(--green)' }}><Money value={k.margen_periodo} /></strong></div>
+              {veFinanzas && <div className="mini-stat"><span>Margen bruto</span><strong style={{ color: 'var(--green)' }}><Money value={k.margen_periodo} /></strong></div>}
             </div>
             <div className="notice notice-info mt-16"><CheckCircle2 size={15} /> La operación se actualiza en tiempo real. Los indicadores se recalculan con cada venta, pago o movimiento de inventario.</div>
             <div className="notice notice-warn mt-8"><AlertTriangle size={15} /> Recuerda conciliar las cobranzas antes del cierre diario.</div>

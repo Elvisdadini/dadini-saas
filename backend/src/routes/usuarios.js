@@ -132,7 +132,12 @@ router.put('/:id', (req, res) => {
   if (pin && !/^\d{4,8}$/.test(String(pin))) return res.status(400).json({ error: 'El PIN debe tener entre 4 y 8 dígitos.' });
   if (activo === false && user.id === req.user.id) return res.status(400).json({ error: 'No puedes desactivar tu propia cuenta.' });
   if (rol && user.id === req.user.id && rol !== 'admin') return res.status(400).json({ error: 'No puedes quitarte el rol de administrador.' });
+  const cambioRol = Boolean(rol && rol !== user.rol);
   ['nombre', 'email', 'rol', 'cargo', 'telefono', 'whatsapp'].forEach((c) => { if (req.body?.[c] !== undefined) user[c] = req.body[c]; });
+  if (cambioRol && req.body?.permisos === undefined && req.body?.plantilla === undefined) {
+    user.permisos = permisosPorPlantilla(user.plantilla_permisos) || permisosPorRol(rol);
+    user.plantilla_permisos = null;
+  }
   if (usuario !== undefined) user.usuario = String(usuario).trim() || user.usuario;
   if (req.body?.bloqueos && typeof req.body.bloqueos === 'object') user.bloqueos = { ...(user.bloqueos || {}), ...req.body.bloqueos };
   if (pin !== undefined) user.pin = pin ? hash(String(pin)) : null;

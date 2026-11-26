@@ -1,6 +1,7 @@
 const express = require('express');
 const { load } = require('../db');
 const { authRequired } = require('../auth');
+const { tienePermiso } = require('../permisos');
 const { reporte } = require('../services');
 const { toCSV } = require('../utils');
 
@@ -15,7 +16,7 @@ router.get('/', (req, res) => {
 router.get('/export', (req, res) => {
   const db = load();
   const tipo = req.query.tipo || 'ventas';
-  const data = reporte(db, req.query.desde, req.query.hasta);
+  const data = reporte(db, req.query.desde, req.query.hasta, req);
   let columns;
   let rows;
   if (tipo === 'productos') {
@@ -25,7 +26,7 @@ router.get('/export', (req, res) => {
       { label: 'Categoría', value: (r) => r.categoria },
       { label: 'Unidades', value: (r) => r.cantidad },
       { label: 'Ventas Bs', value: (r) => r.total.toFixed(2) },
-      { label: 'Margen Bs', value: (r) => r.margen.toFixed(2) },
+      ...(tienePermiso(req.user, 'finanzas.ver_margenes') ? [{ label: 'Margen Bs', value: (r) => r.margen.toFixed(2) }] : []),
     ];
   } else if (tipo === 'clientes') {
     rows = data.clientes;

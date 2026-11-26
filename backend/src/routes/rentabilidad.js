@@ -1,11 +1,12 @@
 const express = require('express');
 const { load } = require('../db');
-const { authRequired } = require('../auth');
+const { authRequired, requirePermiso } = require('../auth');
 const { round2, num } = require('../utils');
 const { toCSV } = require('../utils');
 
 const router = express.Router();
 router.use(authRequired);
+router.use(requirePermiso('finanzas.ver_margenes'));
 
 function construir(db, desde, hasta, agrupacion = 'dia') {
   const enRango = (fecha) => String(fecha).slice(0, 10) >= desde && String(fecha).slice(0, 10) <= hasta;

@@ -19,13 +19,17 @@ function construirMensaje(db, tipo, pedido, cliente, extra) {
     const detalle = Array.isArray(extra?.items) && extra.items.length
       ? ` Productos: ${extra.items.map((i) => `${i.cantidad} x ${i.nombre}`).join(', ')}.`
       : '';
-    return `Hola ${nombre}, su pedido ${codigo} por Bs ${total.toFixed(2)} fue confirmado.${detalle} Entrega programada: ${pedido?.fecha_entrega_programada || 'por definir'}. ¡Gracias por comprar DADINI!`;
+    const documento = pedido?.documento_entrega === 'factura_siat'
+      ? ' Se entregará factura con registro legal en el SIN.'
+      : ' Se entregará comprobante de entrega.';
+    return `Hola ${nombre}, su pedido ${codigo} por Bs ${total.toFixed(2)} fue confirmado.${detalle}${documento} Entrega programada: ${pedido?.fecha_entrega_programada || 'por definir'}. ¡Gracias por comprar DADINI!`;
   }
   if (tipo === 'entrega') {
     const detalle = extra?.productos_devueltos?.length
       ? ` Se descontaron ${extra.productos_devueltos.map((d) => `${d.cantidad} ${d.nombre}`).join(', ')}.`
       : '';
-    return `Hola ${nombre}, su pedido ${codigo} fue entregado. Comprobante ${codigo}-ENT por Bs ${total.toFixed(2)}.${detalle} Entrega registrada con geolocalización. DADINI.`;
+    const documento = pedido?.documento_entrega === 'factura_siat' ? 'factura con registro en el SIN' : 'comprobante de entrega';
+    return `Hola ${nombre}, su pedido ${codigo} fue entregado. ${documento} ${codigo}-ENT por Bs ${total.toFixed(2)}.${detalle} Entrega registrada con geolocalización. DADINI.`;
   }
   if (tipo === 'cobranza') {
     const monto = round2(extra?.monto || 0);
@@ -40,7 +44,7 @@ function construirMensaje(db, tipo, pedido, cliente, extra) {
 router.get('/', (req, res) => {
   const db = load();
   const { tipo, cliente_id, pedido_id, limit } = req.query;
-  let mensajes = [...db.mensajes_whatsapp];
+  let mensajes = require('../alcance').filtrar(req, [...db.mensajes_whatsapp], ['usuario_id', 'vendedor_id', 'repartidor_id']);
   if (tipo && tipo !== 'todos') mensajes = mensajes.filter((m) => m.tipo === tipo);
   if (cliente_id) mensajes = mensajes.filter((m) => m.cliente_id === Number(cliente_id));
   if (pedido_id) mensajes = mensajes.filter((m) => m.pedido_id === Number(pedido_id));

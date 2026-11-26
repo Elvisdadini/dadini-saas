@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlarmClock, BarChart3, CalendarRange, Download, FileSpreadsheet, Package, RefreshCcw, Search, TrendingUp, Users, Wallet } from 'lucide-react';
 import { api, downloadCSV, qs } from '../api';
-import { useAuth } from '../auth';
+import { puede, useAuth } from '../auth';
 import { AreaChart, Bars, Donut } from '../charts';
 import { Badge, EmptyState, Fecha, Money, Num, PageHeader, SkeletonRows, StatCard, Tabs, useToast } from '../ui';
 import SelectorEmpleadosWhatsapp from '../components/SelectorEmpleadosWhatsapp';
@@ -11,7 +11,8 @@ function iso(date) { return date.toISOString().slice(0, 10); }
 
 export default function Reportes() {
   const toast = useToast();
-  const { empresa } = useAuth();
+  const { user, empresa } = useAuth();
+  const veFinanzas = puede(user, 'finanzas.ver_margenes');
   const [desde, setDesde] = useState(iso(new Date(Date.now() - 29 * 86400000)));
   const [hasta, setHasta] = useState(iso(new Date()));
   const [data, setData] = useState(null);
@@ -141,9 +142,10 @@ export default function Reportes() {
 
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>
         <StatCard label="Ventas netas" value={<Money value={r.total} />} icon={TrendingUp} tone="orange" hint={`${r.pedidos || 0} pedidos en el rango`} />
-        <StatCard label="Utilidad bruta" value={<Money value={r.margen} />} icon={Wallet} tone="green" hint={`${r.utilidad_porcentaje || 0}% sobre ventas`} />
+        {veFinanzas && <StatCard label="Utilidad bruta" value={<Money value={r.margen} />} icon={Wallet} tone="green" hint={`${r.utilidad_porcentaje || 0}% sobre ventas`} />}
         <StatCard label="Ticket promedio" value={<Money value={r.ticket_promedio} />} icon={BarChart3} tone="blue" hint={`${Number(r.unidades || 0).toLocaleString('es-BO')} unidades vendidas`} />
         <StatCard label="Clientes atendidos" value={(data?.clientes || []).length} icon={Users} tone="purple" hint="Con compras en el período" />
+        {!veFinanzas && <StatCard label="Pedidos" value={r.pedidos || 0} icon={BarChart3} tone="blue" hint="Solo información operativa" />}
       </div>
 
       {loading ? <div className="panel"><SkeletonRows rows={8} /></div> : !data ? <EmptyState icon={BarChart3} title="Sin información" message="No se pudieron cargar los reportes." /> : (
@@ -179,7 +181,7 @@ export default function Reportes() {
           {tab === 'productos' && (
             <div className="table-wrap">
               <table className="data-table">
-                <thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th className="num">Unidades</th><th className="num">Ventas</th><th className="num">Margen</th><th>Participación</th></tr></thead>
+                <thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th className="num">Unidades</th><th className="num">Ventas</th>{veFinanzas && <th className="num">Margen</th>}<th>Participación</th></tr></thead>
                 <tbody>
                   {data.productos.map((p, i) => (
                     <tr key={p.producto_id}>
@@ -188,7 +190,7 @@ export default function Reportes() {
                       <td>{p.categoria}</td>
                       <td className="num">{p.cantidad}</td>
                       <td className="num cell-strong"><Money value={p.total} /></td>
-                      <td className="num text-green"><Money value={p.margen} /></td>
+                      {veFinanzas && <td className="num text-green"><Money value={p.margen} /></td>}
                       <td style={{ minWidth: 110 }}><div className="progress"><span className="progress-fill" style={{ width: `${r.total ? (p.total / r.total) * 100 : 0}%` }} /></div></td>
                     </tr>
                   ))}
@@ -457,7 +459,7 @@ export default function Reportes() {
         titulo="Enviar reporte por WhatsApp"
         tipo="otro"
         tituloDocumento={`Reporte DADINI ${desde} al ${hasta}`}
-        mensaje={`Reporte DADINI del ${desde} al ${hasta}\nVentas: Bs ${Number(r.total || 0).toFixed(2)} · Pedidos: ${r.pedidos || 0}\nUnidades: ${Number(r.unidades || 0).toLocaleString('es-BO')} · Utilidad: Bs ${Number(r.margen || 0).toFixed(2)}`}
+        mensaje={`Reporte DADINI del ${desde} al ${hasta}\nVentas: Bs ${Number(r.total || 0).toFixed(2)} · Pedidos: ${r.pedidos || 0}\nUnidades: ${Number(r.unidades || 0).toLocaleString('es-BO')}${veFinanzas ? ` · Utilidad: Bs ${Number(r.margen || 0).toFixed(2)}` : ''}`}
       />
     </>
   );

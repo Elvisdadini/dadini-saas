@@ -12,6 +12,12 @@ import FirmaCanvas from '../components/FirmaCanvas';
 import { distanciaMetros, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, Confirm, Estado, Fecha, Modal, Money, PageHeader, SkeletonRows, useToast } from '../ui';
 
+function horarioLocal(valor) {
+  return new Intl.DateTimeFormat('es-BO', {
+    timeZone: 'America/La_Paz', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date(valor));
+}
+
 const PASOS = ['pendiente', 'preparando', 'enviado', 'entregado'];
 const PASO_LABEL = { pendiente: 'Pedido registrado', preparando: 'En preparación', enviado: 'En camino', entregado: 'Entregado' };
 
@@ -36,6 +42,10 @@ export default function PedidoDetalle() {
   const [geocerca, setGeocerca] = useState({ aplica: false });
   const [firmaModal, setFirmaModal] = useState(false);
   const [firma, setFirma] = useState(null);
+  const [ajusteOpen, setAjusteOpen] = useState(false);
+  const [ajuste, setAjuste] = useState({ accion: 'agregar', producto_id: '', cantidad: 1 });
+  const [productos, setProductos] = useState([]);
+  const [estadoVentas, setEstadoVentas] = useState(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -58,6 +68,18 @@ export default function PedidoDetalle() {
   };
 
   useEffect(() => { cargar(); cargarVisitas(); }, [cargar]);
+
+  useEffect(() => {
+    api.get('/configuracion/estado-ventas').then(setEstadoVentas).catch(() => {});
+    api.get('/productos?todos=true').then((r) => setProductos(r.productos || [])).catch(() => {});
+  }, []);
+
+  const DOC_LABEL = { factura_siat: 'Factura SIN', comprobante_entrega: 'Comprobante de entrega' };
+  const esMio = Number(pedido?.vendedor_id || pedido?.usuario_id) === Number(user?.id);
+  const esVendedor = ['ventas', 'preventista', 'vendedor_camion'].includes(user?.rol);
+  const puedeAjustar = Boolean(pedido && esVendedor && esMio && estadoVentas?.permitido
+    && ['pendiente', 'preparando'].includes(pedido.estado)
+    && horarioLocal(pedido.created_at) === horarioLocal(new Date().toISOString()));
 
   const registrarVisita = async () => {
     setUbicando(true);
@@ -108,6 +130,20 @@ export default function PedidoDetalle() {
     } catch (error) {
       toast(error.message, 'error');
     } finally { setBusy(false); }
+  };
+
+  const guardarAjuste = async () => {
+    setBusy(true);
+    try {
+      const campo = ajuste.accion === 'agregar' ? 'agregar' : 'disminuir';
+      const data = await api.patch(`/pedidos/${id}/items`, {
+        [campo]: [{ producto_id: Number(ajuste.producto_id), cantidad: Number(ajuste.cantidad) }],
+      });
+      setPedido(data.pedido);
+      setPay((p) => ({ ...p, monto: (data.pedido.total_a_cobrar || data.pedido.saldo).toFixed(2) }));
+      setAjusteOpen(false);
+      toast('Pedido ajustado y stock actualizado');
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
   };
 
   useEffect(() => {
@@ -192,6 +228,7 @@ export default function PedidoDetalle() {
             <button className="btn btn-ghost" onClick={() => navigate('/ventas')}><ArrowLeft size={15} /> Volver</button>
             <button className="btn btn-outline" onClick={() => window.print()}><Printer size={14} /> Imprimir</button>
             <Link className="btn btn-soft" to={`/crm?cliente=${pedido.cliente_id}`} title="Abrir ficha 360° del cliente (RFM, historial y notas)"><UserRound size={14} /> Ver cliente 360°</Link>
+            {puedeAjustar && <button className="btn btn-outline" onClick={() => setAjusteOpen(true)}><Package size={14} /> Ajustar pedido</button>}
             <BotonWhatsapp tipo="pedido" clienteId={pedido.cliente_id} pedidoId={pedido.id} telefono={pedido.cliente_telefono} latitud={pedido.cliente_latitud} longitud={pedido.cliente_longitud} monto={pedido.total} label="Enviar pedido" />
             {pedido.saldo > 0 && pedido.estado !== 'cancelado' && puedeCobrar && <button className="btn btn-primary" onClick={abrirPago}><Wallet size={14} /> Registrar cobro</button>}
             {siguiente && puedeVender && <button className="btn btn-navy" onClick={() => {
@@ -207,6 +244,7 @@ export default function PedidoDetalle() {
         <Estado valor={pedido.estado_pago} />
         <Badge tone="gray"><Receipt size={11} /> {pedido.forma_pago}</Badge>
         <Badge tone="gray"><Package size={11} /> {pedido.canal}</Badge>
+        {pedido.documento_entrega && <Badge tone="blue"><Receipt size={11} /> {DOC_LABEL[pedido.documento_entrega] || pedido.documento_entrega}</Badge>}
         {pedido.ruta_codigo && <Badge tone="purple"><Truck size={11} /> {pedido.ruta_codigo}</Badge>}
         {pedido.carga_codigo && <Badge tone="orange"><PackageCheck size={11} /> {pedido.carga_codigo}</Badge>}
         {pedido.vencido && <Badge tone="red">Vencido hace {pedido.dias_vencido} días</Badge>}
@@ -354,6 +392,7 @@ export default function PedidoDetalle() {
             <div className="panel-body">
               <div className="info-row"><span>Reparto</span><strong>{pedido.canal === 'delivery' ? 'Delivery a domicilio' : pedido.canal === 'ruta' ? 'Reparto en ruta' : 'Entrega en mostrador'}</strong></div>
               <div className="info-row mt-8"><span>Ruta asignada</span><strong>{pedido.ruta_codigo || 'Sin ruta asignada'}</strong></div>
+              <div className="info-row mt-8"><span>Documento a entregar</span><strong>{DOC_LABEL[pedido.documento_entrega] || 'Comprobante de entrega'}</strong></div>
               <div className="info-row mt-8"><span>Vencimiento de cobro</span><strong>{pedido.saldo > 0 ? <Fecha value={pedido.vencimiento} /> : 'Pagado'}</strong></div>
               {pedido.fecha_entrega && <div className="info-row mt-8"><span>Fecha de entrega</span><strong>{new Date(pedido.fecha_entrega).toLocaleString('es-BO')}</strong></div>}
               {pedido.firma_url && (
@@ -370,8 +409,14 @@ export default function PedidoDetalle() {
 
           <div className="panel print-only">
             <div className="panel-body">
-              <h3>DADINI · Comprobante interno</h3>
-              <p className="small">Pedido {pedido.codigo} · Total Bs {pedido.total.toFixed(2)} · Saldo Bs {pedido.saldo.toFixed(2)}</p>
+              <h3>DADINI · {DOC_LABEL[pedido.documento_entrega] || 'Comprobante de entrega'}</h3>
+              <p className="small">Pedido {pedido.codigo} · {pedido.cliente_nombre} · {new Date(pedido.created_at).toLocaleString('es-BO')}</p>
+              <table className="data-table mt-8"><thead><tr><th>Producto</th><th>Cantidad</th><th>P. unit.</th><th>Subtotal</th></tr></thead><tbody>
+                {(pedido.items || []).map((l, i) => <tr key={i}><td>{l.nombre}</td><td>{l.cantidad}</td><td>Bs {Number(l.precio || 0).toFixed(2)}</td><td>Bs {Number(l.subtotal || 0).toFixed(2)}</td></tr>)}
+              </tbody></table>
+              <p className="small mt-8"><strong>Total Bs {Number(pedido.total || 0).toFixed(2)}</strong> · Saldo Bs {Number(pedido.saldo || 0).toFixed(2)}</p>
+              {pedido.documento_entrega === 'factura_siat' && pedido.factura && <p className="small">Factura N° {pedido.factura.numero} · NIT {pedido.factura.nit} · IVA Bs {Number(pedido.factura.iva || 0).toFixed(2)} · IT Bs {Number(pedido.factura.it || 0).toFixed(2)}</p>}
+              <p className="small muted">Documento a imprimir por almacén o distribuidor, o enviado por WhatsApp por el distribuidor.</p>
             </div>
           </div>
         </div>
@@ -452,6 +497,19 @@ export default function PedidoDetalle() {
         <div className="form-stack">
           <div className="notice notice-info"><CheckCircle2 size={14} /> Pide al cliente o receptor que firme antes de marcar el pedido como entregado.</div>
           <FirmaCanvas value={firma} onChange={setFirma} label="Firma de quien recibe" />
+        </div>
+      </Modal>
+
+      <Modal open={ajusteOpen} onClose={() => setAjusteOpen(false)} title={`Ajustar ${pedido?.codigo || ''}`} subtitle="Solo disponible hoy, antes del cierre del día"
+        footer={<><button className="btn btn-ghost" onClick={() => setAjusteOpen(false)}>Cancelar</button><button className="btn btn-primary" onClick={guardarAjuste} disabled={busy || !ajuste.producto_id}><Package size={14} /> {busy ? 'Guardando…' : 'Aplicar ajuste'}</button></>}
+      >
+        <div className="form-stack">
+          <div className="notice notice-info"><Clock3 size={14} /> Puedes agregar o quitar unidades de tus pedidos de hoy hasta las {estadoVentas?.hora_limite || '17:00'} o hasta que almacén cierre el día. El stock se ajusta automáticamente por FEFO.</div>
+          <div className="field"><label>Acción</label><select className="select" value={ajuste.accion} onChange={(e) => setAjuste({ ...ajuste, accion: e.target.value })}><option value="agregar">Agregar productos al pedido</option><option value="disminuir">Quitar productos del pedido</option></select></div>
+          <div className="field-row">
+            <div className="field"><label>Producto</label><select className="select" value={ajuste.producto_id} onChange={(e) => setAjuste({ ...ajuste, producto_id: e.target.value })}><option value="">Seleccionar…</option>{productos.filter((p) => p.activo !== false).map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
+            <div className="field"><label>Cantidad</label><input className="input" type="number" min="1" step="1" value={ajuste.cantidad} onChange={(e) => setAjuste({ ...ajuste, cantidad: e.target.value })} /></div>
+          </div>
         </div>
       </Modal>
 

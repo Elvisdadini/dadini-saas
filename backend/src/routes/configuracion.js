@@ -55,7 +55,7 @@ router.get('/', (req, res) => {
 
 router.put('/', allow(), (req, res) => {
   const db = load();
-  const { empresa, plan, credito, planes, descuentos_globales, cobranza, branding, reposicion, rutas: cfgRutas, apk } = req.body || {};
+  const { empresa, plan, credito, planes, descuentos_globales, cobranza, branding, reposicion, rutas: cfgRutas, apk, ventas: cfgVentas } = req.body || {};
   if (empresa) {
     const campos = ['nombre', 'slogan', 'nit', 'direccion', 'telefono', 'email', 'ciudad', 'pais', 'moneda', 'horario'];
     campos.forEach((c) => { if (empresa[c] !== undefined) db.configuracion.empresa[c] = empresa[c]; });
@@ -83,6 +83,11 @@ router.put('/', allow(), (req, res) => {
       if (db.configuracion.reposicion[c] !== undefined) db.configuracion.reposicion[c] = num(db.configuracion.reposicion[c]);
     });
   }
+  if (cfgVentas) {
+    const actual = { ...(db.configuracion.ventas || {}), ...cfgVentas };
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(actual.hora_cierre_ventas || '')) actual.hora_cierre_ventas = '17:00';
+    db.configuracion.ventas = actual;
+  }
   if (apk) db.configuracion.apk = { ...(db.configuracion.apk || {}), ...apk };
   if (branding) {
     db.configuracion.branding = {
@@ -95,6 +100,27 @@ router.put('/', allow(), (req, res) => {
   save();
   return res.json({ configuracion: db.configuracion });
 });
+
+// Cierre del día: bloquea ventas de vendedores mientras almacén prepara las
+// hojas de ruta y carga del día siguiente. Se reabre automáticamente al día
+// siguiente porque la fecha guardada deja de coincidir.
+router.post('/cerrar-dia', allow('admin', 'dueno', 'supervisor', 'almacen'), (req, res) => {
+  const horario = require('../horario');
+  const db = horario.cerrarDia(req);
+  audit(db, req, 'Día cerrado para ventas', 'Sistema', horario.fechaBolivia());
+  save();
+  return res.json({ ok: true, estado: horario.estadoVentas() });
+});
+
+router.post('/abrir-dia', allow('admin', 'dueno', 'supervisor'), (req, res) => {
+  const horario = require('../horario');
+  const db = horario.abrirDia(req);
+  audit(db, req, 'Día reabierto para ventas', 'Sistema', horario.fechaBolivia());
+  save();
+  return res.json({ ok: true, estado: horario.estadoVentas() });
+});
+
+router.get('/estado-ventas', (req, res) => res.json(require('../horario').estadoVentas()));
 
 // Verificación de la cadena de hashes: detecta edición o borrado de registros.
 router.get('/auditoria/verificar', allow('admin', 'dueno', 'supervisor'), (req, res) => {

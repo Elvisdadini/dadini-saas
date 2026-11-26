@@ -200,7 +200,7 @@ export default function Administracion() {
   const guardarConfig = async () => {
     setBusy(true);
     try {
-      await api.put('/configuracion', { empresa, credito });
+      await api.put('/configuracion', { empresa, credito, ventas: { hora_cierre_ventas: config?.ventas?.hora_cierre_ventas || '17:00' } });
       await refresh();
       toast('Configuración guardada correctamente');
       cargarConfig();
@@ -303,6 +303,10 @@ export default function Administracion() {
                   <div className="field-row">
                     <div className="field"><label>Stock mínimo global</label><input className="input" type="number" min="0" value={empresa?.stock_minimo || 0} onChange={(e) => setEmpresa({ ...empresa, stock_minimo: e.target.value })} /></div>
                     <div className="field"><label>Días de crédito</label><input className="input" type="number" min="0" value={empresa?.dias_credito || 0} onChange={(e) => setEmpresa({ ...empresa, dias_credito: e.target.value })} /></div>
+                  </div>
+                  <div className="field"><label>Hora límite para ventas de vendedores (hora Bolivia)</label>
+                    <input className="input" type="time" value={config?.ventas?.hora_cierre_ventas || '17:00'} onChange={(e) => setConfig({ ...config, ventas: { ...(config?.ventas || {}), hora_cierre_ventas: e.target.value } })} />
+                    <span className="hint">Después de esta hora los vendedores no pueden crear, ajustar ni anular pedidos. Almacén cierra el día para preparar rutas y carga del día siguiente.</span>
                   </div>
                   <div className="divider" />
                   <h3><Clock size={14} /> Sanciones e intereses por mora</h3>

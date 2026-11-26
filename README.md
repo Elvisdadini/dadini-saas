@@ -426,6 +426,23 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`. El acceso también está en el encabezado de **Ventas** y en el menú principal.
 - **APK 21.0.6** (`versionCode 7`): compilada con keystore nuevo y publicada en `/uploads/apk/DADINI-SaaS-21.0.6.apk` (archivo versionado en el repo, sobrevive a reinicios). Al cambiar la firma, quienes tenían la versión anterior deben desinstalar antes de instalar. La contraseña del keystore no se versiona: guárdala fuera del repo.
 
+### Accesos idénticos en web y APK · información financiera protegida
+
+- La APK es el mismo SPA de la web: **no existe un permiso distinto en el celular**. Toda petición pasa por el backend y `authRequired` devuelve los permisos **limitados al puesto** (`TECHO_POR_ROL` en `permisos.js`). Un preventista/distribuidor/vendedor con permisos guardados amplios (o heredados de otro rol) **pierde automáticamente** `rentabilidad`, `administracion`, `sucursales`, `dueno`, `inventario.ver_costos`, `finanzas.ver_margenes` y `datos.ver_todos`. Al cambiar el rol de un usuario se recalculan sus permisos.
+- Filtro global de respuesta: ningún JSON de la API incluye `costo`, `costo_unitario`, `margen`, `utilidad`, `ganancia`, `valor_inventario` ni capital para quien no tiene `finanzas.ver_margenes` / `inventario.ver_costos`. Aplica a dashboard, reportes, pedidos, productos y a la APK. `/api/rentabilidad` requiere permiso explícito y el CSV de reportes omite la columna de margen.
+- `GET /api/pedidos/:id`, programados, visitas, cobranzas y WhatsApp respetan el alcance por usuario: nadie ve pedidos, mensajes ni clientes de un compañero que hace la misma función.
+
+### Horario de ventas y cierre del día
+
+- `configuracion.ventas.hora_cierre_ventas` (hora Bolivia, por defecto **17:00**) limita a vendedores (`ventas`, `preventista`, `vendedor_camion`) para **crear, ajustar o anular** pedidos. Fuera de ese horario la API responde 403 con el motivo.
+- Almacén/supervisión/administración pueden **Cerrar día** desde Preparado de carga (`POST /api/configuracion/cerrar-dia`). Con el día cerrado los vendedores no pueden modificar pedidos mientras se preparan hojas de ruta y carga del día siguiente. Se reabre automáticamente al cambiar la fecha (o manualmente con **Reabrir día**).
+- `PATCH /api/pedidos/:id/items` permite **agregar o quitar unidades** solo del pedido propio del día, en estado pendiente/preparando. Ajusta stock por FEFO, recalcula totales, saldo, pago y caja, y deja auditoría.
+
+### Documento a entregar con la venta
+
+- En el POS el vendedor registra el **documento a entregar**: `Comprobante de entrega` o `Factura con registro legal en el SIN`. Esta última solo puede elegirse con el permiso `fiscal.emitir`; el backend rechaza 403 si se envía sin autorización.
+- El comprobante (con productos, totales y, si aplica, número de factura/NIT/IVA/IT) se imprime desde el detalle del pedido por almacén o distribuidor, y el mensaje de WhatsApp generado por el distribuidor indica qué documento se entrega.
+
 ### Permisos granulares en todo el sistema
 
 - El catálogo (`backend/src/permisos-detallados.js`) cubre todos los módulos con **Ver / Crear / Editar / Eliminar** y sub-funciones (descuentos, cobranzas, visitas, kardex, fiscal, sucursales, BI, CRM, demanda, integraciones, WhatsApp, etc.). Los permisos se asignan desde Administración → usuarios/permisos; los códigos nuevos no se otorgan por plantilla (solo admin/dueno pasan siempre).
