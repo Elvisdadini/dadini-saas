@@ -1,6 +1,6 @@
 /* Service worker de DADINI SaaS: app shell en caché + datos con network-first.
    Las mutaciones se encolan en la app (api.js) y se reenvían al volver online. */
-const CACHE = 'dadini-shell-v1';
+const CACHE = 'dadini-shell-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/logo-dadini-icon.png'];
 
 self.addEventListener('install', (evento) => {
@@ -41,7 +41,25 @@ self.addEventListener('fetch', (evento) => {
     return;
   }
 
-  // Assets y navegación: cache-first con revalidación en segundo plano.
+  // Navegación: network-first. Un index.html cacheado puede referirse a un
+  // chunk que ya no existe tras un deploy y provocar "Failed to fetch
+  // dynamically imported module". Se guarda siempre como /index.html.
+  if (request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
+    evento.respondWith(
+      fetch(request)
+        .then((respuesta) => {
+          if (respuesta && respuesta.ok && respuesta.type === 'basic') {
+            const clon = respuesta.clone();
+            caches.open(CACHE).then((cache) => cache.put('/index.html', clon));
+          }
+          return respuesta;
+        })
+        .catch(async () => (await caches.match('/index.html')) || (await caches.match(request))),
+    );
+    return;
+  }
+
+  // Assets con hash: cache-first (son inmutables).
   evento.respondWith(
     caches.match(request).then((copia) => {
       const red = fetch(request).then((respuesta) => {
