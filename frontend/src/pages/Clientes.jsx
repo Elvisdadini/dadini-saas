@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { descargarPlantilla, leerExcel } from '../excel';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Building2, CalendarCheck, CheckCircle2, CircleDollarSign, Crosshair, Eye, ExternalLink, FileSpreadsheet, Lock, Mail, MapPin, MessageCircle, Navigation, Pencil, Phone, Plus, Search, ShieldAlert, ShieldCheck, ShoppingCart, Sparkles, Tag, Truck, Unlock, Upload, UserRound, Users, Wallet,
+  Building2, CalendarCheck, CheckCircle2, CircleDollarSign, Crosshair, Eye, ExternalLink, FileSpreadsheet, Lock, Mail, MapPin, MessageCircle, Navigation, Pencil, Phone, Plus, Power, PowerOff, Search, ShieldAlert, ShieldCheck, ShoppingCart, Sparkles, Tag, Trash2, Truck, Unlock, Upload, UserRound, Users, Wallet,
 } from 'lucide-react';
 import { api, qs } from '../api';
 import { puede, useAuth } from '../auth';
@@ -30,6 +30,9 @@ export default function Clientes() {
   const [form, setForm] = useState(VACIO);
   const [detail, setDetail] = useState(null);
   const [bloqueo, setBloqueo] = useState(null);
+  const [desactivar, setDesactivar] = useState(null);
+  const [motivoDesactivar, setMotivoDesactivar] = useState('');
+  const [eliminar, setEliminar] = useState(null);
   const [motivoBloqueo, setMotivoBloqueo] = useState('');
   const [porDeuda, setPorDeuda] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -229,6 +232,35 @@ export default function Clientes() {
     } catch (error) { toast(error.message, 'error'); }
   };
 
+  const confirmarDesactivar = async () => {
+    try {
+      const r = await api.patch(`/clientes/${desactivar.id}/desactivar`, { motivo: motivoDesactivar.trim() || 'Desactivado por el usuario' });
+      toast('Cliente desactivado. Puedes reactivarlo cuando quieras.');
+      setDetail((d) => (d ? { ...d, cliente: r.cliente } : d));
+      setDesactivar(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const reactivarCliente = async (cliente) => {
+    try {
+      const r = await api.patch(`/clientes/${cliente.id}/reactivar`, {});
+      toast('Cliente reactivado');
+      setDetail((d) => (d ? { ...d, cliente: r.cliente } : d));
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const borrarCliente = async () => {
+    try {
+      await api.del(`/clientes/${eliminar.id}`);
+      toast('Cliente eliminado');
+      if (detail?.cliente?.id === eliminar.id) { setDetail(null); setDetailOpen(false); }
+      setEliminar(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
   const abrirReasignar = (cliente) => {
     setReasignarForm({
       vendedor_id: cliente.vendedor_id ? String(cliente.vendedor_id) : '',
@@ -365,7 +397,13 @@ export default function Clientes() {
                     <td className="nowrap">{c.ultima_compra ? <Fecha value={c.ultima_compra} short /> : '—'}</td>
                     <td className="actions">
                       <button className="icon-btn" title="Ver ficha" onClick={(e) => { e.stopPropagation(); verDetalle(c); }}><Eye size={15} /></button>
-                      {puedeEditar && (['admin', 'dueno', 'supervisor'].includes(user?.rol) || Number(c.vendedor_id) === Number(user?.id)) && <button className="icon-btn" title="Editar" onClick={(e) => { e.stopPropagation(); abrirEditar(c); }}><Pencil size={14} /></button>}
+                      {puedeEditar && (['admin', 'dueno', 'supervisor'].includes(user?.rol) || Number(c.vendedor_id) === Number(user?.id)) && <>
+                        <button className="icon-btn" title="Editar" onClick={(e) => { e.stopPropagation(); abrirEditar(c); }}><Pencil size={14} /></button>
+                        {c.activo !== false
+                          ? <button className="icon-btn" title="Desactivar cliente" onClick={(e) => { e.stopPropagation(); setDesactivar(c); setMotivoDesactivar(''); }}><PowerOff size={14} /></button>
+                          : <button className="icon-btn" title="Reactivar cliente" onClick={(e) => { e.stopPropagation(); reactivarCliente(c); }}><Power size={14} /></button>}
+                        {puede(user, 'clientes.eliminar') && <button className="icon-btn danger" title="Eliminar cliente" onClick={(e) => { e.stopPropagation(); setEliminar(c); }}><Trash2 size={14} /></button>}
+                      </>}
                     </td>
                   </tr>
                 ))}
@@ -648,6 +686,17 @@ export default function Clientes() {
           </div>
         </div>
       </Modal>
+
+      <Modal open={Boolean(desactivar)} onClose={() => setDesactivar(null)} title="Desactivar cliente" subtitle={desactivar?.nombre || ''} size="sm"
+        footer={<><button className="btn btn-ghost" onClick={() => setDesactivar(null)}>Cancelar</button><button className="btn btn-primary" onClick={confirmarDesactivar}>Desactivar</button></>}
+      >
+        <div className="form-stack">
+          <div className="notice notice-warn"><PowerOff size={15} /> El cliente dejará de estar activo, pero podrás reactivarlo desde la misma lista.</div>
+          <div className="field"><label>Motivo (opcional)</label><textarea className="textarea" value={motivoDesactivar} onChange={(e) => setMotivoDesactivar(e.target.value)} placeholder="Ej. Solicitud del cliente" /></div>
+        </div>
+      </Modal>
+
+      <Confirm open={Boolean(eliminar)} onClose={() => setEliminar(null)} onConfirm={borrarCliente} title="Eliminar cliente" message={`¿Eliminar ${eliminar?.nombre || ''}? No se puede si tiene pedidos o saldo pendiente.`} danger />
     </>
   );
 }

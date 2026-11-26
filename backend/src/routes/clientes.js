@@ -146,6 +146,36 @@ router.post('/', requirePermiso('clientes_crear'), allow('ventas', 'preventista'
   return res.status(201).json({ cliente, automatico: creados });
 });
 
+router.patch('/:id/desactivar', requirePermiso('clientes.editar'), allow('admin', 'dueno', 'supervisor', 'ventas', 'preventista', 'vendedor_camion', 'cobranzas'), (req, res) => {
+  const db = load();
+  const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
+  if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
+  if (!puedeGestionar(req, cliente)) return res.status(403).json({ error: 'Solo puedes gestionar los clientes que se te asignaron.' });
+  cliente.activo = false;
+  cliente.desactivado_en = new Date().toISOString();
+  cliente.desactivado_por = req.user.id;
+  cliente.motivo_desactivacion = String(req.body?.motivo || '').trim() || 'Desactivado por el usuario';
+  audit(db, req, 'Cliente desactivado', 'Clientes', `${cliente.nombre} · ${cliente.motivo_desactivacion}`);
+  save();
+  return res.json({ cliente });
+});
+
+router.patch('/:id/reactivar', requirePermiso('clientes.editar'), allow('admin', 'dueno', 'supervisor', 'ventas', 'preventista', 'vendedor_camion', 'cobranzas'), (req, res) => {
+  const db = load();
+  const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
+  if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
+  if (!puedeGestionar(req, cliente)) return res.status(403).json({ error: 'Solo puedes gestionar los clientes que se te asignaron.' });
+  cliente.activo = true;
+  cliente.desactivado_en = null;
+  cliente.desactivado_por = null;
+  cliente.motivo_desactivacion = null;
+  cliente.bloqueado_por_deuda = false;
+  cliente.motivo_bloqueo = null;
+  audit(db, req, 'Cliente reactivado', 'Clientes', cliente.nombre);
+  save();
+  return res.json({ cliente });
+});
+
 router.patch('/:id/bloqueo', allow('admin', 'dueno', 'cobranzas'), (req, res) => {
   const db = load();
   const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
@@ -322,14 +352,17 @@ router.put('/:id', requirePermiso('clientes_editar'), allow('ventas', 'preventis
   return res.json({ cliente });
 });
 
-router.delete('/:id', allow(), (req, res) => {
+router.delete('/:id', requirePermiso('clientes.eliminar'), allow(), (req, res) => {
   const db = load();
   const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
   if (!puedeGestionar(req, cliente)) return res.status(403).json({ error: 'Solo puedes gestionar los clientes que se te asignaron.' });
-  if (cliente.saldo > 0) return res.status(400).json({ error: 'No se puede desactivar un cliente con saldo pendiente.' });
-  cliente.activo = false;
-  audit(db, req, 'Cliente desactivado', 'Clientes', cliente.nombre);
+  const pedidos = (db.pedidos || []).filter((p) => p.cliente_id === cliente.id).length;
+  if (pedidos) return res.status(400).json({ error: `No se puede eliminar: el cliente tiene ${pedidos} pedido(s) registrado(s).` });
+  if (Number(cliente.saldo || 0) > 0) return res.status(400).json({ error: 'No se puede eliminar un cliente con saldo pendiente.' });
+  db.clientes = db.clientes.filter((c) => c.id !== cliente.id);
+  if (Array.isArray(db.crm_notas)) db.crm_notas = db.crm_notas.filter((n) => Number(n.cliente_id) !== cliente.id);
+  audit(db, req, 'Cliente eliminado', 'Clientes', `${cliente.codigo || ''} · ${cliente.nombre}`);
   save();
   return res.json({ ok: true });
 });

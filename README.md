@@ -419,6 +419,8 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 ### Clientes, permisos y cambios de producto
 
 - Todos los roles con acceso a Clientes pueden **ver** toda la cartera; solo administración, dueño, supervisor y cobranzas, o el **vendedor asignado**, pueden editar, bloquear, desactivar o añadir notas CRM. El backend devuelve 403 si el cliente no está asignado al vendedor.
+- **Desactivar / reactivar**: la lista tiene botones para desactivar (con motivo opcional) y reactivar. La baja deja `desactivado_en`, `desactivado_por` y `motivo_desactivacion`; la reactivación los limpia.
+- **Eliminar cliente** (`clientes.eliminar`): borrado permanente con Confirm. Se bloquea si el cliente tiene pedidos o saldo pendiente, y limpia sus notas CRM.
 - Nuevo módulo **Cambios de producto** (`/cambios`): el vendedor registra el producto con detalle, cantidad, razón (defecto, vencimiento corto, baja rotación o producto incorrecto), detalle y **foto**. Distribución ve los pendientes, confirma que el **producto bueno entregado coincide** con el registrado (el backend rechaza la confirmación si no coincide) o rechaza con motivo. Cada confirmación deja movimientos de trazabilidad; el producto con detalle **no vuelve al stock vendible**.
 - Permisos en cascada: `cambios.ver/crear/editar/eliminar` y `cambios.confirmar`, con plantillas por rol y migración suave para usuarios ya creados. Vendedores: ver+crear; distribución: ver+editar+confirmar; supervisor: ver+editar+eliminar; admin/dueno: todos.
 - Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`.
