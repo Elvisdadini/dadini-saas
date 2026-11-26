@@ -1,5 +1,17 @@
 const express = require('express');
-const { authRequired, requirePermiso } = require('../auth');
+const { authRequired } = require('../auth');
+const { tienePermiso } = require('../permisos');
+
+// Vendedores, distribuidores y cobranzas pueden consultar, compartir y
+// descargar catálogos, pero nunca generarlos ni administrar los archivos.
+const SIN_GENERAR = ['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'];
+function soloGeneradores(req, res, next) {
+  if (SIN_GENERAR.includes(req.user?.rol)) {
+    return res.status(403).json({ error: 'Tu rol puede ver, compartir y descargar el catálogo, pero no generarlo. Solicítalo a almacén o administración.' });
+  }
+  if (['admin', 'dueno'].includes(req.user?.rol) || tienePermiso(req.user, 'catalogo.generar_pdf')) return next();
+  return res.status(403).json({ error: 'No tienes permiso para generar catálogos.' });
+}
 const { audit } = require('../utils');
 const { obtenerCliente } = require('../supabase-client');
 const { ensureBucket } = require('../supabase-storage');
@@ -17,7 +29,7 @@ function asegurarBucket() {
   return ensureBucket(BUCKET, { fileSizeLimit: '20MB', allowedMimeTypes: ['application/pdf'] });
 }
 
-router.post('/guardar', requirePermiso('catalogo.generar_pdf', 'catalogo.crear'), async (req, res) => {
+router.post('/guardar', soloGeneradores, async (req, res) => {
   const body = req.body || {};
   const datos = String(body.pdf || '');
   if (!/^data:application\/pdf[;,]/i.test(datos)) return res.status(400).json({ error: 'El catálogo debe ser un PDF.' });
@@ -41,7 +53,7 @@ function nombreArchivo(nombre) {
   return limpio;
 }
 
-router.delete('/:archivo', requirePermiso('catalogo.eliminar', 'catalogo.crear'), async (req, res) => {
+router.delete('/:archivo', soloGeneradores, async (req, res) => {
   const archivo = String(req.params.archivo || '');
   if (!archivo.endsWith('.pdf')) return res.status(400).json({ error: 'El archivo no es un catálogo PDF.' });
   try {
@@ -54,7 +66,7 @@ router.delete('/:archivo', requirePermiso('catalogo.eliminar', 'catalogo.crear')
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
 
-router.put('/renombrar', requirePermiso('catalogo.editar', 'catalogo.crear'), async (req, res) => {
+router.put('/renombrar', soloGeneradores, async (req, res) => {
   const archivo = String(req.body?.archivo || '');
   const nombreNuevo = String(req.body?.nombre || '').trim();
   if (!archivo.endsWith('.pdf')) return res.status(400).json({ error: 'El archivo no es un catálogo PDF.' });

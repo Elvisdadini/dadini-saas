@@ -87,9 +87,12 @@ router.get('/', (req, res) => {
 router.get('/historial', (req, res) => {
   const db = load();
   const [desde, hasta] = rangoFechas(req.query.desde, req.query.hasta);
-  const pagos = db.pagos
-    .filter((p) => p.fecha.slice(0, 10) >= desde && p.fecha.slice(0, 10) <= hasta)
-    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+  let pagos = db.pagos
+    .filter((p) => p.fecha.slice(0, 10) >= desde && p.fecha.slice(0, 10) <= hasta);
+  if (!require('../alcance').verTodo(req)) {
+    pagos = require('../alcance').filtrar(req, pagos, ['usuario_id', 'responsable_cobro_id', 'vendedor_id', 'cobrador_id']);
+  }
+  pagos = pagos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
     .map((p) => {
       const cliente = db.clientes.find((c) => c.id === p.cliente_id);
       const pedido = db.pedidos.find((x) => x.id === p.pedido_id);

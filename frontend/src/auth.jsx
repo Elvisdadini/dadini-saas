@@ -13,6 +13,7 @@ export const ROL_LABEL = {
   almacen: 'Almacén',
   distribucion: 'Distribución',
   cobranzas: 'Cobranzas',
+  contador: 'Contador / Contabilidad',
 };
 
 export const ROL_COLOR = {
@@ -25,6 +26,7 @@ export const ROL_COLOR = {
   almacen: 'green',
   distribucion: 'purple',
   cobranzas: 'amber',
+  contador: 'navy',
 };
 
 export const PERMISOS = {
@@ -57,6 +59,7 @@ export const PERMISOS = {
   reportes_automaticos: ['admin', 'dueno', 'supervisor'],
   reportes: ['admin', 'dueno', 'supervisor', 'preventista'],
   mi_reporte: ['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'],
+  contabilidad: ['admin', 'dueno', 'contador'],
   administracion: ['admin', 'dueno'],
   dueno: ['dueno'],
 };

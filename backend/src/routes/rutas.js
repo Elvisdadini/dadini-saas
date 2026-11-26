@@ -192,26 +192,30 @@ function ajustarPedidoEntrega(db, pedido, itemsFinales, ruta, req) {
 router.get('/', (req, res) => {
   const db = load();
   const { fecha, estado, repartidor_id, desde, hasta } = req.query;
-  let rutas = require('../alcance').filtrar(req, db.rutas, ['repartidor_id', 'usuario_id', 'creado_por']).map((r) => rutaResumen(db, r));
+  const propias = require('../alcance').filtrar(req, db.rutas, ['repartidor_id', 'usuario_id', 'creado_por']);
+  let rutas = propias.map((r) => rutaResumen(db, r));
   if (fecha) rutas = rutas.filter((r) => r.fecha === fecha);
   if (desde) rutas = rutas.filter((r) => r.fecha >= desde);
   if (hasta) rutas = rutas.filter((r) => r.fecha <= hasta);
   if (estado && estado !== 'todas') rutas = rutas.filter((r) => r.estado === estado);
   if (repartidor_id) rutas = rutas.filter((r) => r.repartidor_id === Number(repartidor_id));
+  const hoyISO = new Date().toISOString().slice(0, 10);
   return res.json({
     rutas: rutas.sort((a, b) => b.fecha.localeCompare(a.fecha) || b.id - a.id),
     resumen: {
-      total: db.rutas.length,
-      hoy: db.rutas.filter((r) => r.fecha === new Date().toISOString().slice(0, 10)).length,
-      en_camino: db.rutas.filter((r) => r.estado === 'en_camino').length,
-      completadas: db.rutas.filter((r) => r.estado === 'completada').length,
+      total: propias.length,
+      hoy: propias.filter((r) => r.fecha === hoyISO).length,
+      en_camino: propias.filter((r) => r.estado === 'en_camino').length,
+      completadas: propias.filter((r) => r.estado === 'completada').length,
     },
   });
 });
 
 router.get('/disponibles', (req, res) => {
   const db = load();
-  let pedidos = db.pedidos.filter((p) => !p.ruta_id && ['pendiente', 'preparando', 'enviado'].includes(p.estado) && p.estado !== 'cancelado');
+  let pedidos = require('../alcance').filtrar(req,
+    db.pedidos.filter((p) => !p.ruta_id && ['pendiente', 'preparando', 'enviado'].includes(p.estado) && p.estado !== 'cancelado'),
+    ['vendedor_id', 'repartidor_asignado_id', 'usuario_id', 'responsable_cobro_id']);
   if (req.query.solo_reparto === 'true') pedidos = pedidos.filter((p) => ['delivery', 'ruta'].includes(p.canal));
   return res.json({ pedidos: pedidos.map((p) => pedidoResumen(db, p)) });
 });
@@ -220,6 +224,9 @@ router.get('/:id', (req, res) => {
   const db = load();
   const ruta = db.rutas.find((r) => r.id === Number(req.params.id));
   if (!ruta) return res.status(404).json({ error: 'Ruta no encontrada.' });
+  if (!require('../alcance').esMio(ruta, req, ['repartidor_id', 'usuario_id', 'creado_por'])) {
+    return res.status(403).json({ error: 'Esta ruta pertenece a otro usuario. No tienes acceso.' });
+  }
   const paradas = [...ruta.paradas]
     .sort((a, b) => a.orden - b.orden)
     .map((parada) => {

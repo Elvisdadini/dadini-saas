@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, MapPin, Pencil, Plus, RefreshCcw, Route, ShieldCheck, Trash2, Users } from 'lucide-react';
 import { api } from '../api';
+import { useAuth } from '../auth';
 import { Badge, Confirm, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
 const DIAS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -12,6 +13,7 @@ const VACIA = {
 
 export default function RutasVenta() {
   const toast = useToast();
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -210,7 +212,7 @@ export default function RutasVenta() {
     <>
       <PageHeader
         eyebrow="Ventas / Configuración"
-        title="Rutas y zonas de venta"
+        title={['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'].includes(user?.rol) ? 'Mis rutas y zonas' : 'Rutas y zonas de venta'}
         subtitle="Define la ruta, la zona, el día de visita y el vendedor. El distribuidor asignado a ese usuario se hereda automáticamente."
         actions={<>
           <Link className="btn btn-ghost" to="/clientes"><ArrowLeft size={14} /> Clientes</Link>

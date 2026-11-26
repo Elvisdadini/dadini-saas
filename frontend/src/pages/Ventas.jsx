@@ -62,7 +62,7 @@ export default function Ventas() {
     <>
       <PageHeader
         eyebrow="Ventas"
-        title="Pedidos y facturación"
+        title={['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'].includes(user?.rol) ? 'Mis ventas' : 'Pedidos y facturación'}
         subtitle="Registra ventas, da seguimiento a los pedidos y controla los cobros de tu cartera."
         actions={(
           <>

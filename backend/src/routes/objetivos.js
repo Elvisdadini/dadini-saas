@@ -2,6 +2,14 @@ const express = require('express');
 const { load, save } = require('../db');
 const { authRequired, allow } = require('../auth');
 const { nextId, audit, num, round2 } = require('../utils');
+const alcance = require('../alcance');
+
+function objetivosVisibles(req, lista) {
+  if (alcance.verTodo(req)) return lista;
+  const id = Number(req.user.id);
+  return lista.filter((o) => Number(o.vendedor_id) === id
+    || (!o.vendedor_id && (!o.ruta_venta || o.ruta_venta === req.user.ruta_venta)));
+}
 
 const router = express.Router();
 router.use(authRequired);
@@ -33,7 +41,10 @@ function resumen(db, objetivo) {
 router.get('/', (req, res) => {
   const db = load();
   const { mes, vendedor_id } = req.query;
-  let items = db.objetivos_mensuales.map((o) => resumen(db, o));
+  if (vendedor_id && !alcance.verTodo(req) && Number(vendedor_id) !== Number(req.user.id)) {
+    return res.status(403).json({ error: 'Solo puedes consultar tus propios objetivos.' });
+  }
+  let items = objetivosVisibles(req, db.objetivos_mensuales).map((o) => resumen(db, o));
   if (mes) items = items.filter((o) => o.mes === mes);
   if (vendedor_id) items = items.filter((o) => o.vendedor_id === Number(vendedor_id));
   items.sort((a, b) => String(b.mes).localeCompare(String(a.mes)));
@@ -83,7 +94,10 @@ router.get('/avance', (req, res) => {
   const db = load();
   const mes = req.query.mes || MES_ACTUAL();
   const vendedorId = req.query.vendedor_id ? Number(req.query.vendedor_id) : null;
-  const objetivos = db.objetivos_mensuales.filter((o) => o.activo && o.mes === mes
+  if (vendedorId && !alcance.verTodo(req) && vendedorId !== Number(req.user.id)) {
+    return res.status(403).json({ error: 'Solo puedes consultar tu propio avance.' });
+  }
+  const objetivos = objetivosVisibles(req, db.objetivos_mensuales).filter((o) => o.activo && o.mes === mes
     && (!vendedorId || o.vendedor_id === vendedorId || !o.vendedor_id));
   if (!objetivos.length) return res.json({ objetivo: null, objetivos: [], avance: null });
 
@@ -92,10 +106,14 @@ router.get('/avance', (req, res) => {
   const hoyISO = new Date().toISOString().slice(0, 10);
   const vendedorIds = [...new Set(objetivos.map((o) => o.vendedor_id).filter(Boolean))];
   const rutaVenta = objetivos.find((o) => o.ruta_venta)?.ruta_venta || null;
-  const pedidosMes = db.pedidos.filter((p) => p.estado !== 'cancelado'
+  let pedidosMes = db.pedidos.filter((p) => p.estado !== 'cancelado'
     && String(p.created_at).slice(0, 10) >= desde
     && String(p.created_at).slice(0, 10) <= hasta
     && (!vendedorIds.length || vendedorIds.includes(p.vendedor_id)));
+  if (!alcance.verTodo(req)) {
+    pedidosMes = pedidosMes.filter((p) => Number(p.vendedor_id) === Number(req.user.id)
+      || Number(p.usuario_id) === Number(req.user.id));
+  }
   const pedidosHoy = pedidosMes.filter((p) => String(p.created_at).slice(0, 10) === hoyISO);
   const ventasMes = round2(pedidosMes.reduce((s, p) => s + p.total, 0));
   const ventasHoy = round2(pedidosHoy.reduce((s, p) => s + p.total, 0));

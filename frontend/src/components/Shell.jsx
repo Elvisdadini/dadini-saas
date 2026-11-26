@@ -65,6 +65,13 @@ const NAV = [
     { to: '/crm', label: 'CRM 360', icon: HeartHandshake, key: 'clientes' },
   ] },
   {
+    group: 'Contabilidad',
+    items: [
+      { to: '/contabilidad', label: 'Contabilidad', icon: Receipt, key: 'contabilidad' },
+      { to: '/caja', label: 'Caja y arqueo', icon: Wallet, key: 'caja', roles: ['contador', 'admin', 'dueno'] },
+    ],
+  },
+  {
     group: 'Sistema',
     items: [
       { to: '/dueno', label: 'Panel del dueño', icon: Crown, key: 'dueno' },
@@ -76,6 +83,30 @@ const NAV = [
     ],
   },
 ];
+
+const ROLES_MIS = ['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'];
+const ETIQUETAS_MIS = {
+  '/ventas': 'Mis ventas',
+  '/clientes': 'Mis clientes',
+  '/ventas/rutas': 'Mis rutas y zonas',
+  '/ventas/zonas-mapa': 'Mis zonas',
+  '/ventas/objetivos': 'Mis objetivos',
+  '/cobranzas': 'Mis cobranzas',
+  '/inventario/devoluciones': 'Mis devoluciones',
+  '/distribucion': 'Mis entregas',
+  '/distribucion/programados': 'Mis pedidos programados',
+};
+
+function etiquetaNav(item, user) {
+  if (item.to === '/cobranzas' && ['ventas', 'preventista'].includes(user?.rol)) return 'Mis créditos';
+  if (ROLES_MIS.includes(user?.rol) && ETIQUETAS_MIS[item.to]) return ETIQUETAS_MIS[item.to];
+  return item.label;
+}
+
+function tituloSegunRol(ruta, titulo, user) {
+  if (!ROLES_MIS.includes(user?.rol) || !ETIQUETAS_MIS[ruta]) return titulo;
+  return [ETIQUETAS_MIS[ruta], 'Solo los registros asignados a ti'];
+}
 
 const PAGE_TITLES = {
   '/': ['Panel general', 'Resumen operativo'],
@@ -112,6 +143,7 @@ const PAGE_TITLES = {
   '/inventario/almacenes-moviles': ['Almacenes móviles', 'Carga para venta directa'],
   '/inventario/devoluciones': ['Devoluciones', 'Verificación y reingreso'],
   '/reportes': ['Reportes', 'Análisis del negocio'],
+  '/contabilidad': ['Contabilidad', 'Libros, impuestos y validaciones'],
   '/mi-reporte': ['Mi reporte', 'Solo mis resultados diarios y mensuales'],
   '/reportes/automatico': ['Reportes automáticos', 'Resumen diario preparado para WhatsApp'],
   '/crm': ['CRM 360', 'Scoring RFM y plan de acción por cliente'],
@@ -286,7 +318,8 @@ export default function Shell({ children }) {
     }
   };
 
-  const page = PAGE_TITLES[location.pathname] || (location.pathname.startsWith('/ventas/') ? ['Detalle de venta', 'Ventas'] : location.pathname.startsWith('/distribucion/') ? ['Detalle de ruta', 'Distribución'] : ['DADINI SaaS', 'Panel']);
+  const pageBase = PAGE_TITLES[location.pathname] || (location.pathname.startsWith('/ventas/') ? ['Detalle de venta', 'Ventas'] : location.pathname.startsWith('/distribucion/') ? ['Detalle de ruta', 'Distribución'] : ['DADINI SaaS', 'Panel']);
+  const page = tituloSegunRol(location.pathname, pageBase, user);
   const pendientes = resumen?.kpis?.pedidos_pendientes || 0;
   const rutas = resumen?.rutas?.filter((r) => r.estado === 'en_camino').length || 0;
   const vencidas = resumen?.kpis?.cobranzas_vencidas || 0;
@@ -327,7 +360,7 @@ export default function Shell({ children }) {
                 return (
                   <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                     <Icon size={17} />
-                    <span>{item.labelVendedor && ['ventas', 'preventista'].includes(user?.rol) ? item.labelVendedor : item.label}</span>
+                    <span>{etiquetaNav(item, user)}</span>
                     {badge > 0 && <span className="nav-count">{badge}</span>}
                     {item.alert === 'vencidas' && vencidas > 0 && <span className="nav-count" style={{ background: 'var(--red)' }}>{vencidas}</span>}
                   </NavLink>

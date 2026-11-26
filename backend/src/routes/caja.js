@@ -77,13 +77,15 @@ router.get('/resumen', (req, res) => {
   const db = load();
   const fecha = String(req.query.fecha || hoyISO()).slice(0, 10);
   const usuarioId = req.query.usuario_id ? Number(req.query.usuario_id) : null;
+  const puedeVerTodas = ['admin', 'dueno', 'contador'].includes(req.user.rol) || require('../alcance').verTodo(req);
   const cajas = (db.cajas || [])
-    .filter((c) => c.fecha === fecha && (!usuarioId || c.usuario_id === usuarioId))
+    .filter((c) => c.fecha === fecha && (!usuarioId || c.usuario_id === usuarioId)
+      && (puedeVerTodas || c.usuario_id === req.user.id))
     .map((c) => resumenCaja(db, c));
   res.json({ fecha, cajas, total: cajas.length });
 });
 
-router.post('/apertura', requirePermiso('caja.apertura'), allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranzas'), (req, res) => {
+router.post('/apertura', requirePermiso('caja.apertura'), allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranzas', 'contador'), (req, res) => {
   const db = load();
   const existente = cajaAbierta(db, req.user.id);
   if (existente) return res.status(400).json({ error: 'Ya tienes una caja abierta.', caja: resumenCaja(db, existente) });
@@ -103,7 +105,8 @@ router.post('/apertura', requirePermiso('caja.apertura'), allow('admin', 'dueno'
   return res.status(201).json({ caja: resumenCaja(db, caja) });
 });
 
-router.post('/cierre', requirePermiso('caja.cierre'), allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranzas'), (req, res) => {
+// El arqueo y cierre de caja es responsabilidad exclusiva de contabilidad.
+router.post('/cierre', requirePermiso('caja.cierre'), allow('admin', 'dueno', 'contador'), (req, res) => {
   const db = load();
   const caja = cajaAbierta(db, req.user.id);
   if (!caja) return res.status(404).json({ error: 'No tienes una caja abierta.' });
@@ -122,7 +125,7 @@ router.post('/cierre', requirePermiso('caja.cierre'), allow('admin', 'dueno', 's
   return res.json({ caja: caja });
 });
 
-router.post('/movimiento', requirePermiso('caja.apertura'), allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranzas'), (req, res) => {
+router.post('/movimiento', requirePermiso('caja.apertura'), allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranzas', 'contador'), (req, res) => {
   const db = load();
   const tipo = req.body?.tipo === 'egreso' ? 'egreso' : 'ingreso';
   const monto = round2(num(req.body?.monto));

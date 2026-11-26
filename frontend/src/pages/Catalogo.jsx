@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Download, FileText, Pencil, Printer, Share2, Trash2 } from 'lucide-react';
 import { api } from '../api';
+import { puede, useAuth } from '../auth';
 import { Badge, Confirm, EmptyState, Fecha, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 import SelectorEmpleadosWhatsapp from '../components/SelectorEmpleadosWhatsapp';
 
@@ -28,6 +29,8 @@ function aJpeg(url) {
 
 export default function Catalogo() {
   const toast = useToast();
+  const { user } = useAuth();
+  const puedeGenerar = puede(user, 'catalogo.generar_pdf');
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [historial, setHistorial] = useState([]);
@@ -63,6 +66,7 @@ export default function Catalogo() {
   const paginas = Math.max(1, Math.ceil(seleccionados.length / porHoja));
 
   const generarPromociones = async () => {
+    if (!puedeGenerar) return toast('Tu rol no puede generar catálogos.', 'error');
     if (!promociones.length) return toast('No hay promociones activas para el catálogo.', 'error');
     setBusy(true);
     try {
@@ -127,6 +131,7 @@ export default function Catalogo() {
   };
 
   const generar = async () => {
+    if (!puedeGenerar) return toast('Tu rol solo puede ver, compartir y descargar catálogos.', 'error');
     if (modo === 'promociones') return generarPromociones();
     if (!seleccionados.length) return toast('No hay productos para el catálogo.', 'error');
     setBusy(true);
@@ -238,9 +243,11 @@ export default function Catalogo() {
     <>
       <PageHeader
         eyebrow="Catálogo / Documentos"
-        title="Generar catálogo"
-        subtitle="Documento PDF tamaño carta, ligero y con varias imágenes por hoja, listo para compartir por WhatsApp."
-        actions={<button className="btn btn-primary" onClick={generar} disabled={busy || (modo === 'productos' ? !seleccionados.length : !promociones.length)}><FileText size={14} /> {busy ? 'Generando…' : 'Generar catálogo PDF'}</button>}
+        title={puedeGenerar ? 'Generar catálogo' : 'Catálogo para compartir'}
+        subtitle={puedeGenerar
+          ? 'Documento PDF tamaño carta, ligero y con varias imágenes por hoja, listo para compartir por WhatsApp.'
+          : 'Consulta, comparte y descarga los catálogos generados por almacén o administración. Tu rol no puede generarlos.'}
+        actions={puedeGenerar ? <button className="btn btn-primary" onClick={generar} disabled={busy || (modo === 'productos' ? !seleccionados.length : !promociones.length)}><FileText size={14} /> {busy ? 'Generando…' : 'Generar catálogo PDF'}</button> : <Badge tone="blue">Solo lectura y compartir</Badge>}
       />
 
       <div className="stat-grid mb-16" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>
@@ -312,8 +319,10 @@ export default function Catalogo() {
                 <td className="actions">
                   <button className="btn btn-soft btn-sm" onClick={() => setVistaOpen(h.url)}>Ver</button>
                   <button className="btn btn-green btn-sm" onClick={() => { setSelectorUrl(h.url); setSelectorOpen(true); }}>Compartir</button>
-                  <button className="icon-btn" title="Cambiar nombre" onClick={() => { setRenombrar(h); setNombreNuevo(h.nombre.replace(/^\d+-/, '').replace(/\.pdf$/i, '')); }}><Pencil size={14} /></button>
-                  <button className="icon-btn danger" title="Eliminar catálogo" onClick={() => setEliminarCatalogo(h)}><Trash2 size={14} /></button>
+                  {puedeGenerar && <>
+                    <button className="icon-btn" title="Cambiar nombre" onClick={() => { setRenombrar(h); setNombreNuevo(h.nombre.replace(/^\d+-/, '').replace(/\.pdf$/i, '')); }}><Pencil size={14} /></button>
+                    <button className="icon-btn danger" title="Eliminar catálogo" onClick={() => setEliminarCatalogo(h)}><Trash2 size={14} /></button>
+                  </>}
                 </td>
               </tr>)}</tbody>
             </table>

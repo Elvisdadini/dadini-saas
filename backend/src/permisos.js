@@ -17,6 +17,7 @@ const MODULOS = [
   { codigo: 'distribucion', etiqueta: 'Distribución', grupo: 'Logística', descripcion: 'Programar rutas y controlar entregas' },
   { codigo: 'cambios', etiqueta: 'Cambios de producto', grupo: 'Operación', descripcion: 'Registrar cambios con foto y razón, y confirmarlos desde distribución' },
   { codigo: 'reportes', etiqueta: 'Reportes', grupo: 'Análisis', descripcion: 'Consultar reportes mensuales y exportar' },
+  { codigo: 'contabilidad', etiqueta: 'Contabilidad', grupo: 'Gestión', descripcion: 'Libros, impuestos, arqueos y validación de movimientos' },
   { codigo: 'mi_reporte', etiqueta: 'Mi reporte', grupo: 'Análisis', descripcion: 'Reporte diario y mensual exclusivo de mis resultados' },
   { codigo: 'administracion', etiqueta: 'Administración', grupo: 'Sistema', descripcion: 'Usuarios, roles, permisos y auditoría' },
   { codigo: 'dueno', etiqueta: 'Panel del dueño', grupo: 'Sistema', descripcion: 'Indicadores ejecutivos de la empresa' },
@@ -61,7 +62,7 @@ const PLANTILLAS = [
       ...expandir('rutas_venta', ['ver']),
       ...expandir('objetivos', ['ver'], ['objetivos.ver_mios']),
       ...expandir('cobranzas', ['ver', 'crear'], ['cobranzas.registrar', 'cobranzas.mis_comprobantes']),
-      ...expandir('catalogo', ['ver'], ['catalogo.ver', 'catalogo.compartir_whatsapp']),
+      'catalogo.ver', 'catalogo.compartir_whatsapp',
       ...expandir('cambios', ['ver', 'crear']),
       ...expandir('reportes', ['ver'], ['reportes.consultar_exportar', 'reportes.ver_diarios_ventas', 'reportes.ver_diarios_clientes']),
       ...PERMISOS_MI_REPORTE,
@@ -77,7 +78,7 @@ const PLANTILLAS = [
       ...expandir('rutas_venta', ['ver']),
       ...expandir('distribucion', ['ver', 'crear', 'editar'], ['distribucion.registrar_entregas']),
       ...expandir('cambios', ['ver', 'editar'], ['cambios.confirmar']),
-      ...expandir('catalogo', ['ver'], ['catalogo.ver']),
+      'catalogo.ver', 'catalogo.compartir_whatsapp',
       ...expandir('reportes', ['ver'], ['reportes.ver_diarios_entregas']),
       ...PERMISOS_MI_REPORTE,
     ],
@@ -114,7 +115,7 @@ const PLANTILLAS = [
       ...expandir('cambios', ['ver', 'editar', 'eliminar']),
       ...expandir('rentabilidad', ['ver']),
       ...expandir('devoluciones', ['ver'], ['devoluciones.reportes_mios']),
-      ...expandir('catalogo', ['ver'], ['catalogo.ver']),
+      ...expandir('catalogo', ['ver', 'crear', 'editar'], ['catalogo.ver', 'catalogo.generar_pdf', 'catalogo.compartir_whatsapp']),
       ...expandir('reportes', ['ver', 'editar'], ['reportes.consultar_exportar', 'reportes.ver_diarios_ventas', 'reportes.ver_diarios_entregas', 'reportes.ver_diarios_clientes', 'reportes.ver_diarios_objetivos', 'reportes.editar', 'reportes.ajustar_parametros']),
     ],
   },
@@ -126,7 +127,7 @@ const PLANTILLAS = [
       ...expandir('ventas', ['ver', 'crear'], ['ventas.registrar_pedidos']),
       ...expandir('clientes', ['ver', 'crear']),
       ...expandir('mi_camion', ['ver', 'crear'], ['mi_camion.realizar_ventas']),
-      ...expandir('catalogo', ['ver'], ['catalogo.ver', 'catalogo.compartir_whatsapp']),
+      'catalogo.ver', 'catalogo.compartir_whatsapp',
       ...expandir('cambios', ['ver', 'crear']),
       ...expandir('cobranzas', ['ver']),
       ...PERMISOS_MI_REPORTE,
@@ -140,9 +141,30 @@ const PLANTILLAS = [
       ...expandir('ventas', ['ver']),
       ...expandir('clientes', ['ver']),
       ...expandir('cobranzas', ['ver', 'crear', 'editar'], ['cobranzas.registrar', 'cobranzas.mis_comprobantes']),
-      ...expandir('catalogo', ['ver'], ['catalogo.ver']),
+      'catalogo.ver', 'catalogo.compartir_whatsapp',
       ...expandir('reportes', ['ver'], ['reportes.consultar_exportar']),
       ...PERMISOS_MI_REPORTE,
+    ],
+  },
+  {
+    id: 'contador', nombre: 'Contador', rol: 'contador', color: 'navy',
+    descripcion: 'Cierra y valida cajas, revisa cobranzas, pagos y gastos, y lleva los libros e impuestos.',
+    permisos: [
+      'dashboard',
+      ...expandir('ventas', ['ver']),
+      ...expandir('clientes', ['ver']),
+      ...expandir('caja', ['ver', 'crear', 'editar'], ['caja.apertura', 'caja.cierre']),
+      ...expandir('cobranzas', ['ver']),
+      ...expandir('gastos', ['ver']),
+      ...expandir('ordenes_pago', ['ver']),
+      ...expandir('fiscal', ['ver'], ['fiscal.emitir', 'fiscal.enviar_sin']),
+      ...expandir('reportes', ['ver'], ['reportes.consultar_exportar']),
+      ...expandir('contabilidad', ['ver', 'crear', 'editar'], [
+        'contabilidad.libros', 'contabilidad.impuestos', 'contabilidad.validar_caja',
+        'contabilidad.validar_cobranzas', 'contabilidad.validar_pagos', 'contabilidad.validar_gastos',
+      ]),
+      'finanzas.ver_margenes', 'inventario.ver_costos',
+      'catalogo.ver', 'catalogo.compartir_whatsapp',
     ],
   },
 ];
@@ -168,13 +190,13 @@ function normalizarPermisos(lista) {
 // las funciones de su puesto. Es la misma regla para la web y para la APK,
 // porque ambas consumen esta API.
 const TECHO_POR_ROL = {
-  ventas: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'cobranzas', 'catalogo', 'cambios',
+  ventas: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'cobranzas', 'catalogo.ver', 'catalogo.compartir_whatsapp', 'cambios',
     'rutas_venta', 'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'reportes', 'geocerca', 'mi_reporte'],
-  preventista: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'cobranzas', 'catalogo', 'cambios',
+  preventista: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'cobranzas', 'catalogo.ver', 'catalogo.compartir_whatsapp', 'cambios',
     'rutas_venta', 'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'reportes', 'geocerca', 'mi_reporte'],
-  vendedor_camion: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'mi_camion', 'cambios', 'catalogo',
+  vendedor_camion: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'mi_camion', 'cambios', 'catalogo.ver', 'catalogo.compartir_whatsapp',
     'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'geocerca', 'mi_reporte'],
-  distribucion: ['dashboard', 'ventas', 'clientes', 'distribucion', 'cambios', 'catalogo', 'visitas',
+  distribucion: ['dashboard', 'ventas', 'clientes', 'distribucion', 'cambios', 'catalogo.ver', 'catalogo.compartir_whatsapp', 'visitas',
     'whatsapp', 'notificaciones', 'objetivos', 'bi', 'logistica', 'geocerca', 'mi_reporte'],
   almacen: ['dashboard', 'inventario', 'kardex', 'compras', 'cambios', 'distribucion', 'catalogo',
     'notificaciones', 'bi', 'reportes', 'logistica', 'inventario.ver_costos'],
@@ -182,7 +204,10 @@ const TECHO_POR_ROL = {
     'caja', 'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'reportes', 'catalogo',
     'logistica', 'cambios', 'rutas_venta', 'geocerca', 'mi_camion', 'datos.ver_todos'],
   cobranzas: ['dashboard', 'cobranzas', 'clientes', 'ventas', 'caja', 'bi', 'notificaciones',
-    'whatsapp', 'reportes', 'objetivos', 'mi_reporte'],
+    'whatsapp', 'reportes', 'objetivos', 'mi_reporte', 'catalogo.ver', 'catalogo.compartir_whatsapp'],
+  contador: ['dashboard', 'ventas', 'clientes', 'caja', 'cobranzas', 'gastos', 'ordenes_pago',
+    'fiscal', 'reportes', 'contabilidad', 'finanzas.ver_margenes', 'inventario.ver_costos',
+    'catalogo.ver', 'catalogo.compartir_whatsapp', 'notificaciones'],
 };
 
 function permisosUsuario(usuario) {
@@ -261,6 +286,12 @@ function asegurarEstructura(db) {
     const nuevos = permisosPorRol(u.rol).filter((c) => c === 'cambios' || c.startsWith('cambios.'));
     if (['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'].includes(u.rol)) {
       nuevos.push(...PERMISOS_MI_REPORTE);
+      // Catálogo: pueden ver, compartir y descargar, pero NO generar PDF.
+      const prohibidos = new Set(['catalogo', 'catalogo.generar_pdf', 'catalogo.crear', 'catalogo.editar', 'catalogo.eliminar']);
+      u.permisos = u.permisos.filter((c) => !prohibidos.has(c));
+      if (!u.permisos.includes('catalogo.ver')) u.permisos.push('catalogo.ver');
+      if (!u.permisos.includes('catalogo.compartir_whatsapp')) u.permisos.push('catalogo.compartir_whatsapp');
+      cambio = true;
     }
     if (u.rol === 'supervisor') nuevos.push('datos.ver_todos');
     const faltan = nuevos.filter((c) => !u.permisos.includes(c));

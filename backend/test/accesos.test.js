@@ -32,6 +32,31 @@ test('Mi reporte existe para vendedores, distribución y cobranzas, y no para al
   assert.equal(tienePermiso({ rol: 'preventista', permisos: vendedor }, 'mi_reporte.ver_ventas'), true);
 });
 
+test('catálogo: vendedores, distribuidores y cobranzas no pueden generar PDF', () => {
+  ['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'].forEach((rol) => {
+    const p = permisosUsuario({ rol, permisos: [...TODOS] });
+    assert.equal(tienePermiso({ rol, permisos: p }, 'catalogo.generar_pdf'), false, `${rol} no debe generar catálogo`);
+    assert.equal(p.includes('catalogo.ver'), true, `${rol} debe ver catálogo`);
+    assert.equal(p.includes('catalogo.compartir_whatsapp'), true, `${rol} debe compartir catálogo`);
+  });
+  const admin = permisosUsuario({ rol: 'admin', permisos: [...TODOS] });
+  assert.equal(tienePermiso({ rol: 'admin', permisos: admin }, 'catalogo.generar_pdf'), true);
+});
+
+test('contador: cierre de caja, validaciones, libros e impuestos', () => {
+  assert.equal(TECHO_POR_ROL.contador.includes('contabilidad'), true);
+  assert.equal(TECHO_POR_ROL.cobranzas.includes('contabilidad'), false);
+  assert.equal(TECHO_POR_ROL.supervisor.includes('contabilidad'), false);
+  const p = permisosUsuario({ rol: 'contador', permisos: [...TODOS] });
+  ['caja.cierre', 'contabilidad.validar_caja', 'contabilidad.validar_pagos',
+    'contabilidad.validar_gastos', 'contabilidad.libros', 'contabilidad.impuestos',
+    'finanzas.ver_margenes'].forEach((c) => {
+    assert.equal(tienePermiso({ rol: 'contador', permisos: p }, c), true, `contador debe tener ${c}`);
+  });
+  const cobrador = permisosUsuario({ rol: 'cobranzas', permisos: [...TODOS] });
+  assert.equal(tienePermiso({ rol: 'cobranzas', permisos: cobrador }, 'contabilidad.validar_caja'), false);
+});
+
 test('techo por rol: un preventista con todos los códigos no puede exceder su puesto', () => {
   const permisos = permisosUsuario({ rol: 'preventista', permisos: [...TODOS] });
   for (const codigo of ['rentabilidad', 'finanzas.ver_margenes', 'inventario.ver_costos',

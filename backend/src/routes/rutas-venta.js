@@ -76,21 +76,36 @@ router.get('/', (req, res) => {
   const db = load();
   const todos = req.query.todos === 'true';
   const activas = (lista, campo = 'activa') => todos ? lista : lista.filter((x) => x?.[campo] !== false);
-  const vendedores = db.usuarios
+  const id = Number(req.user.id);
+  const verTodo = require('../alcance').verTodo(req);
+  let vendedores = db.usuarios
     .filter((u) => ['ventas', 'preventista', 'vendedor_camion'].includes(u.rol) && u.activo)
     .map((u) => ({
       id: u.id, nombre: u.nombre, rol: u.rol, ruta_venta: u.ruta_venta || null,
       zona_venta: u.zona_venta || null, dias_visita: u.dias_visita || [],
       repartidor_id: u.repartidor_id || null, categoria_cliente_id: u.categoria_cliente_id || null,
     }));
+  let rutas = [...(db.rutas_venta || [])].sort((a, b) => a.codigo.localeCompare(b.codigo));
+  let zonas = db.zonas || [];
+  let distribuidores = (db.repartidores || []).filter((r) => r.activo);
+  if (!verTodo) {
+    rutas = rutas.filter((r) => Number(r.vendedor_id) === id || Number(r.distribuidor_id) === id
+      || r.codigo === req.user.ruta_venta || r.dias_visita?.some((d) => (req.user.dias_visita || []).map(Number).includes(Number(d))));
+    const zonaIds = new Set(rutas.flatMap((r) => [r.zona_id, ...(r.zona_ids || [])]).filter(Boolean).map(Number));
+    const zonaNombres = new Set(rutas.flatMap((r) => [r.zona, ...(r.zonas || [])]).filter(Boolean));
+    zonas = zonas.filter((z) => zonaIds.has(Number(z.id)) || zonaNombres.has(z.nombre) || z.nombre === req.user.zona_venta);
+    vendedores = vendedores.filter((u) => u.id === id);
+    distribuidores = distribuidores.filter((d) => d.id === Number(req.user.repartidor_id)
+      || rutas.some((r) => Number(r.distribuidor_id) === d.id));
+  }
   return res.json({
-    rutas: activas([...(db.rutas_venta || [])].sort((a, b) => a.codigo.localeCompare(b.codigo))),
-    zonas: activas(db.zonas || []),
+    rutas: activas(rutas),
+    zonas: activas(zonas),
     tipos_cliente: activas(db.tipos_cliente || [], 'activo'),
     tipos_cliente_ordenados: tiposClienteOrdenados(db).filter((t) => todos || t.activo !== false),
     categorias: activas(db.cliente_categorias || []),
     vendedores,
-    distribuidores: (db.repartidores || []).filter((r) => r.activo),
+    distribuidores,
   });
 });
 

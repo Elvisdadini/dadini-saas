@@ -68,6 +68,14 @@ const CATALOGO = [
     { base: 'finanzas', etiqueta: 'Finanzas de la empresa', sub: [
       { codigo: 'finanzas.ver_margenes', etiqueta: 'Ver utilidad, márgenes y rentabilidad (solo administración)' },
     ] },
+    { base: 'contabilidad', etiqueta: 'Contabilidad y libros', sub: [
+      { codigo: 'contabilidad.libros', etiqueta: 'Consultar libros contables y exportarlos' },
+      { codigo: 'contabilidad.impuestos', etiqueta: 'Revisar impuestos, IVA/IT y normativa SIAT' },
+      { codigo: 'contabilidad.validar_caja', etiqueta: 'Validar arqueos y cierres de caja' },
+      { codigo: 'contabilidad.validar_cobranzas', etiqueta: 'Validar cobranzas y depósitos' },
+      { codigo: 'contabilidad.validar_pagos', etiqueta: 'Validar pagos y órdenes de pago' },
+      { codigo: 'contabilidad.validar_gastos', etiqueta: 'Validar gastos registrados' },
+    ] },
     { base: 'sueldos', etiqueta: 'Sueldos y boletas', sub: [] },
     { base: 'ordenes_pago', etiqueta: 'Órdenes de pagos', sub: [] },
     { base: 'rentabilidad', etiqueta: 'Rentabilidad', sub: [] },

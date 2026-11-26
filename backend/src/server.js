@@ -99,6 +99,7 @@ app.use('/api/kardex', require('./routes/kardex'));
 app.use('/api/caja', require('./routes/caja'));
 app.use('/api/reportes/automatico', require('./routes/reportes-auto'));
 app.use('/api/reportes', require('./routes/reportes'));
+app.use('/api/contabilidad', require('./routes/contabilidad'));
 app.use('/api/mi-reporte', require('./routes/mi-reporte'));
 app.use('/api/configuracion', require('./routes/configuracion'));
 const { repartidoresRouter, vehiculosRouter } = require('./routes/logistica');

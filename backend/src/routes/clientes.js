@@ -79,12 +79,15 @@ router.get('/:id', (req, res) => {
   const db = load();
   const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
+  if (!require('../alcance').esMio(cliente, req, ['vendedor_id', 'usuario_id', 'creado_por', 'distribuidor_id', 'responsable_cobro_id'])) {
+    return res.status(403).json({ error: 'Este cliente pertenece a otro usuario. No tienes acceso.' });
+  }
   const pedidos = db.pedidos
-    .filter((p) => p.cliente_id === cliente.id)
+    .filter((p) => p.cliente_id === cliente.id && require('../alcance').esMio(p, req, ['vendedor_id', 'repartidor_asignado_id', 'usuario_id', 'responsable_cobro_id']))
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     .map((p) => pedidoResumen(db, p));
-  const visitas = db.visitas
-    .filter((v) => v.cliente_id === cliente.id)
+  const visitas = require('../alcance').filtrar(req,
+    db.visitas.filter((v) => v.cliente_id === cliente.id), ['usuario_id', 'distribuidor_id'])
     .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
     .slice(0, 10);
   return res.json({ cliente, pedidos, visitas });

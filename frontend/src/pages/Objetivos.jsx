@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pencil, Plus, RefreshCcw, Target, Users } from 'lucide-react';
 import { api } from '../api';
+import { useAuth } from '../auth';
 import { Badge, EmptyState, Modal, Money, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
 const hoy = () => new Date().toISOString().slice(0, 7);
@@ -8,6 +9,8 @@ const VACIO = { mes: hoy(), vendedor_id: '', ruta_venta: '', tipo: 'monto', prod
 
 export default function Objetivos() {
   const toast = useToast();
+  const { user } = useAuth();
+  const puedeGestionar = ['admin', 'dueno', 'supervisor'].includes(user?.rol);
   const [data, setData] = useState(null);
   const [vendedores, setVendedores] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -21,12 +24,18 @@ export default function Objetivos() {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, u, p] = await Promise.all([api.get('/objetivos'), api.get('/usuarios'), api.get('/productos')]);
+      const [o, p] = await Promise.all([
+        api.get('/objetivos'),
+        puedeGestionar ? api.get('/productos') : Promise.resolve({ productos: [] }),
+      ]);
       setData(o);
-      setVendedores((u.usuarios || []).filter((x) => ['ventas', 'preventista', 'vendedor_camion'].includes(x.rol)));
       setProductos(p.productos || []);
+      if (puedeGestionar) {
+        const u = await api.get('/usuarios');
+        setVendedores((u.usuarios || []).filter((x) => ['ventas', 'preventista', 'vendedor_camion'].includes(x.rol)));
+      }
     } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
-  }, [toast]);
+  }, [toast, puedeGestionar]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -65,11 +74,13 @@ export default function Objetivos() {
     <>
       <PageHeader
         eyebrow="Ventas / Planeación"
-        title="Generar objetivos mensuales"
-        subtitle="Define metas por monto, producto o volumen. Administración y supervisor las ajustan en tiempo real."
+        title={puedeGestionar ? 'Generar objetivos mensuales' : 'Mis objetivos'}
+        subtitle={puedeGestionar
+          ? 'Define metas por monto, producto o volumen. Administración y supervisor las ajustan en tiempo real.'
+          : 'Solo la meta asignada a ti y tu avance. Administración y supervisor la ajustan.'}
         actions={<>
           <button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>
-          <button className="btn btn-primary" onClick={() => abrir()}><Plus size={15} /> Nuevo objetivo</button>
+          {puedeGestionar && <button className="btn btn-primary" onClick={() => abrir()}><Plus size={15} /> Nuevo objetivo</button>}
         </>}
       />
 
@@ -82,7 +93,7 @@ export default function Objetivos() {
       <div className="panel">
         <div className="panel-head"><div><h3>Metas configuradas</h3><p>Se reflejan en el informe de avance de ruta</p></div></div>
         {loading ? <SkeletonRows rows={6} /> : !(data?.objetivos || []).length ? (
-          <EmptyState icon={Target} title="Sin objetivos" message="Crea la primera meta mensual." />
+          <EmptyState icon={Target} title="Sin objetivos" message={puedeGestionar ? 'Crea la primera meta mensual.' : 'Aún no tienes una meta asignada para este mes.'} />
         ) : (
           <div className="table-wrap">
             <table className="data-table">
@@ -97,8 +108,8 @@ export default function Objetivos() {
                     <td className="num">{o.dias_laborables}</td>
                     <td className="num"><Money value={o.dias_laborables ? o.meta_monto / o.dias_laborables : 0} /></td>
                     <td className="actions">
-                      <button className="btn btn-soft btn-sm" onClick={() => consultarAvance(o.vendedor_id)}>Ver avance</button>
-                      <button className="icon-btn" onClick={() => abrir(o)}><Pencil size={14} /></button>
+                      <button className="btn btn-soft btn-sm" onClick={() => consultarAvance(o.vendedor_id || user?.id)}>Ver avance</button>
+                      {puedeGestionar && <button className="icon-btn" onClick={() => abrir(o)}><Pencil size={14} /></button>}
                     </td>
                   </tr>
                 ))}

@@ -338,7 +338,7 @@ export default function Clientes() {
     <>
       <PageHeader
         eyebrow="Cartera comercial"
-        title="Clientes"
+        title={['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'].includes(user?.rol) ? 'Mis clientes' : 'Clientes'}
         subtitle="Gestiona mayoristas, minoristas, zonas de reparto y cupos de crédito."
         actions={<>
             <Link className="btn btn-ghost" to="/crm"><Sparkles size={14} /> CRM 360</Link>

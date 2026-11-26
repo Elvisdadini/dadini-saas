@@ -6,20 +6,33 @@ const { nextId, nextCode, audit, num } = require('../utils');
 const router = express.Router();
 router.use(authRequired);
 
-function conUso(db, cat) {
+function conUso(db, cat, req) {
+  const alcance = req ? require('../alcance') : null;
+  const clientes = alcance && req ? alcance.filtrar(req, db.clientes || [], ['vendedor_id', 'usuario_id', 'creado_por', 'distribuidor_id', 'responsable_cobro_id']) : db.clientes;
+  const vendedores = alcance && req && !alcance.verTodo(req)
+    ? (db.usuarios || []).filter((u) => u.id === Number(req.user.id))
+    : db.usuarios;
   const padre = db.cliente_categorias.find((c) => c.id === cat.padre_id);
   return {
     ...cat,
     padre_nombre: padre?.nombre || '',
-    clientes: db.clientes.filter((c) => c.categoria_cliente_id === cat.id).length,
-    vendedores: db.usuarios.filter((u) => u.categoria_cliente_id === cat.id).length,
-    promociones: db.promociones.filter((p) => (p.categorias_clientes || []).map(Number).includes(cat.id)).length,
+    clientes: clientes.filter((c) => c.categoria_cliente_id === cat.id).length,
+    vendedores: vendedores.filter((u) => u.categoria_cliente_id === cat.id).length,
+    promociones: (db.promociones || []).filter((p) => (p.categorias_clientes || []).map(Number).includes(cat.id)).length,
   };
 }
 
 router.get('/', (req, res) => {
   const db = load();
-  const todas = (db.cliente_categorias || []).map((c) => conUso(db, c));
+  let lista = db.cliente_categorias || [];
+  if (!require('../alcance').verTodo(req)) {
+    const permitidas = new Set();
+    if (req.user.categoria_cliente_id) permitidas.add(Number(req.user.categoria_cliente_id));
+    require('../alcance').filtrar(req, db.clientes || [], ['vendedor_id', 'usuario_id', 'creado_por', 'distribuidor_id', 'responsable_cobro_id'])
+      .forEach((c) => { if (c.categoria_cliente_id) permitidas.add(Number(c.categoria_cliente_id)); });
+    lista = lista.filter((c) => permitidas.has(Number(c.id)));
+  }
+  const todas = lista.map((c) => conUso(db, c, req));
   const categorias = req.query.todos === 'true' ? todas : todas.filter((c) => c.activa !== false);
   return res.json({ categorias, total: categorias.length });
 });

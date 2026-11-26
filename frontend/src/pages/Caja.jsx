@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowDownToLine, ArrowUpFromLine, CheckCircle2, Lock, RefreshCcw, Wallet } from 'lucide-react';
 import { api } from '../api';
+import { useAuth } from '../auth';
 import { Badge, EmptyState, Fecha, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 import { Money, Num } from '../ui';
 
@@ -10,6 +11,8 @@ const VACIO_MOV = { tipo: 'ingreso', monto: '', motivo: '' };
 
 export default function Caja() {
   const toast = useToast();
+  const { user } = useAuth();
+  const puedeCerrar = ['admin', 'dueno', 'contador'].includes(user?.rol);
   const [actual, setActual] = useState(null);
   const [resumen, setResumen] = useState(null);
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
@@ -64,11 +67,13 @@ export default function Caja() {
       <PageHeader
         eyebrow="Operación / Tesorería"
         title="Caja y arqueo"
-        subtitle="Abre tu caja, registra ingresos y egresos, y cierra con el saldo declarado."
+        subtitle={puedeCerrar
+          ? 'Abre tu caja, registra ingresos y egresos, y cierra con el saldo declarado.'
+          : 'Registra tus movimientos. El cierre y arqueo lo realiza contabilidad.'}
         actions={<>
           <button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>
           {actual
-            ? <><button className="btn btn-soft" onClick={() => abrir('movimiento')}><Wallet size={14} /> Agregar movimiento</button><button className="btn btn-primary" onClick={() => abrir('cierre')}><Lock size={14} /> Cerrar caja</button></>
+            ? <><button className="btn btn-soft" onClick={() => abrir('movimiento')}><Wallet size={14} /> Agregar movimiento</button>{puedeCerrar && <button className="btn btn-primary" onClick={() => abrir('cierre')}><Lock size={14} /> Cerrar caja</button>}</>
             : <button className="btn btn-primary" onClick={() => abrir('apertura')}><Wallet size={14} /> Abrir caja</button>}
         </>}
       />

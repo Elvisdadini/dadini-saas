@@ -367,6 +367,7 @@ router.post('/', requireActividad('vender'), requireHorarioVentas, requirePermis
       metodo: forma_pago,
       fecha: ahora,
       usuario_id: req.user.id,
+      validado: false, validado_por: null, validado_en: null,
       nota: 'Pago registrado al crear la venta',
     });
     try {
@@ -543,6 +544,7 @@ router.post('/:id/pagos', requireActividad('cobrar'), requirePermiso('cobranzas.
     usuario_id: req.user.id,
     numero_comprobante: numeroComprobante || null,
     tipo_comprobante: ['factura', 'boleta', 'recibo', 'transferencia'].includes(req.body?.tipo_comprobante) ? req.body.tipo_comprobante : 'recibo',
+    validado: false, validado_por: null, validado_en: null,
     nota: `${req.body?.nota || 'Cobro registrado'}${detalle}`,
   };
   db.pagos.unshift(pago);

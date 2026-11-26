@@ -59,6 +59,7 @@ router.post('/', allow('admin', 'dueno', 'almacen', 'ventas', 'distribucion'), (
     comprobante: b.comprobante || '',
     notas: b.notas || '',
     usuario_id: req.user.id,
+    validado: false, validado_por: null, validado_en: null,
     created_at: new Date().toISOString(),
   };
   db.gastos.push(gasto);

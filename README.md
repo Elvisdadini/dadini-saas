@@ -426,6 +426,22 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`. El acceso también está en el encabezado de **Ventas** y en el menú principal.
 - **APK 21.0.6** (`versionCode 7`): compilada con keystore nuevo y publicada en `/uploads/apk/DADINI-SaaS-21.0.6.apk` (archivo versionado en el repo, sobrevive a reinicios). Al cambiar la firma, quienes tenían la versión anterior deben desinstalar antes de instalar. La contraseña del keystore no se versiona: guárdala fuera del repo.
 
+### Nombres "Mis …" y alcance asignado
+
+- En la web y la APK, vendedores, distribuidores y cobranzas ven el menú y los títulos como **Mis ventas, Mis clientes, Mis cobranzas / Mis créditos, Mis rutas y zonas, Mis zonas, Mis objetivos, Mis entregas, Mis devoluciones**. Administración, dueño, almacén y supervisión conservan los nombres generales.
+- El backend filtra además los detalles que antes quedaban abiertos: cliente por ID, objetivos (`/` y `/avance`, forzando el propio `vendedor_id`), rutas de venta y zonas por vendedor/distribuidor/ruta asignada, categorías por las usadas en los propios clientes, historial de cobranzas, detalle y disponibles de rutas. Un usuario nunca ve clientes, metas ni rutas de otro compañero.
+
+### Catálogo y caja por rol
+
+- Vendedores, distribuidores y cobranzas pueden **ver, compartir y descargar** catálogos, pero **no generarlos** ni renombrarlos/eliminarlos. El permiso `catalogo.generar_pdf` ya no se hereda del módulo base para esos roles y el endpoint lo rechaza con 403. Almacén, supervisión y administración sí pueden generar.
+- El **cierre y arqueo de caja** es exclusivo de **contabilidad** (o administración/dueño). Los demás roles pueden abrir caja y registrar movimientos, pero `POST /api/caja/cierre` responde 403. El resumen de cajas de otros usuarios solo lo ve contabilidad/administración.
+
+### Rol contador y área de contabilidad
+
+- Nuevo rol **Contador** con acceso a `contabilidad` (libros, impuestos, validaciones), caja, cobranzas, gastos, órdenes de pago, fiscal, reportes y costos/márgenes.
+- `POST /api/contabilidad/cajas/:id/validar` valida arqueos; `POST /api/contabilidad/pagos/validar` y `/gastos/validar` marcan comprobantes revisados. Cada cobro y gasto nace como `validado:false` y solo contabilidad lo aprueba.
+- `GET /api/contabilidad/libros` (y su export CSV) arma el libro diario con ventas, cobros y gastos; `GET /api/contabilidad/impuestos` resume IVA/IT de las facturas del mes y la normativa SIAT vigente. Interfaz en `/contabilidad`.
+
 ### Mi reporte (solo mis resultados)
 
 - Nuevo módulo **Mi reporte** (`/mi-reporte`, `GET /api/mi-reporte`) disponible **solo** para vendedores (`ventas`, `preventista`, `vendedor_camion`), distribuidores y cobranzas. No aparece en el menú de almacén ni supervisión, y el backend devuelve 403 a cualquier otro rol (`requirePermiso('mi_reporte.ver')` + `allow`).

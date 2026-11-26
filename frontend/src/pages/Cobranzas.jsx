@@ -185,7 +185,7 @@ export default function Cobranzas() {
     <>
       <PageHeader
         eyebrow="Cuentas por cobrar"
-        title="Cobranzas"
+        title={['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'].includes(user?.rol) ? 'Mis cobranzas' : 'Cobranzas'}
         subtitle={['ventas', 'preventista'].includes(user?.rol)
           ? 'Cobra tus ventas a crédito mientras estén al día. Al vencerse, la cuenta pasa automáticamente a Cobranzas.'
           : 'Solo cuentas vencidas. Las ventas a crédito al día son cobradas por su vendedor.'}

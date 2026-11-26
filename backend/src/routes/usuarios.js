@@ -8,7 +8,7 @@ const { MODULOS, ACCIONES, PLANTILLAS, permisosPorRol, permisosPorPlantilla, nor
 const router = express.Router();
 router.use(authRequired, allow());
 
-const ROLES = ['admin', 'dueno', 'supervisor', 'ventas', 'preventista', 'vendedor_camion', 'almacen', 'distribucion', 'cobranzas'];
+const ROLES = ['admin', 'dueno', 'supervisor', 'ventas', 'preventista', 'vendedor_camion', 'almacen', 'distribucion', 'cobranzas', 'contador'];
 
 // Asigna automáticamente el distribuidor con menos vendedores para equilibrar
 // la carga entre repartidores activos.
