@@ -88,6 +88,8 @@ const ROLES_MIS = ['ventas', 'preventista', 'vendedor_camion', 'distribucion', '
 const ETIQUETAS_MIS = {
   '/ventas': 'Mis ventas',
   '/clientes': 'Mis clientes',
+  '/clientes/categorias': 'Mis categorías',
+  '/catalogo': 'Catálogo',
   '/ventas/rutas': 'Mis rutas y zonas',
   '/ventas/zonas-mapa': 'Mis zonas',
   '/ventas/objetivos': 'Mis objetivos',
@@ -105,6 +107,7 @@ function etiquetaNav(item, user) {
 
 function tituloSegunRol(ruta, titulo, user) {
   if (!ROLES_MIS.includes(user?.rol) || !ETIQUETAS_MIS[ruta]) return titulo;
+  if (ruta === '/catalogo') return ['Catálogo', 'Ver, compartir y descargar catálogos'];
   return [ETIQUETAS_MIS[ruta], 'Solo los registros asignados a ti'];
 }
 
