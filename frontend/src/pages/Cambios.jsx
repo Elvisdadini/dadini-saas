@@ -101,7 +101,7 @@ export default function Cambios() {
         subtitle="Registra el producto con detalle con foto y razón; distribución verifica que el producto bueno entregado sea el mismo."
         actions={<>
           <button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>
-          <button className="btn btn-primary" onClick={() => { setForm(VACIO); setModal(true); }}><Plus size={15} /> Registrar cambio</button>
+          <button className="btn btn-primary" onClick={() => { setForm(VACIO); setModal('nuevo'); }}><Plus size={15} /> Registrar cambio</button>
         </>}
       />
 

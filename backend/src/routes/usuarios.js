@@ -53,7 +53,7 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const db = load();
-  const { nombre, email, usuario, rol, cargo, telefono, whatsapp, password, pin, repartidor_id, vehiculo_id, ruta_venta, dias_visita, zona_venta, geocerca_activa, geocerca_radio_m, categoria_cliente_id, es_venta_directa, almacen_movil_id, salario_base, comision_venta_pct, comision_distribucion_pct, bono_fijo, descuento_fijo, antiguedad_anios, permisos, plantilla } = req.body || {};
+  const { nombre, email, usuario, rol, cargo, telefono, whatsapp, password, pin, repartidor_id, vehiculo_id, ruta_venta, dias_visita, zona_venta, geocerca_activa, geocerca_radio_m, categoria_cliente_id, es_venta_directa, almacen_movil_id, salario_base, comision_venta_pct, comision_distribucion_pct, bono_fijo, descuento_fijo, antiguedad_anios, permisos, plantilla, bloqueos } = req.body || {};
   if (!nombre || !rol) return res.status(400).json({ error: 'Nombre y rol son obligatorios.' });
   if (!ROLES.includes(rol)) return res.status(400).json({ error: 'Rol inválido.' });
   const nombreUsuario = String(usuario || '').trim() || generarUsuario(db, nombre);
@@ -108,6 +108,7 @@ router.post('/', (req, res) => {
     ultimo_acceso: null,
     plantilla_permisos: plantilla || null,
     permisos: normalizarPermisos(permisos) || permisosPorPlantilla(plantilla) || permisosPorRol(rol),
+    bloqueos: bloqueos && typeof bloqueos === 'object' ? { vender: false, cobrar: false, entregar: false, supervisar: false, ...bloqueos } : null,
   };
   db.usuarios.push(user);
   audit(db, req, 'Usuario creado', 'Usuarios', `${user.nombre} · ${user.rol}${asignado ? ` · distribuidor ${asignado.nombre}` : ''}`);
@@ -133,6 +134,7 @@ router.put('/:id', (req, res) => {
   if (rol && user.id === req.user.id && rol !== 'admin') return res.status(400).json({ error: 'No puedes quitarte el rol de administrador.' });
   ['nombre', 'email', 'rol', 'cargo', 'telefono', 'whatsapp'].forEach((c) => { if (req.body?.[c] !== undefined) user[c] = req.body[c]; });
   if (usuario !== undefined) user.usuario = String(usuario).trim() || user.usuario;
+  if (req.body?.bloqueos && typeof req.body.bloqueos === 'object') user.bloqueos = { ...(user.bloqueos || {}), ...req.body.bloqueos };
   if (pin !== undefined) user.pin = pin ? hash(String(pin)) : null;
   if (req.body?.repartidor_id !== undefined) user.repartidor_id = req.body.repartidor_id ? Number(req.body.repartidor_id) : null;
   if (req.body?.vehiculo_id !== undefined) user.vehiculo_id = req.body.vehiculo_id ? Number(req.body.vehiculo_id) : null;

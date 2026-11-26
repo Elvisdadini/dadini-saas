@@ -5,6 +5,7 @@ const { nextId, nextCode, audit, round2, num } = require('../utils');
 const { pedidoResumen } = require('../services');
 const { distanciaKm, distanciaAcumulada, centroYDistanza, esCoordenaValida } = require('../geo');
 const { subirFoto } = require('../fotos');
+const { requireActividad } = require('../actividades');
 
 async function subirComprobante(datos, prefijo) {
   if (typeof datos === 'string' && datos.startsWith('data:image/')) {
@@ -265,7 +266,7 @@ router.post('/', allow('distribucion', 'ventas'), (req, res) => {
   return res.status(201).json({ ruta: rutaResumen(db, ruta) });
 });
 
-router.patch('/:id/estado', allow('distribucion'), (req, res) => {
+router.patch('/:id/estado', requireActividad('supervisar'), allow('distribucion'), (req, res) => {
   const db = load();
   const ruta = db.rutas.find((r) => r.id === Number(req.params.id));
   if (!ruta) return res.status(404).json({ error: 'Ruta no encontrada.' });
@@ -332,7 +333,7 @@ router.delete('/:id/paradas/:pedidoId', allow('distribucion'), (req, res) => {
   return res.json({ ruta: rutaResumen(db, ruta) });
 });
 
-router.patch('/:id/paradas/:pedidoId/entrega', allow('distribucion', 'ventas'), async (req, res) => {
+router.patch('/:id/paradas/:pedidoId/entrega', requireActividad('entregar'), allow('distribucion', 'ventas'), async (req, res) => {
   const db = load();
   const ruta = db.rutas.find((r) => r.id === Number(req.params.id));
   if (!ruta) return res.status(404).json({ error: 'Ruta no encontrada.' });

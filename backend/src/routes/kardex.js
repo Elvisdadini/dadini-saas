@@ -1,7 +1,7 @@
 const express = require('express');
 const { load, save } = require('../db');
 const { authRequired, allow } = require('../auth');
-const { audit } = require('../utils');
+const { audit, nextId } = require('../utils');
 const kardex = require('../kardex');
 
 const router = express.Router();
@@ -105,6 +105,94 @@ router.post('/transferencia', allow(...GESTION), (req, res) => {
     save();
     return res.json({ ok: true, ...resultado });
   } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+function asegurarSolicitudes(db) {
+  if (!Array.isArray(db.solicitudes_vencimiento)) db.solicitudes_vencimiento = [];
+  return db.solicitudes_vencimiento;
+}
+
+function notificar(db, titulo, detalle, usuarioId = null) {
+  if (!Array.isArray(db.notificaciones)) db.notificaciones = [];
+  db.notificaciones.unshift({
+    id: nextId(db.notificaciones), tipo: 'vencimiento', titulo, detalle,
+    leida: false, fecha: new Date().toISOString(), usuario_id: usuarioId,
+  });
+}
+
+router.get('/solicitudes-vencimiento', (req, res) => {
+  const db = load();
+  let lista = [...asegurarSolicitudes(db)];
+  if (!['admin', 'dueno', 'supervisor'].includes(req.user.rol)) {
+    lista = lista.filter((s) => Number(s.solicitado_por) === Number(req.user.id));
+  }
+  lista.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)));
+  res.json({ solicitudes: lista, total: lista.length });
+});
+
+router.post('/solicitudes-vencimiento', (req, res) => {
+  const db = load();
+  const lote = (db.lotes || []).find((l) => l.id === Number(req.body?.lote_id));
+  if (!lote) return res.status(404).json({ error: 'Lote no encontrado.' });
+  const fecha = String(req.body?.fecha_solicitada || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: 'Indica una fecha válida.' });
+  const motivo = String(req.body?.motivo || '').trim();
+  if (!motivo) return res.status(400).json({ error: 'Indica el motivo del cambio.' });
+  const lista = asegurarSolicitudes(db);
+  const solicitud = {
+    id: nextId(lista),
+    lote_id: lote.id,
+    producto_id: lote.producto_id,
+    lote: lote.lote,
+    fecha_actual: lote.fecha_vencimiento || null,
+    fecha_solicitada: fecha,
+    motivo,
+    solicitado_por: req.user.id,
+    solicitado_por_nombre: req.user.nombre,
+    estado: 'pendiente',
+    aprobado_por: null,
+    supervisor_id: null,
+    creado_en: new Date().toISOString(),
+    resuelto_en: null,
+  };
+  lista.push(solicitud);
+  notificar(db, 'Solicitud de cambio de vencimiento', `${lote.lote} · ${solicitud.fecha_actual || 'sin fecha'} → ${fecha}`);
+  save();
+  return res.status(201).json({ ok: true, solicitud });
+});
+
+router.post('/solicitudes-vencimiento/:id/aprobar', allow('admin', 'dueno'), (req, res) => {
+  const db = load();
+  const solicitud = asegurarSolicitudes(db).find((s) => s.id === Number(req.params.id));
+  if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada.' });
+  if (solicitud.estado !== 'pendiente') return res.status(400).json({ error: 'La solicitud ya fue resuelta.' });
+  const supervisor = (db.usuarios || []).find((u) => u.id === Number(req.body?.supervisor_id));
+  if (!supervisor) return res.status(400).json({ error: 'Selecciona el supervisor que verificará el cambio.' });
+  const lote = (db.lotes || []).find((l) => l.id === solicitud.lote_id);
+  if (!lote) return res.status(404).json({ error: 'El lote ya no existe.' });
+  lote.fecha_vencimiento = solicitud.fecha_solicitada;
+  lote.fecha_actualizada_en = new Date().toISOString();
+  solicitud.estado = 'aprobada';
+  solicitud.aprobado_por = req.user.id;
+  solicitud.supervisor_id = supervisor.id;
+  solicitud.resuelto_en = new Date().toISOString();
+  audit(db, req, 'Fecha de vencimiento corregida', 'Inventario', `${lote.lote} → ${solicitud.fecha_solicitada}`);
+  notificar(db, 'Cambio de vencimiento aprobado', `${lote.lote} ahora vence ${solicitud.fecha_solicitada}. Verifica: ${supervisor.nombre}`, supervisor.id);
+  save();
+  return res.json({ ok: true, solicitud, lote });
+});
+
+router.post('/solicitudes-vencimiento/:id/rechazar', allow('admin', 'dueno'), (req, res) => {
+  const db = load();
+  const solicitud = asegurarSolicitudes(db).find((s) => s.id === Number(req.params.id));
+  if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada.' });
+  if (solicitud.estado !== 'pendiente') return res.status(400).json({ error: 'La solicitud ya fue resuelta.' });
+  solicitud.estado = 'rechazada';
+  solicitud.nota = String(req.body?.nota || '').trim() || null;
+  solicitud.resuelto_en = new Date().toISOString();
+  audit(db, req, 'Solicitud de vencimiento rechazada', 'Inventario', solicitud.lote);
+  save();
+  return res.json({ ok: true, solicitud });
 });
 
 module.exports = router;

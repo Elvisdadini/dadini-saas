@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, CalendarClock, CheckCircle2, ClipboardList, Download, Plus, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, CalendarClock, CheckCircle2, ClipboardList, Download, Plus, RefreshCcw, ShieldCheck, XCircle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import { useAuth } from '../auth';
 import { Badge, EmptyState, Fecha, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 import { Num } from '../ui';
 
@@ -10,6 +11,7 @@ const estadoLabel = { vencido: 'Vencido', proximo: 'Próximo a vencer', vigente:
 
 export default function Kardex() {
   const toast = useToast();
+  const { user } = useAuth();
   const [params] = useSearchParams();
   const [datos, setDatos] = useState(null);
   const [catalogo, setCatalogo] = useState({ productos: [], almacenes: [], vendedores: [] });
@@ -18,16 +20,23 @@ export default function Kardex() {
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({});
   const [busy, setBusy] = useState(false);
+  const [solicitar, setSolicitar] = useState(null);
+  const [resolver, setResolver] = useState(null);
+  const [solicitudForm, setSolicitudForm] = useState({ fecha_solicitada: '', motivo: '', supervisor_id: '', nota: '' });
+  const [supervisores, setSupervisores] = useState([]);
 
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [k, p, a] = await Promise.all([
+      const [k, p, a, sol,usu] = await Promise.all([
         api.get(`/kardex?producto_id=${filtros.producto_id}&almacen_id=${filtros.almacen_id}&tipo=${filtros.tipo}&desde=${filtros.desde}&hasta=${filtros.hasta}`),
         api.get('/productos?todos=true'),
         api.get('/almacenes'),
+        api.get('/kardex/solicitudes-vencimiento'),
+        api.get('/usuarios'),
       ]);
-      setDatos(k);
+      setDatos({ ...k, solicitudes: sol.solicitudes || [] });
+      setSupervisores((usu.usuarios || []).filter((u) => ['supervisor', 'admin', 'dueno'].includes(u.rol)));
       setCatalogo({ productos: p.productos || [], almacenes: a.almacenes || [] });
     } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
   }, [filtros, toast]);
@@ -63,6 +72,36 @@ export default function Kardex() {
   const lotes = datos?.lotes || [];
   const alertas = datos?.vencimientos || [];
   const resumen = datos?.resumen || {};
+
+  const enviarSolicitud = async () => {
+    try {
+      const r = await api.post('/kardex/solicitudes-vencimiento', {
+        lote_id: solicitar.id, fecha_solicitada: solicitudForm.fecha_solicitada, motivo: solicitudForm.motivo,
+      });
+      if (!r.ok) throw new Error(r.error);
+      toast('Solicitud enviada al administrador');
+      setSolicitar(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const aprobarSolicitud = async () => {
+    try {
+      const r = await api.post(`/kardex/solicitudes-vencimiento/${resolver.id}/aprobar`, { supervisor_id: Number(solicitudForm.supervisor_id) });
+      if (!r.ok) throw new Error(r.error);
+      toast('Fecha corregida y supervisor asignado para la verificación');
+      setResolver(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const rechazarSolicitud = async (s) => {
+    try {
+      await api.post(`/kardex/solicitudes-vencimiento/${s.id}/rechazar`, { nota: 'Solicitud rechazada por administración' });
+      toast('Solicitud rechazada');
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); }
+  };
 
   return (
     <>
@@ -122,7 +161,7 @@ export default function Kardex() {
         {loading ? <div className="panel-body"><SkeletonRows rows={4} /></div> : !lotes.length ? <div className="table-empty">Sin lotes registrados.</div> : (
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>Producto</th><th>Lote</th><th>Vencimiento</th><th>Almacén</th><th className="num">Cantidad</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Producto</th><th>Lote</th><th>Vencimiento</th><th>Almacén</th><th className="num">Cantidad</th><th>Estado</th><th /></tr></thead>
               <tbody>
                 {lotes.map((l, i) => {
                   const estado = l.estado || (l.fecha_vencimiento < new Date().toISOString().slice(0, 10) ? 'vencido' : 'vigente');
@@ -134,12 +173,34 @@ export default function Kardex() {
                       <td>{l.almacen_nombre}</td>
                       <td className="num">{l.cantidad}</td>
                       <td><Badge tone={estadoTone[estado] || 'gray'}>{estadoLabel[estado] || estado}</Badge></td>
+                      <td className="actions"><button className="btn btn-ghost btn-sm" title="Solicitar corrección de fecha" onClick={() => { setSolicitar(l); setSolicitudForm({ fecha_solicitada: '', motivo: '' }); }}><CalendarClock size={12} /> Solicitar cambio</button></td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      <div className="panel mb-16">
+        <div className="panel-head"><div><h3>Solicitudes de cambio de vencimiento</h3><p>Requieren aprobación de administración y supervisor asignado</p></div><Badge tone="amber">{(datos?.solicitudes || []).filter((s) => s.estado === 'pendiente').length} pendientes</Badge></div>
+        {!(datos?.solicitudes || []).length ? <div className="table-empty">Sin solicitudes registradas.</div> : (
+          <div className="table-wrap"><table className="data-table"><thead><tr><th>Lote</th><th>Fecha actual</th><th>Fecha solicitada</th><th>Motivo</th><th>Solicitado por</th><th>Estado</th><th /></tr></thead><tbody>
+            {datos.solicitudes.map((s) => (
+              <tr key={s.id}>
+                <td className="cell-strong">{s.lote}</td>
+                <td>{s.fecha_actual || '—'}</td><td>{s.fecha_solicitada}</td><td>{s.motivo}</td><td>{s.solicitado_por_nombre}</td>
+                <td><Badge tone={s.estado === 'aprobada' ? 'green' : s.estado === 'rechazada' ? 'red' : 'amber'}>{s.estado}</Badge></td>
+                <td className="actions">
+                  {s.estado === 'pendiente' && ['admin', 'dueno'].includes(user?.rol) && <>
+                    <button className="btn btn-soft btn-sm" onClick={() => { setResolver(s); setSolicitudForm({ supervisor_id: '', nota: '' }); }}><CheckCircle2 size={12} /> Aprobar</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => rechazarSolicitud(s)}><XCircle size={12} /> Rechazar</button>
+                  </>}
+                </td>
+              </tr>
+            ))}
+          </tbody></table></div>
         )}
       </div>
 
@@ -201,6 +262,25 @@ export default function Kardex() {
               <div className="notice notice-info"><ShieldCheck size={14} /> Se consumirán primero los lotes con vencimiento más cercano y se conservará su identidad en el destino.</div>
             </>
           )}
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(solicitar)} onClose={() => setSolicitar(null)} title={`Corregir vencimiento · ${solicitar?.lote || ''}`} subtitle={`Fecha actual: ${solicitar?.fecha_vencimiento || 'sin fecha'}`}
+        footer={<><button className="btn btn-ghost" onClick={() => setSolicitar(null)}>Cancelar</button><button className="btn btn-primary" onClick={enviarSolicitud}>Enviar solicitud</button></>}
+      >
+        <div className="form-stack">
+          <div className="notice notice-warn"><AlertTriangle size={15} /> Un administrador debe aprobar el cambio y asignar un supervisor para verificarlo. El lote seguirá saliendo por FEFO con la fecha corregida.</div>
+          <div className="field"><label>Nueva fecha de vencimiento</label><input className="input" type="date" value={solicitudForm.fecha_solicitada} onChange={(e) => setSolicitudForm({ ...solicitudForm, fecha_solicitada: e.target.value })} /></div>
+          <div className="field"><label>Motivo del error</label><textarea className="textarea" value={solicitudForm.motivo} onChange={(e) => setSolicitudForm({ ...solicitudForm, motivo: e.target.value })} placeholder="Ej. Se registró 18/12/2026 pero el lote vence 18/12/2027" /></div>
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(resolver)} onClose={() => setResolver(null)} title={`Aprobar cambio · ${resolver?.lote || ''}`} subtitle={`${resolver?.fecha_actual || '—'} → ${resolver?.fecha_solicitada || ''}`}
+        footer={<><button className="btn btn-ghost" onClick={() => setResolver(null)}>Cancelar</button><button className="btn btn-primary" onClick={aprobarSolicitud}>Aprobar y asignar supervisor</button></>}
+      >
+        <div className="form-stack">
+          <div className="field"><label>Supervisor que verificará el cambio</label><select className="select" value={solicitudForm.supervisor_id} onChange={(e) => setSolicitudForm({ ...solicitudForm, supervisor_id: e.target.value })}><option value="">Seleccionar…</option>{supervisores.map((u) => <option key={u.id} value={u.id}>{u.nombre} · {u.rol}</option>)}</select></div>
+          <div className="field"><label>Nota (opcional)</label><textarea className="textarea" value={solicitudForm.nota} onChange={(e) => setSolicitudForm({ ...solicitudForm, nota: e.target.value })} /></div>
         </div>
       </Modal>
     </>

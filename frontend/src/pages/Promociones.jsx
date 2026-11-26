@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, BadgePercent, Boxes, CalendarDays, Gift, Layers, Pencil, Plus, RefreshCcw,
+  AlertTriangle, ArrowLeft, BadgePercent, Boxes, CalendarDays, Gift, Layers, Pencil, Plus, RefreshCcw,
   Tag, Trash2, X,
 } from 'lucide-react';
 import { api } from '../api';
@@ -37,12 +37,14 @@ export default function Promociones() {
   const [form, setForm] = useState(VACIA);
   const [busy, setBusy] = useState(false);
   const [imagenesPendientes, setImagenesPendientes] = useState([]);
+  const [sugerencias, setSugerencias] = useState([]);
 
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, cat, cliCat] = await Promise.all([api.get('/promociones'), api.get('/productos'), api.get('/categorias')]);
+      const [p, cat, cliCat, sug] = await Promise.all([api.get('/promociones'), api.get('/productos'), api.get('/categorias'), api.get('/promociones/sugerencias-vencimientos')]);
       setData(p);
+      setSugerencias(sug.sugerencias || []);
       setCatalogos({ productos: cat.productos || [], categorias: cat.categorias || [], categoriasClientes: cliCat.categorias || [] });
     } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
   }, [toast]);
@@ -257,7 +259,15 @@ export default function Promociones() {
           {form.tipo === 'bonificacion' && (
             <div className="field-row">
               <div className="field"><label>Cada cuántas unidades</label><input type="number" min="1" className="input" value={form.bonificacion.requiere_cantidad} onChange={(e) => setForm({ ...form, bonificacion: { ...form.bonificacion, requiere_cantidad: e.target.value } })} /></div>
-              <div className="field"><label>Producto bonificado</label><select className="select" value={form.bonificacion.producto_id} onChange={(e) => setForm({ ...form, bonificacion: { ...form.bonificacion, producto_id: e.target.value } })}><option value="">Seleccionar…</option>{catalogos.productos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
+              <div className="field"><label>Producto bonificado</label><select className="select" value={form.bonificacion.producto_id} onChange={(e) => setForm({ ...form, bonificacion: { ...form.bonificacion, producto_id: e.target.value } })}><option value="">Seleccionar…</option>{catalogos.productos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select>
+                {sugerencias.length > 0 && (
+                  <div className="notice notice-warn mt-8"><AlertTriangle size={14} /> <strong>Rotar primero estos lotes</strong>
+                    <div className="mt-8" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {sugerencias.map((s) => <button key={s.lote_id} className={`chip ${String(form.bonificacion.producto_id) === String(s.producto_id) ? 'active' : ''}`} onClick={() => setForm({ ...form, bonificacion: { ...form.bonificacion, producto_id: s.producto_id } })}>{s.producto_nombre} · {s.lote} · {s.dias_para_vencer} d</button>)}
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="field"><label>Cantidad a bonificar</label><input type="number" min="1" className="input" value={form.bonificacion.cantidad} onChange={(e) => setForm({ ...form, bonificacion: { ...form.bonificacion, cantidad: e.target.value } })} /></div>
             </div>
           )}

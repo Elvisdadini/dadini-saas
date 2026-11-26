@@ -21,8 +21,11 @@ function publica(db, sucursal) {
 }
 
 function visibles(req, db) {
-  const admin = ['admin', 'dueno'].includes(req.user.rol);
-  return (db.sucursales || []).filter((s) => admin || Number(s.id) === Number(req.user.sucursal_id || 1));
+  const lista = db.sucursales || [];
+  if (req.user.rol === 'dueno') return lista;
+  const propias = lista.filter((s) => Number(s.id) === Number(req.user.sucursal_id || 1));
+  const hijas = lista.filter((s) => Number(s.padre_id) === Number(req.user.sucursal_id || 1));
+  return [...propias, ...hijas];
 }
 
 router.get('/', (req, res) => {
@@ -48,6 +51,9 @@ router.post('/', allow('admin', 'dueno'), (req, res) => {
     id: nextId(db.sucursales),
     codigo: String(req.body?.codigo || '').trim().toUpperCase() || `SUC-${String(nextId(db.sucursales)).padStart(3, '0')}`,
     nombre, direccion: String(req.body?.direccion || ''), activa: req.body?.activa !== false,
+    empresa: String(req.body?.empresa || '').trim() || db.configuracion?.empresa?.nombre || 'DADINI',
+    padre_id: req.body?.padre_id ? Number(req.body.padre_id) : null,
+    administrador_id: req.body?.administrador_id ? Number(req.body.administrador_id) : null,
     created_at: new Date().toISOString(),
   };
   if ((db.sucursales || []).some((s) => s.codigo === sucursal.codigo)) return res.status(400).json({ error: 'Ese código ya existe.' });
@@ -83,6 +89,69 @@ router.post('/:id/usuarios', allow('admin', 'dueno'), (req, res) => {
   audit(db, req, 'Usuarios asignados a sucursal', 'Sucursales', `${sucursal.nombre} · ${asignados.length} usuarios`);
   save();
   return res.json({ ok: true, asignados });
+});
+
+// Migración selectiva de datos entre sucursales/empresas del sistema.
+const IMPORTABLES = {
+  almacenes: [], producto_categorias: [], producto_marcas: [], productos: { categoria_id: 'producto_categorias', marca_id: 'producto_marcas' },
+  cliente_categorias: [], zonas: [], tipos_cliente: [], rutas_venta: { zona_id: 'zonas' },
+  clientes: { zona_id: 'zonas', ruta_venta_id: 'rutas_venta', categoria_cliente_id: 'cliente_categorias' },
+  proveedores: [], stock: { producto_id: 'productos', almacen_id: 'almacenes' },
+  promociones: [], cajas: [],
+};
+
+router.get('/importables', allow('admin', 'dueno'), (req, res) => {
+  const db = tenant.dbReal() || load();
+  const origen = Number(req.query.origen_id) || Number(req.user.sucursal_id || 1);
+  const opciones = Object.keys(IMPORTABLES).map((clave) => ({
+    clave,
+    filas: (db[clave] || []).filter((f) => Number(f.sucursal_id || 1) === origen).length,
+  }));
+  res.json({ origen_id: origen, entidades: opciones });
+});
+
+router.post('/:id/importar', (req, res) => {
+  if (req.user.rol !== 'dueno') return res.status(403).json({ error: 'Solo el dueño del sistema puede migrar datos entre sucursales.' });
+  const db = tenant.dbReal() || load();
+  const destino = Number(req.params.id);
+  const origen = Number(req.body?.origen_id);
+  const destinoObj = (db.sucursales || []).find((s) => s.id === destino);
+  if (!destinoObj) return res.status(404).json({ error: 'Sucursal destino no encontrada.' });
+  if (!origen || origen === destino) return res.status(400).json({ error: 'Selecciona una sucursal de origen distinta.' });
+  const seleccion = Array.isArray(req.body?.entidades) ? req.body.entidades.map(String) : [];
+  if (!seleccion.length) return res.status(400).json({ error: 'Selecciona al menos un tipo de datos a migrar.' });
+  const mapas = {};
+  const resultado = {};
+  const orden = Object.keys(IMPORTABLES).filter((k) => seleccion.includes(k));
+  orden.forEach((clave) => {
+    const filasOrigen = (db[clave] || []).filter((f) => Number(f.sucursal_id || 1) === origen);
+    let siguiente = (db[clave] || []).reduce((m, f) => Math.max(m, Number(f.id) || 0), 0) + 1;
+    const mapa = new Map();
+    const copias = filasOrigen.map((fila) => {
+      const copia = JSON.parse(JSON.stringify(fila));
+      const anterior = Number(fila.id);
+      const nuevo = siguiente++;
+      mapa.set(anterior, nuevo);
+      copia.id = nuevo;
+      copia.sucursal_id = destino;
+      Object.entries(IMPORTABLES[clave] || {}).forEach(([campo, entidad]) => {
+        const ref = mapas[entidad];
+        if (ref && copia[campo] !== undefined && copia[campo] !== null) {
+          copia[campo] = ref.get(Number(copia[campo])) || copia[campo];
+        }
+      });
+      return copia;
+    });
+    mapas[clave] = mapa;
+    if (copias.length) {
+      if (!Array.isArray(db[clave])) db[clave] = [];
+      db[clave].push(...copias);
+    }
+    resultado[clave] = copias.length;
+  });
+  audit(db, req, 'Datos migrados entre sucursales', 'Sucursales', `${origen} → ${destino} · ${JSON.stringify(resultado)}`);
+  save();
+  return res.json({ ok: true, destino_id: destino, origen_id: origen, migrado: resultado });
 });
 
 module.exports = router;

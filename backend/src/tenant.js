@@ -81,11 +81,10 @@ function maxCodigo(entidad, campo, prefijo, inicio) {
 function resolver(req) {
   const user = req.user;
   if (!user) return null;
-  const admin = user.rol === 'admin' || user.rol === 'dueno';
   const cabecera = Number(req.headers['x-sucursal-id'] || 0);
-  if (admin && cabecera && (real?.sucursales || []).some((s) => s.id === cabecera && s.activa !== false)) {
-    return cabecera;
-  }
+  const sucursales = real?.sucursales || [];
+  if (user.rol === 'dueno' && !cabecera) return null; // dueño: vista global de todas las sucursales
+  if (user.rol === 'dueno' && cabecera && sucursales.some((s) => s.id === cabecera)) return cabecera;
   return Number(user.sucursal_id || 1);
 }
 

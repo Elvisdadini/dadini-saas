@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Building2, Check, Package, Pencil, Plus, RefreshCcw, ShoppingCart, Users, Wallet } from 'lucide-react';
+import { ArrowRightLeft, Building2, Check, Layers, Package, Pencil, Plus, RefreshCcw, ShoppingCart, Users, Wallet } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { Badge, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
-const VACIA = { codigo: '', nombre: '', direccion: '', activa: true };
+const VACIA = { codigo: '', nombre: '', direccion: '', empresa: '', padre_id: '', administrador_id: '', activa: true };
 
 export default function Sucursales() {
   const toast = useToast();
-  const { cambiarSucursal, sucursalId } = useAuth();
+  const { user, cambiarSucursal, sucursalId } = useAuth();
   const [datos, setDatos] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
   const [modal, setModal] = useState(null);
@@ -16,6 +16,9 @@ export default function Sucursales() {
   const [asignar, setAsignar] = useState(null);
   const [seleccion, setSeleccion] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [migrar, setMigrar] = useState(null);
+  const [migrarForm, setMigrarForm] = useState({ origen_id: '', entidades: [] });
+  const [importables, setImportables] = useState([]);
 
   const cargar = useCallback(async () => {
     setBusy(true);
@@ -29,7 +32,27 @@ export default function Sucursales() {
   useEffect(() => { cargar(); }, [cargar]);
 
   const abrirNueva = () => { setForm(VACIA); setModal('nueva'); };
-  const abrirEditar = (s) => { setForm({ codigo: s.codigo, nombre: s.nombre, direccion: s.direccion || '', activa: s.activa !== false }); setModal(s); };
+  const abrirEditar = (s) => { setForm({ codigo: s.codigo, nombre: s.nombre, direccion: s.direccion || '', empresa: s.empresa || '', padre_id: s.padre_id || '', administrador_id: s.administrador_id || '', activa: s.activa !== false }); setModal(s); };
+
+  const abrirMigrar = async (s) => {
+    setMigrar(s);
+    const origen = (datos?.sucursales || []).find((x) => x.id !== s.id)?.id || '';
+    setMigrarForm({ origen_id: origen, entidades: [] });
+    if (origen) {
+      try { setImportables((await api.get(`/sucursales/importables?origen_id=${origen}`)).entidades || []); } catch (error) { toast(error.message, 'error'); }
+    }
+  };
+
+  const ejecutarMigrar = async () => {
+    setBusy(true);
+    try {
+      const r = await api.post(`/sucursales/${migrar.id}/importar`, migrarForm);
+      if (!r.ok) throw new Error(r.error);
+      toast('Datos migrados a la sucursal destino');
+      setMigrar(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
 
   const guardar = async () => {
     setBusy(true);
@@ -104,6 +127,7 @@ export default function Sucursales() {
                     <td className="actions">
                       {s.id !== sucursalId && <button className="btn btn-soft btn-sm" title="Trabajar en esta sucursal" onClick={() => cambiarSucursal(s.id)}><Check size={12} /> Usar</button>}
                       <button className="btn btn-outline btn-sm" onClick={() => abrirAsignar(s)}><Users size={12} /> Usuarios</button>
+                      {user?.rol === 'dueno' && <button className="btn btn-soft btn-sm" title="Migrar datos desde otra sucursal" onClick={() => abrirMigrar(s)}><ArrowRightLeft size={12} /> Migrar</button>}
                       <button className="icon-btn" title="Editar sucursal" onClick={() => abrirEditar(s)}><Pencil size={14} /></button>
                     </td>
                   </tr>
@@ -122,9 +146,16 @@ export default function Sucursales() {
             <div className="field"><label>Código</label><input className="input" value={form.codigo || ''} onChange={(e) => setForm({ ...form, codigo: e.target.value })} placeholder="Ej. SUC-002" /></div>
             <div className="field"><label>Nombre</label><input className="input" value={form.nombre || ''} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej. Sucursal Quillacollo" /></div>
           </div>
-          <div className="field"><label>Dirección</label><input className="input" value={form.direccion || ''} onChange={(e) => setForm({ ...form, direccion: e.target.value })} /></div>
+          <div className="field-row">
+            <div className="field"><label>Dirección</label><input className="input" value={form.direccion || ''} onChange={(e) => setForm({ ...form, direccion: e.target.value })} /></div>
+            <div className="field"><label>Empresa / razón social</label><input className="input" value={form.empresa || ''} onChange={(e) => setForm({ ...form, empresa: e.target.value })} placeholder="Ej. Importadora DADINI" /></div>
+          </div>
+          <div className="field-row">
+            <div className="field"><label>Sucursal padre (sub sucursal)</label><select className="select" value={form.padre_id || ''} onChange={(e) => setForm({ ...form, padre_id: e.target.value })}><option value="">Ninguna · empresa independiente</option>{(datos?.sucursales || []).filter((s) => s.id !== modal?.id).map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}</select></div>
+            <div className="field"><label>Administrador asignado</label><select className="select" value={form.administrador_id || ''} onChange={(e) => setForm({ ...form, administrador_id: e.target.value })}><option value="">Sin asignar</option>{usuarios.filter((u) => ['admin', 'dueno', 'supervisor'].includes(u.rol)).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}</select></div>
+          </div>
           <label className="check"><input type="checkbox" checked={Boolean(form.activa)} onChange={(e) => setForm({ ...form, activa: e.target.checked })} /> Sucursal activa</label>
-          <span className="hint">Al crearla no se copian datos: empieza vacía. Puedes asignar usuarios después.</span>
+          <span className="hint">Al crearla no se copian datos: empieza vacía. Usa <b>Migrar</b> para traer clientes, productos, zonas, rutas y más desde otra sucursal.</span>
         </div>
       </Modal>
 
@@ -141,6 +172,20 @@ export default function Sucursales() {
               </label>
             ))}
           </div>
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(migrar)} onClose={() => setMigrar(null)} title={`Migrar datos a ${migrar?.nombre || ''}`} subtitle="Selecciona la sucursal origen y qué datos copiar" size="lg"
+        footer={<><button className="btn btn-ghost" onClick={() => setMigrar(null)}>Cancelar</button><button className="btn btn-primary" onClick={ejecutarMigrar} disabled={busy || !migrarForm.entidades.length}>{busy ? 'Migrando…' : 'Migrar seleccionados'}</button></>}
+      >
+        <div className="form-stack">
+          <div className="notice notice-info"><Layers size={15} /> Los registros se copian con nuevos IDs y quedan aislados en la sucursal destino. No se mezclan con los existentes.</div>
+          <div className="field"><label>Sucursal origen</label><select className="select" value={migrarForm.origen_id} onChange={async (e) => { const id = e.target.value; setMigrarForm({ ...migrarForm, origen_id: id, entidades: [] }); try { setImportables((await api.get(`/sucursales/importables?origen_id=${id}`)).entidades || []); } catch (error) { toast(error.message, 'error'); } }}>
+            {(datos?.sucursales || []).filter((s) => s.id !== migrar?.id).map((s) => <option key={s.id} value={s.id}>{s.nombre} · {s.empresa || ''}</option>)}
+          </select></div>
+          <div className="field"><label>Datos a migrar</label><div className="grid grid-3" style={{ gap: 8 }}>
+            {importables.map((e) => <label className="check" key={e.clave}><input type="checkbox" checked={migrarForm.entidades.includes(e.clave)} onChange={() => setMigrarForm({ ...migrarForm, entidades: migrarForm.entidades.includes(e.clave) ? migrarForm.entidades.filter((x) => x !== e.clave) : [...migrarForm.entidades, e.clave] })} /> {e.clave.replaceAll('_', ' ')} <span className="small muted">({e.filas})</span></label>)}
+          </div></div>
         </div>
       </Modal>
     </>

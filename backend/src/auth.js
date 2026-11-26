@@ -42,6 +42,7 @@ function authRequired(req, res, next) {
       distribuidor_id: user.repartidor_id || null,
       permisos: permisosUsuario(user),
       sucursal_id: Number(user.sucursal_id || 1),
+      bloqueos: user.bloqueos || null,
     };
     req.db = db;
     const tenant = require('./tenant');

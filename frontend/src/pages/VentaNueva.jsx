@@ -5,7 +5,7 @@ import {
   Smartphone, Trash2, Truck, UserRound, Wallet,
 } from 'lucide-react';
 import { api } from '../api';
-import { useAuth } from '../auth';
+import { puede, useAuth } from '../auth';
 import Mapa from '../components/Mapa';
 import BotonWhatsapp from '../components/BotonWhatsapp';
 import EscanerCodigos from '../components/EscanerCodigos';
@@ -30,6 +30,7 @@ export default function VentaNueva() {
   const [params] = useSearchParams();
   const toast = useToast();
   const { user, empresa } = useAuth();
+  const puedeDescuento = puede(user, 'ventas.aplicar_descuento');
   const [productos, setProductos] = useState([]);
   const [almacenes, setAlmacenes] = useState([]);
   const [clientes, setClientes] = useState([]);
@@ -63,6 +64,8 @@ export default function VentaNueva() {
     dias_credito: 15,
     almacen_id: 1,
     descuento: 0,
+    descuento_tipo: 'bs',
+    descuento_porcentaje: 0,
     envio: 0,
     notas: '',
     entrega_direccion: '',
@@ -147,7 +150,11 @@ export default function VentaNueva() {
   const subtotal = lineas.reduce((s, l) => s + l.subtotal, 0);
   const descuentoPromos = Number(evaluacion?.descuento_total) || 0;
   const subtotalNeto = Math.max(0, subtotal - descuentoPromos);
-  const descuento = Math.min(subtotalNeto, Number(form.descuento) || 0);
+  const pctDescuento = form.descuento_tipo === 'porcentaje'
+    ? Math.min(100, Math.max(0, Number(form.descuento_porcentaje) || 0)) : 0;
+  const descuento = pctDescuento > 0
+    ? Math.min(subtotalNeto, Math.round(subtotalNeto * pctDescuento) / 100)
+    : Math.min(subtotalNeto, Number(form.descuento) || 0);
   const envio = Number(form.envio) || 0;
   const total = Math.max(0, subtotalNeto - descuento + envio);
   const unidades = lineas.reduce((s, l) => s + l.cantidad, 0);
@@ -272,6 +279,7 @@ export default function VentaNueva() {
         longitud: ubicacionFinal?.longitud,
         precision: ubicacionFinal?.precision,
         descuento,
+        descuento_porcentaje: pctDescuento,
         envio,
         notas: form.notas,
         entrega_direccion: form.entrega_direccion || cliente?.direccion,
@@ -483,7 +491,16 @@ export default function VentaNueva() {
             )}
 
             <div className="field-row mb-12">
-              <div className="field"><label>Descuento (Bs)</label><input type="number" min="0" step="0.5" className="input" value={form.descuento} onChange={(e) => setForm({ ...form, descuento: e.target.value })} /></div>
+              {puedeDescuento ? (
+                <div className="field-row">
+                  <div className="field"><label>Tipo de descuento</label><select className="select" value={form.descuento_tipo} onChange={(e) => setForm({ ...form, descuento_tipo: e.target.value })}><option value="bs">Bs</option><option value="porcentaje">%</option></select></div>
+                  <div className="field"><label>Descuento ({form.descuento_tipo === 'porcentaje' ? '%' : 'Bs'})</label>
+                    <input type="number" min="0" step={form.descuento_tipo === 'porcentaje' ? '1' : '0.5'} className="input"
+                      value={form.descuento_tipo === 'porcentaje' ? form.descuento_porcentaje : form.descuento}
+                      onChange={(e) => setForm({ ...form, [form.descuento_tipo === 'porcentaje' ? 'descuento_porcentaje' : 'descuento']: e.target.value })} />
+                  </div>
+                </div>
+              ) : <div className="field"><label>Descuento</label><input className="input" value="Sin autorización para descontar" disabled readOnly /></div>}
               <div className="field"><label>Envío (Bs)</label><input type="number" min="0" step="0.5" className="input" value={form.envio} onChange={(e) => setForm({ ...form, envio: e.target.value })} /></div>
             </div>
 

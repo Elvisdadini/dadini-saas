@@ -12,6 +12,30 @@ function resumen(promo) {
   return { ...promo, tipo_label: tipos[promo.tipo] || promo.tipo };
 }
 
+router.get('/sugerencias-vencimientos', (req, res) => {
+  const db = load();
+  const hoy = new Date().toISOString().slice(0, 10);
+  const sugerencias = (db.lotes || [])
+    .filter((l) => Number(l.cantidad) > 0 && l.fecha_vencimiento)
+    .map((l) => {
+      const producto = (db.productos || []).find((p) => p.id === Number(l.producto_id));
+      return {
+        lote_id: l.id,
+        producto_id: l.producto_id,
+        producto_nombre: producto?.nombre || `#${l.producto_id}`,
+        sku: producto?.sku || '',
+        lote: l.lote,
+        cantidad: Number(l.cantidad),
+        fecha_vencimiento: l.fecha_vencimiento,
+        dias_para_vencer: Math.round((Date.parse(l.fecha_vencimiento) - Date.parse(hoy)) / 86400000),
+      };
+    })
+    .filter((l) => l.dias_para_vencer <= 60)
+    .sort((a, b) => a.dias_para_vencer - b.dias_para_vencer)
+    .slice(0, 20);
+  return res.json({ sugerencias, alerta: sugerencias.some((s) => s.dias_para_vencer <= 15) });
+});
+
 router.get('/', (req, res) => {
   const db = load();
   const { tipo, estado, search } = req.query;

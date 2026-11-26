@@ -10,7 +10,7 @@ import {
   Avatar, Badge, EmptyState, Estado, Fecha, Modal, Money, PageHeader, SkeletonRows, Tabs, useToast,
 } from '../ui';
 
-const USUARIO_VACIO = { nombre: '', email: '', usuario: '', pin: '', rol: 'ventas', cargo: '', telefono: '', whatsapp: '', password: 'Dadini2026!', repartidor_id: '', vehiculo_id: '', ruta_venta: 'R1', zona_venta: '', geocerca_activa: false, geocerca_radio_m: 50, categoria_cliente_id: '', es_venta_directa: false, salario_base: 2500, comision_venta_pct: 0, comision_distribucion_pct: 0, bono_fijo: 0, descuento_fijo: 0, dias_visita: [1, 2, 3, 4, 5], activo: true, plantilla: '', permisos: [] };
+const USUARIO_VACIO = { nombre: '', email: '', usuario: '', pin: '', rol: 'ventas', cargo: '', telefono: '', whatsapp: '', password: 'Dadini2026!', repartidor_id: '', vehiculo_id: '', ruta_venta: 'R1', zona_venta: '', geocerca_activa: false, geocerca_radio_m: 50, categoria_cliente_id: '', es_venta_directa: false, salario_base: 2500, comision_venta_pct: 0, comision_distribucion_pct: 0, bono_fijo: 0, descuento_fijo: 0, dias_visita: [1, 2, 3, 4, 5], activo: true, plantilla: '', permisos: [], bloqueos: { vender: false, cobrar: false, entregar: false, supervisar: false } };
 
 export default function Administracion() {
   const { user, refresh } = useAuth();
@@ -123,7 +123,7 @@ export default function Administracion() {
   const abrirUsuario = (u = null) => {
     setEditing(u);
     const modeloVendedor = (catalogos.plantillas || []).find((p) => p.id === 'vendedor');
-    setForm(u ? { nombre: u.nombre, email: u.email, usuario: u.usuario || '', pin: '', rol: u.rol, cargo: u.cargo, telefono: u.telefono, whatsapp: u.whatsapp || '', password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', geocerca_activa: u.geocerca?.activa === true || u.geocerca_activa === true, geocerca_radio_m: u.geocerca?.radio_m || u.geocerca_radio_m || 50, categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo, plantilla: u.plantilla_permisos || '', permisos: u.permisos || [] } : { ...USUARIO_VACIO, rol: 'preventista', plantilla: 'vendedor', permisos: [...(modeloVendedor?.permisos || [])], repartidor_id: repartidores.find((r) => r.activo !== false)?.id || '' });
+    setForm(u ? { nombre: u.nombre, email: u.email, usuario: u.usuario || '', pin: '', rol: u.rol, cargo: u.cargo, telefono: u.telefono, whatsapp: u.whatsapp || '', password: '', repartidor_id: u.repartidor_id || '', vehiculo_id: u.vehiculo_id || '', ruta_venta: u.ruta_venta || 'R1', zona_venta: u.zona_venta || '', geocerca_activa: u.geocerca?.activa === true || u.geocerca_activa === true, geocerca_radio_m: u.geocerca?.radio_m || u.geocerca_radio_m || 50, categoria_cliente_id: u.categoria_cliente_id || '', es_venta_directa: Boolean(u.es_venta_directa), salario_base: u.salario_base || 0, comision_venta_pct: u.comision_venta_pct || 0, comision_distribucion_pct: u.comision_distribucion_pct || 0, bono_fijo: u.bono_fijo || 0, descuento_fijo: u.descuento_fijo || 0, dias_visita: u.dias_visita || [1, 2, 3, 4, 5], activo: u.activo, plantilla: u.plantilla_permisos || '', permisos: u.permisos || [], bloqueos: u.bloqueos || { vender: false, cobrar: false, entregar: false, supervisar: false } } : { ...USUARIO_VACIO, rol: 'preventista', plantilla: 'vendedor', permisos: [...(modeloVendedor?.permisos || [])], repartidor_id: repartidores.find((r) => r.activo !== false)?.id || '' });
     setModal(true);
   };
 
@@ -485,6 +485,16 @@ export default function Administracion() {
               </div>
               <span className="hint">Los cambios aparecen o desaparecen para el usuario al cerrar sesión y volver a ingresar.</span>
             </>
+          )}
+          {form.rol !== 'admin' && form.rol !== 'dueno' && (
+            <div className="field"><label>Bloqueo de actividades</label>
+              <div className="grid grid-2" style={{ gap: 8 }}>
+                {[['vender', 'Vender'], ['cobrar', 'Cobrar'], ['entregar', 'Entregar'], ['supervisar', 'Supervisar']].map(([clave, label]) => (
+                  <label className="check" key={clave}><input type="checkbox" checked={Boolean(form.bloqueos?.[clave])} onChange={(e) => setForm({ ...form, bloqueos: { ...(form.bloqueos || {}), [clave]: e.target.checked } })} /> Bloquear {label.toLowerCase()}</label>
+                ))}
+              </div>
+              <span className="hint">El usuario puede ingresar, pero el sistema rechazará esa acción con un aviso claro.</span>
+            </div>
           )}
           {!editing && <div className="field"><label>Contraseña inicial</label><input className="input" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /><span className="hint">Mínimo 8 caracteres. El usuario puede cambiarla luego.</span></div>}
           <div className="notice notice-info"><ShieldCheck size={15} /> Los permisos limitan funciones sensibles: nadie que no sea supervisión o administración puede borrar pedidos, cobranzas ni alterar los reportes mensuales.</div>

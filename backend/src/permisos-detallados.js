@@ -12,6 +12,7 @@ const CATALOGO = [
     { base: 'ventas', etiqueta: 'Ventas', sub: [
       { codigo: 'ventas.registrar_pedidos', etiqueta: 'Registrar Pedidos' },
       { codigo: 'ventas.registrar_cobranza', etiqueta: 'Registrar cobranza' },
+      { codigo: 'ventas.aplicar_descuento', etiqueta: 'Aplicar descuentos en Bs o porcentaje' },
 
     ] },
     { base: 'clientes', etiqueta: 'Clientes', sub: [] },

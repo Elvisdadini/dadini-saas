@@ -426,6 +426,23 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`. El acceso también está en el encabezado de **Ventas** y en el menú principal.
 - **APK 21.0.6** (`versionCode 7`): compilada con keystore nuevo y publicada en `/uploads/apk/DADINI-SaaS-21.0.6.apk` (archivo versionado en el repo, sobrevive a reinicios). Al cambiar la firma, quienes tenían la versión anterior deben desinstalar antes de instalar. La contraseña del keystore no se versiona: guárdala fuera del repo.
 
+### Descuentos y bloqueo de actividades
+
+- Los descuentos aceptan **Bs o porcentaje** en el POS (`ventas.aplicar_descuento`). El servidor recalcula el monto y lo limita al subtotal; `configuracion.ventas.descuento_max_pct` fija el tope. Vendedores sin ese permiso no pueden descontar: el campo queda deshabilitado y la API responde 403 si intentan enviarlo. Supervisores solo pueden si el administrador les otorgó el permiso.
+- **Bloqueo de actividades por usuario**: en Administración → usuarios se puede bloquear **vender, cobrar, entregar y supervisar** por separado. El usuario puede seguir entrando, pero la API rechaza esa acción con un aviso. Los clientes con deuda siguen bloqueados para ventas según `bloqueado_por_deuda`.
+
+### Sucursales, sub sucursales y migración
+
+- `sucursales` ahora tiene `empresa`, `padre_id` y `administrador_id`. Una **sub sucursal** pertenece a una sucursal padre (misma empresa, p. ej. Cochabamba → Quillacollo); otra empresa se registra como sucursal independiente y autónoma.
+- Cada sucursal tiene sus propios usuarios, administrador, stock y reportes. El cambio de sucursal usa `X-Sucursal-Id`; solo el **dueño del sistema** puede ver el reporte global de todas las sucursales y sub sucursales (los administradores ven la suya y sus hijas).
+- El botón **Migrar** en Sucursales permite elegir la sucursal origen y qué datos copiar (almacenes, productos, stock, clientes, zonas, tipos de cliente, rutas de venta, categorías, proveedores, promociones, cajas). Se copian con IDs nuevos y `sucursal_id` destino, con remapeo de referencias; nada se mezcla con la sucursal origen.
+
+### Cambios y vencimientos
+
+- Corregido el botón **+ Registrar cambio**: ahora abre el formulario con cliente, producto con detalle, producto bueno a entregar, cantidad, razón y foto.
+- **Solicitudes de cambio de fecha de vencimiento** en Kardex: cualquier usuario puede solicitarla indicando lote, nueva fecha y motivo. El administrador recibe una notificación, aprueba asignando un supervisor para verificar ese lote (o rechaza con nota), y la fecha se corrige en el lote. FEFO sigue saliendo primero por el vencimiento más próximo.
+- Las promociones de **bonificación** sugieren productos con lotes próximos a vencer (días de caducidad y alerta ≤15 días) para rotarlos primero.
+
 ### Alcance de información por usuario
 
 - Salvo que el usuario tenga el permiso detallado **`datos.ver_todos`** (dueño, administración y supervisor), cada uno ve únicamente los registros que creó o que tiene asignados: clientes, pedidos/ventas, cobranzas, devoluciones, cambios, promociones, entregas/rutas, visitas y movimientos de inventario. Dashboard y reportes también se filtran por esos criterios.

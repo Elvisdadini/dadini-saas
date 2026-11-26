@@ -12,6 +12,8 @@ const kardex = require('../kardex');
 const webhooks = require('../webhooks');
 const { evaluar: evaluarPromociones } = require('../promociones');
 const { buildIndices, porId } = require('../indexes');
+const { tienePermiso } = require('../permisos');
+const { requireActividad } = require('../actividades');
 
 const router = express.Router();
 router.use(authRequired);
@@ -84,11 +86,11 @@ router.get('/:id', (req, res) => {
   return res.json({ pedido: pedidoResumen(db, pedido, true), configuracion: db.configuracion.empresa });
 });
 
-router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 'vendedor_camion'), (req, res) => {
+router.post('/', requireActividad('vender'), requirePermiso('ventas.crear'), allow('ventas', 'preventista', 'vendedor_camion'), (req, res) => {
   const db = load();
   kardex.sincronizar(db);
   const indices = buildIndices(db);
-  const { cliente_id, items, canal, forma_pago, almacen_id, descuento, envio, notas, entrega_direccion, vendedor_id, dias_credito: diasSolicitados, latitud, longitud, precision, almacen_movil_id, whatsapp_cliente } = req.body || {};
+  const { cliente_id, items, canal, forma_pago, almacen_id, descuento, descuento_porcentaje, envio, notas, entrega_direccion, vendedor_id, dias_credito: diasSolicitados, latitud, longitud, precision, almacen_movil_id, whatsapp_cliente } = req.body || {};
   const cliente = indices.clientes.get(Number(cliente_id));
   if (!cliente) return res.status(400).json({ error: 'Selecciona un cliente válido.' });
   if (cliente.bloqueado_por_deuda || !cliente.activo) return res.status(403).json({ error: `Cliente bloqueado: ${cliente.motivo_bloqueo || 'cuenta pendiente con la empresa'}. Regulariza la deuda para venderle.` });
@@ -164,7 +166,14 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
   });
 
   const subtotal = round2(lineas.reduce((s, l) => s + l.subtotal, 0));
-  const desc = Math.min(subtotal, round2(num(descuento)));
+  const pctSolicitado = Math.max(0, num(descuento_porcentaje));
+  const bsSolicitado = Math.max(0, num(descuento));
+  if ((pctSolicitado > 0 || bsSolicitado > 0) && !tienePermiso(req.user, 'ventas.aplicar_descuento')) {
+    return res.status(403).json({ error: 'No tienes autorización para aplicar descuentos.' });
+  }
+  const maxPct = Number(db.configuracion?.ventas?.descuento_max_pct) || 100;
+  const pct = Math.min(maxPct, pctSolicitado);
+  const desc = pct > 0 ? Math.min(subtotal, round2(subtotal * pct / 100)) : Math.min(subtotal, round2(bsSolicitado));
   const costoEnvio = envio !== undefined ? round2(num(envio)) : canal === 'delivery' ? num(db.configuracion.empresa.tarifa_envio, 0) : 0;
   const total = round2(subtotal - desc + costoEnvio);
 
@@ -208,6 +217,7 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
     categoria_cliente_id: cliente.categoria_cliente_id || null,
     subtotal,
     descuento: desc,
+    descuento_porcentaje: pct || null,
     descuento_promociones: evaluacion.descuento_total,
     promociones_aplicadas: evaluacion.aplicadas,
     bonificaciones: evaluacion.bonificaciones,
@@ -465,7 +475,7 @@ router.patch('/:id/estado', allow('ventas', 'preventista', 'distribucion'), asyn
   return res.json({ pedido: pedidoResumen(db, pedido, true) });
 });
 
-router.post('/:id/pagos', requirePermiso('cobranzas.registrar', 'ventas.registrar_cobranza'), allow('ventas', 'preventista', 'cobranzas'), (req, res) => {
+router.post('/:id/pagos', requireActividad('cobrar'), requirePermiso('cobranzas.registrar', 'ventas.registrar_cobranza'), allow('ventas', 'preventista', 'cobranzas'), (req, res) => {
   const db = load();
   const pedido = db.pedidos.find((p) => p.id === Number(req.params.id));
   if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado.' });
