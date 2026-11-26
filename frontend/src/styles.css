@@ -1053,6 +1053,15 @@ button.sidebar-brand:focus-visible { box-shadow: inset 0 0 0 2px var(--orange); 
 /* Atajo de búsqueda */
 .search-kbd { position: absolute; right: 10px; font: 10px var(--font); color: var(--muted-2); border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; pointer-events: none; }
 .topbar-search input { padding-right: 60px; }
+@media (max-width: 900px) {
+  .topbar-search.abierto {
+    display: flex !important; position: fixed; left: 12px; right: 12px; top: 12px;
+    max-width: none; margin: 0; z-index: 120; background: var(--surface);
+    padding: 6px; border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+  }
+  .topbar-search.abierto input { width: 100%; }
+}
 
 /* Modo oscuro */
 [data-theme='dark'] {

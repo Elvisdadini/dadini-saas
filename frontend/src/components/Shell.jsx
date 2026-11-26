@@ -486,6 +486,7 @@ function GlobalSearch({ user, puede, navigate }) {
   const [term, setTerm] = useState('');
   const [results, setResults] = useState({ productos: [], clientes: [] });
   const [open, setOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
   const boxRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -494,10 +495,11 @@ function GlobalSearch({ user, puede, navigate }) {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        inputRef.current?.focus();
+        setVisible(true);
         setOpen(true);
+        window.requestAnimationFrame(() => inputRef.current?.focus());
       }
-      if (e.key === 'Escape') { setOpen(false); inputRef.current?.blur(); }
+      if (e.key === 'Escape') { setOpen(false); setVisible(false); inputRef.current?.blur(); }
     };
     document.addEventListener('mousedown', onClick);
     document.addEventListener('keydown', onKey);
@@ -520,10 +522,10 @@ function GlobalSearch({ user, puede, navigate }) {
     return () => window.clearTimeout(timer);
   }, [term, user, puede]);
 
-  const go = (path) => { setOpen(false); setTerm(''); navigate(path); };
+  const go = (path) => { setOpen(false); setVisible(false); setTerm(''); navigate(path); };
 
   return (
-    <div className="topbar-search" ref={boxRef}>
+    <div className={`topbar-search ${visible ? 'abierto' : ''}`} ref={boxRef}>
       <Search size={15} className="search-icon" />
       <input
         ref={inputRef}
