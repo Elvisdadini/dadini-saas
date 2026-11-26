@@ -2,7 +2,7 @@ const express = require('express');
 const { load, save } = require('../db');
 const { subirFoto } = require('../fotos');
 const kardex = require('../kardex');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, nextCode, audit, num, round2 } = require('../utils');
 
 const router = express.Router();
@@ -73,7 +73,7 @@ router.get('/disponible', (req, res) => {
   });
 });
 
-router.post('/', allow('distribucion', 'vendedor_camion', 'ventas', 'almacen', 'admin', 'dueno'), async (req, res) => {
+router.post('/', requirePermiso('devoluciones.crear'), allow('distribucion', 'vendedor_camion', 'ventas', 'almacen', 'admin', 'dueno'), async (req, res) => {
   const db = load();
   const { tipo, origen_tipo, origen_id, ruta_id, pedido_id, cliente_id, lineas, notas, foto } = req.body || {};
   const items = (lineas || []).map((l) => ({
@@ -116,7 +116,7 @@ router.post('/', allow('distribucion', 'vendedor_camion', 'ventas', 'almacen', '
   return res.status(201).json({ devolucion: resumen(db, dev) });
 });
 
-router.patch('/:id/verificar', allow('almacen', 'admin', 'dueno'), (req, res) => {
+router.patch('/:id/verificar', requirePermiso('devoluciones.editar'), allow('almacen', 'admin', 'dueno'), (req, res) => {
   const db = load();
   const dev = db.devoluciones_movil.find((d) => d.id === Number(req.params.id));
   if (!dev) return res.status(404).json({ error: 'Devolución no encontrada.' });
@@ -133,7 +133,7 @@ router.patch('/:id/verificar', allow('almacen', 'admin', 'dueno'), (req, res) =>
   return res.json({ devolucion: resumen(db, dev) });
 });
 
-router.post('/:id/reingresar', allow('almacen', 'admin', 'dueno'), (req, res) => {
+router.post('/:id/reingresar', requirePermiso('devoluciones.editar'), allow('almacen', 'admin', 'dueno'), (req, res) => {
   const db = load();
   const dev = db.devoluciones_movil.find((d) => d.id === Number(req.params.id));
   if (!dev) return res.status(404).json({ error: 'Devolución no encontrada.' });
@@ -162,7 +162,7 @@ router.post('/:id/reingresar', allow('almacen', 'admin', 'dueno'), (req, res) =>
   return res.json({ devolucion: resumen(db, dev), reingresadas });
 });
 
-router.post('/:id/reacomodar', allow('distribucion', 'vendedor_camion', 'ventas', 'admin', 'dueno'), (req, res) => {
+router.post('/:id/reacomodar', requirePermiso('devoluciones.crear'), allow('distribucion', 'vendedor_camion', 'ventas', 'admin', 'dueno'), (req, res) => {
   const db = load();
   const dev = db.devoluciones_movil.find((d) => d.id === Number(req.params.id));
   if (!dev) return res.status(404).json({ error: 'Devolución no encontrada.' });

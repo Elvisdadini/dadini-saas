@@ -48,6 +48,23 @@ const CATALOGO = [
     ] },
   ] },
   { grupo: 'Gestión', modulos: [
+    { base: 'caja', etiqueta: 'Caja y arqueo', sub: [
+      { codigo: 'caja.apertura', etiqueta: 'Abrir caja' },
+      { codigo: 'caja.cierre', etiqueta: 'Cerrar caja y arqueo' },
+    ] },
+    { base: 'visitas', etiqueta: 'Visitas y agenda', sub: [
+      { codigo: 'visitas.registrar', etiqueta: 'Registrar visitas' },
+    ] },
+    { base: 'kardex', etiqueta: 'Kardex, lotes y vencimientos', sub: [
+      { codigo: 'kardex.solicitar_cambio', etiqueta: 'Solicitar cambio de fecha de vencimiento' },
+      { codigo: 'kardex.aprobar_cambio', etiqueta: 'Aprobar cambios de vencimiento' },
+    ] },
+    { base: 'fiscal', etiqueta: 'Facturación SIAT', sub: [
+      { codigo: 'fiscal.emitir', etiqueta: 'Emitir facturas y notas fiscales' },
+      { codigo: 'fiscal.anular', etiqueta: 'Anular facturas y notas' },
+      { codigo: 'fiscal.enviar_sin', etiqueta: 'Enviar XML al SIN' },
+      { codigo: 'fiscal.configurar', etiqueta: 'Configurar NIT, dosificación, normativa y credenciales SIAT' },
+    ] },
     { base: 'sueldos', etiqueta: 'Sueldos y boletas', sub: [] },
     { base: 'ordenes_pago', etiqueta: 'Órdenes de pagos', sub: [] },
     { base: 'rentabilidad', etiqueta: 'Rentabilidad', sub: [] },
@@ -75,6 +92,16 @@ const CATALOGO = [
     ] },
   ] },
   { grupo: 'Análisis', modulos: [
+    { base: 'bi', etiqueta: 'Tableros e indicadores', sub: [
+      { codigo: 'bi.explorar', etiqueta: 'Explorar ventas por vendedor, cliente, producto y visitas' },
+    ] },
+    { base: 'crm', etiqueta: 'CRM 360 y RFM', sub: [
+      { codigo: 'crm.exportar', etiqueta: 'Exportar ranking RFM' },
+    ] },
+    { base: 'demanda', etiqueta: 'Demanda y reposición', sub: [
+      { codigo: 'demanda.generar_solicitud', etiqueta: 'Generar solicitudes desde la predicción' },
+    ] },
+    { base: 'reportes_automaticos', etiqueta: 'Reportes automáticos', sub: [] },
     { base: 'reportes', etiqueta: 'Reportes', sub: [
       { codigo: 'reportes.consultar_exportar', etiqueta: 'Consultar reportes diarios mensuales y exportar' },
       { codigo: 'reportes.ver_diarios_ventas', etiqueta: 'Visualizar reportes diarios de ventas' },
@@ -86,6 +113,18 @@ const CATALOGO = [
     ] },
   ] },
   { grupo: 'Sistema', modulos: [
+    { base: 'sucursales', etiqueta: 'Sucursales y sub sucursales', sub: [
+      { codigo: 'sucursales.migrar', etiqueta: 'Migrar datos entre sucursales' },
+      { codigo: 'sucursales.ver_global', etiqueta: 'Ver el reporte global de todas las sucursales' },
+    ] },
+    { base: 'integraciones', etiqueta: 'API pública y webhooks', sub: [
+      { codigo: 'integraciones.api_keys', etiqueta: 'Crear y revocar API keys' },
+      { codigo: 'integraciones.webhooks', etiqueta: 'Configurar webhooks' },
+    ] },
+    { base: 'importacion', etiqueta: 'Importación de datos', sub: [] },
+    { base: 'notificaciones', etiqueta: 'Notificaciones push', sub: [] },
+    { base: 'whatsapp', etiqueta: 'WhatsApp y mensajes', sub: [] },
+    { base: 'logistica', etiqueta: 'Repartidores y vehículos', sub: [] },
     { base: 'administracion', etiqueta: 'Usuarios, roles, permisos y auditoría', sub: [] },
     { base: 'panel_dueno', etiqueta: 'Panel del dueño · indicadores ejecutivos', sub: [] },
     { base: 'usuarios', etiqueta: 'Gestionar usuarios', sub: [

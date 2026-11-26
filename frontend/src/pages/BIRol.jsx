@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Award, BarChart3, CalendarCheck, ClipboardList, Clock3, Crown, Package, RefreshCcw,
-  ShoppingCart, TrendingUp, Truck, Users, Wallet,
+  AlertTriangle, ArrowLeft, Award, BadgePercent, BarChart3, CalendarCheck, CheckCircle2,
+  ChevronRight, ClipboardList, Clock3, Crown, Package, RefreshCcw, ShoppingCart, Sparkles,
+  Target, TrendingUp, Truck, Users, Wallet, XCircle,
 } from 'lucide-react';
 import { api, qs } from '../api';
 import { useAuth } from '../auth';
@@ -11,6 +12,17 @@ import { Badge, EmptyState, Fecha, Money, Num, PageHeader, SkeletonRows, StatCar
 
 const PERIODOS = [{ value: '7d', label: '7 días' }, { value: '30d', label: '30 días' }, { value: '90d', label: '90 días' }];
 const CANAL = { mostrador: 'Mostrador', delivery: 'Delivery', ruta: 'Ruta', whatsapp: 'WhatsApp' };
+
+const NIVELES = [
+  { id: 'vendedores', label: 'Vendedores', icon: Users, desc: 'Ventas agrupadas por vendedor' },
+  { id: 'clientes', label: 'Clientes', icon: Users, desc: 'Clientes atendidos por cada vendedor' },
+  { id: 'productos', label: 'Productos', icon: Package, desc: 'Productos vendidos y unidades' },
+  { id: 'descuentos', label: 'Descuentos', icon: BadgePercent, desc: 'Descuentos aplicados pedido por pedido' },
+  { id: 'visitas', label: 'Visitas', icon: CalendarCheck, desc: 'Asignadas, visitadas, compraron y no compraron' },
+];
+
+const PRIORIDAD = { alta: 'red', media: 'amber', baja: 'green' };
+const TIPO_ICONO = { objetivo: Target, inventario: Package, cobranza: Wallet, preventa: CalendarCheck, rentabilidad: BadgePercent, ventas: TrendingUp };
 
 function perfilDe(rol) {
   if (['admin', 'dueno'].includes(rol)) return 'dueno';
@@ -29,6 +41,7 @@ const TITULO = {
 };
 
 function iso(date) { return date.toISOString().slice(0, 10); }
+function desdeDe(rango) { return iso(new Date(Date.now() - ((rango === '7d' ? 7 : rango === '90d' ? 90 : 30) - 1) * 86400000)); }
 
 export default function BIRol() {
   const toast = useToast();
@@ -80,7 +93,6 @@ export default function BIRol() {
   const k = data?.kpis || {};
   const serie = useMemo(() => data?.serie || [], [data]);
   const canales = useMemo(() => (data?.por_canal || []).map((c) => ({ label: CANAL[c.canal] || c.canal, value: c.total })), [data]);
-  const porDia = useMemo(() => (extra?.reporte?.por_dia || []).map((d) => ({ fecha: d.fecha, total: d.total, pedidos: d.pedidos, anterior: 0 })), [extra]);
   const rentSerie = useMemo(() => (extra?.rentabilidad?.serie || []).map((d) => ({ fecha: d.clave, total: d.ventas, pedidos: d.pedidos, anterior: 0 })), [extra]);
 
   if (loading && !data) return <><PageHeader eyebrow="Inteligencia" title="Cargando tablero…" /><div className="panel"><SkeletonRows rows={8} /></div></>;
@@ -194,8 +206,251 @@ export default function BIRol() {
         </div>
       )}
       {!panels.length && <EmptyState icon={Award} title="Sin datos" message="Aún no hay información para este tablero." />}
+
+      <ExploradorBI
+        global={perfil === 'dueno' || perfil === 'supervisor'}
+        onIrPedido={(id) => navigate(`/ventas/${id}`)}
+      />
     </>
   );
+}
+
+// Explorador interactivo: ventas → vendedor → clientes → productos → descuentos → visitas.
+function ExploradorBI({ global, onIrPedido }) {
+  const toast = useToast();
+  const navigate = useNavigate();
+  const [nivel, setNivel] = useState('vendedores');
+  const [pila, setPila] = useState([]);
+  const [filtros, setFiltros] = useState({ vendedor_id: null, cliente_id: null });
+  const [rango, setRango] = useState('30d');
+  const [personalizado, setPersonalizado] = useState({ desde: desdeDe('30d'), hasta: iso(new Date()) });
+  const [datos, setDatos] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [sugerencias, setSugerencias] = useState(null);
+  const [cargandoIA, setCargandoIA] = useState(false);
+  const [mejorado, setMejorado] = useState(false);
+
+  const rangoActual = useMemo(() => rango === 'custom' ? personalizado : { desde: desdeDe(rango), hasta: iso(new Date()) }, [rango, personalizado]);
+  const actual = NIVELES.find((n) => n.id === nivel) || NIVELES[0];
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    try {
+      const r = await api.get(`/bi/drilldown${qs({ nivel, ...rangoActual, ...filtros })}`);
+      setDatos(r);
+    } catch (error) { toast(error.message, 'error'); } finally { setCargando(false); }
+  }, [nivel, rangoActual, filtros, toast]);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const irA = (siguiente, fila = {}) => {
+    const etiqueta = fila.cliente || fila.vendedor || siguiente;
+    setPila((p) => [...p, { nivel, filtros, etiqueta }]);
+    const nuevos = { ...filtros };
+    if (fila.vendedor_id) nuevos.vendedor_id = fila.vendedor_id;
+    if (fila.cliente_id) nuevos.cliente_id = fila.cliente_id;
+    if (siguiente === 'vendedores') { nuevos.vendedor_id = null; nuevos.cliente_id = null; }
+    setFiltros(nuevos);
+    setNivel(siguiente);
+  };
+
+  const volver = () => {
+    if (!pila.length) return;
+    const anterior = pila[pila.length - 1];
+    setPila((p) => p.slice(0, -1));
+    setNivel(anterior.nivel);
+    setFiltros(anterior.filtros);
+  };
+
+  const raiz = (n) => { setPila([]); setNivel(n); setFiltros({ vendedor_id: null, cliente_id: null }); };
+
+  const cargarSugerencias = async (mejorar = false) => {
+    setCargandoIA(true);
+    try {
+      const r = await api.post('/ia/sugerencias', { mejorar });
+      setSugerencias(r);
+      setMejorado(mejorar && r.origen === 'openai');
+    } catch (error) { toast(error.message, 'error'); } finally { setCargandoIA(false); }
+  };
+
+  const filas = datos?.filas || [];
+  const resumen = datos?.resumen || {};
+  const etiquetaVendedor = pila.find((p) => p.filtros?.vendedor_id)?.etiqueta || (filtros.vendedor_id ? `Vendedor #${filtros.vendedor_id}` : '');
+  const etiquetaCliente = pila.find((p) => p.filtros?.cliente_id)?.etiqueta || (filtros.cliente_id ? `Cliente #${filtros.cliente_id}` : '');
+
+  return (
+    <>
+      <div className="panel mt-16">
+        <div className="panel-head">
+          <div>
+            <h3><Sparkles size={15} /> Explorador interactivo</h3>
+            <p>De la venta global al detalle: vendedor → clientes → productos → descuentos → visitas</p>
+          </div>
+          <Badge tone="blue">{filas.length} filas</Badge>
+        </div>
+        <div className="panel-body">
+          <div className="inline mb-16" style={{ flexWrap: 'wrap', gap: 6 }}>
+            {NIVELES.map((n) => {
+              const Icono = n.icon;
+              return <button key={n.id} className={`chip ${nivel === n.id ? 'active' : ''}`} title={n.desc} onClick={() => raiz(n.id)}><Icono size={13} /> {n.label}</button>;
+            })}
+          </div>
+
+          <div className="field-row mb-16">
+            <div className="field"><label>Período</label>
+              <select className="select" value={rango} onChange={(e) => setRango(e.target.value)}>
+                <option value="7d">Últimos 7 días</option>
+                <option value="30d">Últimos 30 días</option>
+                <option value="90d">Últimos 90 días</option>
+                <option value="custom">Personalizado</option>
+              </select>
+            </div>
+            {rango === 'custom' && <>
+              <div className="field"><label>Desde</label><input className="input" type="date" value={personalizado.desde} onChange={(e) => setPersonalizado({ ...personalizado, desde: e.target.value })} /></div>
+              <div className="field"><label>Hasta</label><input className="input" type="date" value={personalizado.hasta} onChange={(e) => setPersonalizado({ ...personalizado, hasta: e.target.value })} /></div>
+            </>}
+            <div className="field"><label>Rango aplicado</label><div className="input" style={{ display: 'flex', alignItems: 'center' }}>{rangoActual.desde} → {rangoActual.hasta}</div></div>
+          </div>
+
+          <div className="inline mb-16" style={{ gap: 6, flexWrap: 'wrap' }}>
+            {pila.map((p, i) => <span className="chip" key={i} title={p.etiqueta}>{p.etiqueta || NIVELES.find((n) => n.id === p.nivel)?.label} <ChevronRight size={12} /></span>)}
+            {pila.length > 0 && <button className="btn btn-ghost btn-sm" onClick={volver}><ArrowLeft size={12} /> Volver</button>}
+            {etiquetaVendedor && <span className="chip active"><Users size={12} /> {etiquetaVendedor}</span>}
+            {etiquetaCliente && <span className="chip active"><Users size={12} /> {etiquetaCliente}</span>}
+          </div>
+
+          <div className="stat-grid mb-16" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>
+            <StatCard label="Ventas" value={<Money value={resumen.ventas} />} icon={ShoppingCart} tone="orange" />
+            <StatCard label="Pedidos" value={<Num value={resumen.pedidos} />} icon={ClipboardList} tone="blue" />
+            <StatCard label="Clientes" value={<Num value={resumen.clientes} />} icon={Users} tone="green" />
+            <StatCard label="Descuentos" value={<Money value={resumen.descuentos} />} icon={BadgePercent} tone="red" />
+          </div>
+
+          {cargando ? <SkeletonRows rows={5} /> : !filas.length ? (
+            <EmptyState icon={BarChart3} title="Sin datos en este nivel" message="Prueba otro período o sube a un nivel superior." />
+          ) : (
+            <div className="table-wrap"><table className="data-table">
+              <thead><tr>{columnas(nivel).map((c) => <th key={c.k} className={c.num ? 'num' : ''}>{c.label}</th>)}<th /></tr></thead>
+              <tbody>{filas.map((f, i) => (
+                <tr key={f.vendedor_id ?? f.cliente_id ?? f.producto_id ?? f.pedido_id ?? i} style={{ cursor: 'pointer' }} onClick={() => filaClick(nivel, f, irA, onIrPedido)}>
+
+                  {columnas(nivel).map((c) => <td key={c.k} className={c.num ? 'num' : c.strong ? 'cell-strong' : ''}>
+                    {renderCelda(f, c)}
+                  </td>)}
+                  <td className="actions" onClick={(e) => e.stopPropagation()}>
+                    {accionesFila(nivel, f, irA, filtros)}
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table></div>
+          )}
+          {nivel === 'vendedores' && !global && <p className="hint mt-8">Como usuario solo ves tus propios registros. La visión global requiere el permiso <b>datos.ver_todos</b>, otorgado por administración.</p>}
+        </div>
+      </div>
+
+      <div className="panel mt-16">
+        <div className="panel-head">
+          <div><h3><Sparkles size={15} /> Sugerencias para cumplir objetivos</h3><p>Stock, vencimientos, mora, conversión de visitas y metas del mes</p></div>
+          <div className="inline" style={{ gap: 6 }}>
+            {sugerencias?.aviso && <Badge tone="amber">Modo local</Badge>}
+            {mejorado && <Badge tone="green">Texto mejorado por IA</Badge>}
+            <button className="btn btn-outline btn-sm" disabled={cargandoIA} onClick={() => cargarSugerencias(false)}><RefreshCcw size={12} /> Actualizar</button>
+            <button className="btn btn-primary btn-sm" disabled={cargandoIA} onClick={() => cargarSugerencias(true)}><Sparkles size={12} /> {cargandoIA ? 'Analizando…' : 'Analizar con IA'}</button>
+          </div>
+        </div>
+        <div className="panel-body">
+          {!sugerencias ? <div className="notice notice-info"><Sparkles size={15} /> Presiona <b>Actualizar</b> para ver recomendaciones accionables para tu rol y período.</div>
+            : cargandoIA ? <SkeletonRows rows={4} /> : !sugerencias.sugerencias?.length ? (
+              <EmptyState icon={CheckCircle2} title="Todo en orden" message="No hay alertas que requieran una decisión inmediata." />
+            ) : (
+              <>
+                {sugerencias.aviso && <div className="notice notice-warn mb-16"><AlertTriangle size={14} /> {sugerencias.aviso}</div>}
+                <div className="grid grid-2" style={{ gap: 10 }}>
+                  {sugerencias.sugerencias.map((s) => {
+                    const Icono = TIPO_ICONO[s.tipo] || Target;
+                    return (
+                      <div className="panel" key={s.id} style={{ boxShadow: 'none' }}>
+                        <div className="panel-head">
+                          <div><h4 style={{ margin: 0 }}><Icono size={14} /> {s.titulo}</h4><p>{s.categoria}</p></div>
+                          <Badge tone={PRIORIDAD[s.prioridad] || 'gray'}>{s.prioridad}</Badge>
+                        </div>
+                        <div className="panel-body">
+                          <p className="small">{s.detalle}</p>
+                          <p className="hint">{s.impacto}</p>
+                          {s.accion?.ruta && <button className="btn btn-soft btn-sm mt-8" onClick={() => navigate(s.accion.ruta)}>{s.accion.etiqueta} <ChevronRight size={12} /></button>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function columnas(nivel) {
+  if (nivel === 'vendedores') return [
+    { k: 'vendedor', label: 'Vendedor', strong: true }, { k: 'pedidos', label: 'Pedidos', num: true },
+    { k: 'clientes', label: 'Clientes', num: true }, { k: 'unidades', label: 'Unidades', num: true },
+    { k: 'total', label: 'Ventas', num: true, money: true }, { k: 'descuento', label: 'Descuentos', num: true, money: true },
+    { k: 'visitas', label: 'Visitas', num: true },
+  ];
+  if (nivel === 'clientes') return [
+    { k: 'cliente', label: 'Cliente', strong: true }, { k: 'pedidos', label: 'Pedidos', num: true },
+    { k: 'productos', label: 'Productos', num: true }, { k: 'unidades', label: 'Unidades', num: true },
+    { k: 'total', label: 'Ventas', num: true, money: true }, { k: 'descuento', label: 'Descuento', num: true, money: true },
+    { k: 'visitas', label: 'Visitas', num: true },
+  ];
+  if (nivel === 'productos') return [
+    { k: 'producto', label: 'Producto', strong: true }, { k: 'unidades', label: 'Unidades', num: true },
+    { k: 'pedidos', label: 'Pedidos', num: true }, { k: 'total', label: 'Ventas', num: true, money: true },
+  ];
+  if (nivel === 'visitas') return [
+    { k: 'vendedor', label: 'Vendedor', strong: true }, { k: 'asignadas', label: 'Asignadas', num: true },
+    { k: 'completadas', label: 'Visitadas', num: true }, { k: 'con_pedido', label: 'Compraron', num: true },
+    { k: 'sin_pedido', label: 'No compraron', num: true }, { k: 'tasa', label: 'Conversión', num: true },
+  ];
+  return [
+    { k: 'codigo', label: 'Pedido', strong: true }, { k: 'cliente', label: 'Cliente' }, { k: 'vendedor', label: 'Vendedor' },
+    { k: 'fecha', label: 'Fecha' }, { k: 'descuento', label: 'Descuento', num: true, money: true },
+    { k: 'porcentaje', label: '%', num: true }, { k: 'total', label: 'Total', num: true, money: true },
+  ];
+}
+
+function renderCelda(f, c) {
+  if (c.k === 'tasa') return `${f.completadas ? Math.round(100 * f.con_pedido / f.completadas) : 0}%`;
+  if (c.k === 'porcentaje') return f.porcentaje ? `${f.porcentaje}%` : 'Bs';
+  const v = f[c.k];
+  if (v === null || v === undefined || v === '') return '—';
+  return c.money ? <Money value={v} /> : typeof v === 'number' ? <Num value={v} /> : v;
+}
+
+function filaClick(nivel, f, irA, onIrPedido) {
+  if (nivel === 'vendedores') irA('clientes', { vendedor_id: f.vendedor_id, vendedor: f.vendedor });
+  else if (nivel === 'clientes') irA('productos', { cliente_id: f.cliente_id, cliente: f.cliente });
+  else if (nivel === 'descuentos') onIrPedido?.(f.pedido_id);
+}
+
+function accionesFila(nivel, f, irA, filtros) {
+  if (nivel === 'vendedores') {
+    const sel = { vendedor_id: f.vendedor_id, vendedor: f.vendedor };
+    return <>
+      <button className="btn btn-soft btn-sm" onClick={() => irA('clientes', sel)}>Clientes</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => irA('descuentos', sel)}>Descuentos</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => irA('visitas', sel)}>Visitas</button>
+    </>;
+  }
+  if (nivel === 'clientes') {
+    const sel = { cliente_id: f.cliente_id, cliente: f.cliente, vendedor_id: filtros?.vendedor_id };
+    return <>
+      <button className="btn btn-soft btn-sm" onClick={() => irA('productos', sel)}>Productos</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => irA('descuentos', sel)}>Descuentos</button>
+    </>;
+  }
+  return null;
 }
 
 function CheckIcon() { return <Award size={19} />; }

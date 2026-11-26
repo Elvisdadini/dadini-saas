@@ -11,6 +11,7 @@ const rag = require('./rag');
 const kardex = require('./kardex');
 const { nextCode } = require('./utils');
 const { recalcularCliente } = require('./services');
+const alcance = require('./alcance');
 
 const MODEL = process.env.AI_MODEL || 'gpt-4o-mini';
 const BASE_URL = (process.env.AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
@@ -588,8 +589,194 @@ async function extraerFactura(imagen) {
   };
 }
 
+// Sugerencias para cumplir objetivos. Se calculan con reglas locales (sin
+// costo ni dependencia de créditos); si se pide `mejorar`, el modelo solo
+// reescribe el texto de las sugerencias ya calculadas, nunca inventa datos.
+async function sugerencias(req, { mejorar = false } = {}) {
+  const db = load();
+  const hoy = new Date().toISOString().slice(0, 10);
+  const mes = hoy.slice(0, 7);
+  const finMes = new Date(Number(hoy.slice(0, 4)), Number(hoy.slice(5, 7)), 0).getDate();
+  const diasRestantes = Math.max(1, finMes - Number(hoy.slice(8, 10)) + 1);
+  const lista = [];
+
+  const misPedidos = alcance.filtrar(req, (db.pedidos || []).filter((p) => p.estado !== 'cancelado'), ['vendedor_id', 'usuario_id', 'repartidor_asignado_id']);
+  const misVisitas = alcance.filtrar(req, db.visitas || [], ['usuario_id', 'distribuidor_id', 'vendedor_id']);
+  const esGlobal = alcance.verTodo(req);
+  const objetivos = (db.objetivos_mensuales || []).filter((o) => o.activo !== false && o.mes === mes
+    && (esGlobal || !o.vendedor_id || Number(o.vendedor_id) === Number(req?.user?.id)));
+
+  // 1) Objetivos de monto: ritmo diario necesario vs. ventas del mes.
+  objetivos.filter((o) => o.tipo === 'monto' && Number(o.meta_monto) > 0).forEach((o) => {
+    const pedidosMes = misPedidos.filter((p) => String(p.created_at).slice(0, 7) === mes
+      && (!o.vendedor_id || Number(p.vendedor_id) === Number(o.vendedor_id)
+        || (o.ruta_venta && p.ruta_venta === o.ruta_venta)));
+    const logrado = round2(o.ruta_venta
+      ? pedidosMes.filter((p) => p.ruta_venta === o.ruta_venta).reduce((s, p) => s + Number(p.total || 0), 0)
+      : pedidosMes.reduce((s, p) => s + Number(p.total || 0), 0));
+    const falta = round2(Math.max(0, Number(o.meta_monto) - logrado));
+    const porDia = round2(falta / diasRestantes);
+    const avance = Math.round(100 * logrado / Number(o.meta_monto));
+    lista.push({
+      id: `objetivo-${o.id}`, tipo: 'objetivo', categoria: 'Cumplimiento',
+      prioridad: avance < 50 ? 'alta' : avance < 80 ? 'media' : 'baja',
+      titulo: `Objetivo ${mes}: ${avance}% cumplido`,
+      detalle: `Faltan Bs ${falta.toFixed(2)} en ${diasRestantes} días restantes (≈ Bs ${porDia.toFixed(2)}/día).`,
+      impacto: `Meta Bs ${Number(o.meta_monto).toFixed(2)} · logrado Bs ${logrado.toFixed(2)}`,
+      accion: { herramienta: 'resumen_ventas', args: { periodo: '30d' }, etiqueta: 'Ver resumen de ventas', ruta: '/bi' },
+    });
+  });
+
+  // 2) Objetivos por producto/unidades.
+  objetivos.filter((o) => o.tipo === 'producto' && Number(o.meta_unidades) > 0 && o.producto_id).forEach((o) => {
+    const unidades = misPedidos.filter((p) => String(p.created_at).slice(0, 7) === mes).reduce((s, p) =>
+      s + (p.items || []).filter((i) => Number(i.producto_id) === Number(o.producto_id)).reduce((t, i) => t + Number(i.cantidad || 0), 0), 0);
+    const falta = Math.max(0, Number(o.meta_unidades) - unidades);
+    if (!falta) return;
+    const producto = (db.productos || []).find((p) => p.id === Number(o.producto_id));
+    lista.push({
+      id: `objetivo-prod-${o.id}`, tipo: 'objetivo', categoria: 'Cumplimiento',
+      prioridad: unidades < Number(o.meta_unidades) * 0.5 ? 'alta' : 'media',
+      titulo: `Faltan ${falta} unidades de ${producto?.nombre || `#${o.producto_id}`}`,
+      detalle: `Se vendieron ${unidades} de ${o.meta_unidades}. ≈ ${Math.ceil(falta / diasRestantes)} unidades/día para alcanzar la meta.`,
+      impacto: `Meta ${o.meta_unidades} uds · logrado ${unidades} uds`,
+      accion: { herramienta: 'top_productos', args: { periodo: '30d' }, etiqueta: 'Ver productos', ruta: '/bi' },
+    });
+  });
+
+  // 3) Stock bajo.
+  const { buildIndices } = require('./indexes');
+  const indices = buildIndices(db);
+  const stockBajo = (db.productos || []).filter((p) => p.activo !== false
+    && (indices.stockPorProducto.get(p.id) || 0) <= (p.stock_minimo || 0));
+  if (stockBajo.length) {
+    lista.push({
+      id: 'stock-bajo', tipo: 'inventario', categoria: 'Reposición',
+      prioridad: stockBajo.length > 5 ? 'alta' : 'media',
+      titulo: `${stockBajo.length} productos con stock bajo`,
+      detalle: `Reponer primero: ${stockBajo.slice(0, 4).map((p) => p.nombre).join(', ')}. Sin stock no se puede cumplir el objetivo de ventas.`,
+      impacto: `${stockBajo.length} SKU por debajo del mínimo`,
+      accion: { herramienta: 'stock_bajo', args: { limite: 10 }, etiqueta: 'Ver stock bajo', ruta: '/compras/demanda' },
+    });
+  }
+
+  // 4) Lotes próximos a vencer: mover primero por FEFO.
+  const proximos = (db.lotes || []).filter((l) => Number(l.cantidad) > 0 && l.fecha_vencimiento
+    && (Date.parse(l.fecha_vencimiento) - Date.parse(hoy)) / 86400000 <= 15)
+    .sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento)).slice(0, 5);
+  if (proximos.length) {
+    const nombres = proximos.map((l) => {
+      const p = (db.productos || []).find((x) => x.id === Number(l.producto_id));
+      const dias = Math.round((Date.parse(l.fecha_vencimiento) - Date.parse(hoy)) / 86400000);
+      return `${p?.nombre || `#${l.producto_id}`} (${l.lote}, ${dias} d)`;
+    });
+    lista.push({
+      id: 'vencimientos', tipo: 'inventario', categoria: 'Rotación FEFO',
+      prioridad: 'alta',
+      titulo: `${proximos.length} lotes vencen en ≤ 15 días`,
+      detalle: `Mover primero por bonificación o promoción: ${nombres.join('; ')}.`,
+      impacto: `${proximos.reduce((s, l) => s + Number(l.cantidad || 0), 0)} unidades en riesgo`,
+      accion: { etiqueta: 'Crear bonificación', ruta: '/inventario/promociones' },
+    });
+  }
+
+  // 5) Morosidad.
+  const morosos = misPedidos.filter((p) => Number(p.saldo) > 0 && String(p.fecha_vencimiento || '').slice(0, 10) < hoy);
+  if (morosos.length) {
+    lista.push({
+      id: 'mora', tipo: 'cobranza', categoria: 'Cartera',
+      prioridad: 'alta',
+      titulo: `${morosos.length} cuentas vencidas`,
+      detalle: `Cobrar Bs ${round2(morosos.reduce((s, p) => s + Number(p.saldo || 0), 0)).toFixed(2)}. Prioriza los mayores saldos para recuperar capital.`,
+      impacto: `Bs ${round2(morosos.reduce((s, p) => s + Number(p.saldo || 0), 0)).toFixed(2)} pendientes`,
+      accion: { herramienta: 'cobranzas_vencidas', args: { limite: 10 }, etiqueta: 'Ver vencidas', ruta: '/cobranzas' },
+    });
+  }
+
+  // 6) Conversión de visitas: asignadas, visitadas, compraron, no compraron.
+  const asignadas = misVisitas.length;
+  const completadas = misVisitas.filter((v) => v.estado === 'completada' || v.resultado || v.pedido_id).length;
+  const compraron = misVisitas.filter((v) => v.resultado === 'pedido' || v.pedido_id).length;
+  const noCompraron = Math.max(0, completadas - compraron);
+  if (asignadas >= 5) {
+    const tasa = completadas ? Math.round(100 * compraron / completadas) : 0;
+    lista.push({
+      id: 'conversion-visitas', tipo: 'preventa', categoria: 'Conversión',
+      prioridad: tasa < 40 ? 'alta' : tasa < 60 ? 'media' : 'baja',
+      titulo: `Conversión de visitas ${tasa}%`,
+      detalle: `${asignadas} asignadas · ${completadas} visitadas · ${compraron} compraron · ${noCompraron} no compraron. ${noCompraron ? 'Hacer seguimiento a quienes no compraron con una oferta autorizada.' : 'Mantener la agenda y ampliar la ruta.'}`,
+      impacto: `${compraron}/${completadas} visitas con pedido`,
+      accion: { herramienta: 'clientes_por_zona_dia', args: {}, etiqueta: 'Ver agenda', ruta: '/ventas/agenda' },
+    });
+  }
+
+  // 7) Descuentos: control de margen.
+  const conDescuento = misPedidos.filter((p) => Number(p.descuento) > 0);
+  const totalDesc = round2(conDescuento.reduce((s, p) => s + Number(p.descuento || 0), 0));
+  const totalVentas = round2(misPedidos.reduce((s, p) => s + Number(p.total || 0), 0));
+  if (conDescuento.length && totalVentas > 0 && totalDesc / totalVentas > 0.08) {
+    lista.push({
+      id: 'descuentos', tipo: 'rentabilidad', categoria: 'Margen',
+      prioridad: 'media',
+      titulo: `Descuentos equivalen al ${Math.round(100 * totalDesc / totalVentas)}% de las ventas`,
+      detalle: `Bs ${totalDesc.toFixed(2)} en ${conDescuento.length} pedidos. Revisa que cada descuento esté autorizado y dirigido a rotar stock o cerrar ventas grandes.`,
+      impacto: `Margen susceptible de mejora: Bs ${totalDesc.toFixed(2)}`,
+      accion: { etiqueta: 'Ver descuentos', ruta: '/bi' },
+    });
+  }
+
+  const orden = { alta: 0, media: 1, baja: 2 };
+  lista.sort((a, b) => orden[a.prioridad] - orden[b.prioridad]);
+  const respuesta = {
+    sugerencias: lista,
+    resumen: {
+      objetivos: objetivos.length,
+      ventas_mes: round2(misPedidos.filter((p) => String(p.created_at).slice(0, 7) === mes).reduce((s, p) => s + Number(p.total || 0), 0)),
+      visitas: { asignadas, completadas, compraron, no_compraron: noCompraron },
+      dias_restantes: diasRestantes,
+    },
+    origen: 'reglas',
+    generado_en: new Date().toISOString(),
+    aviso: estaConfigurado()
+      ? null : 'El asistente con IA requiere créditos de OpenAI. Estas sugerencias se calculan localmente y siempre están disponibles.',
+  };
+
+  if (mejorar && estaConfigurado() && lista.length) {
+    try {
+      const cuerpo = JSON.stringify(lista.map((s) => ({ titulo: s.titulo, detalle: s.detalle, impacto: s.impacto })));
+      const r = await fetch(`${BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+        body: JSON.stringify({
+          model: MODEL, temperature: 0.2, max_tokens: 1200, response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: 'Reescribe en español, de forma breve y accionable, el título y detalle de cada sugerencia. Respeta los números y el orden. Devuelve JSON: {"items":[{"titulo":"","detalle":""}]}.' },
+            { role: 'user', content: cuerpo },
+          ],
+        }),
+      });
+      if (r.ok) {
+        const datos = await r.json();
+        const items = JSON.parse(datos.choices?.[0]?.message?.content || '{}').items;
+        if (Array.isArray(items) && items.length === lista.length) {
+          lista.forEach((s, i) => {
+            if (items[i]?.titulo) s.titulo = String(items[i].titulo).slice(0, 120);
+            if (items[i]?.detalle) s.detalle = String(items[i].detalle).slice(0, 400);
+          });
+          respuesta.origen = 'openai';
+        }
+      } else {
+        respuesta.aviso = `OpenAI respondió ${r.status}. Se muestran las sugerencias calculadas localmente.`;
+      }
+    } catch (error) {
+      respuesta.aviso = `No se pudo mejorar el texto con IA (${error.message}). Se muestran las sugerencias locales.`;
+    }
+  }
+  return respuesta;
+}
+
 module.exports = {
-  estaConfigurado, chatear, ejecutarAccion, alertas, extraerFactura, crearPedido: crearPedidoPorIA,
+  sugerencias, estaConfigurado, chatear, ejecutarAccion, alertas, extraerFactura, crearPedido: crearPedidoPorIA,
   resumenVentas, cobranzasVencidas, stockBajo, clientesPorZonaDia, topProductos,
   HERRAMIENTAS: HERRAMIENTAS.map(({ name, description }) => ({ name, description, escritura: herramientaPorNombre(name).escritura })),
   modelo: MODEL,

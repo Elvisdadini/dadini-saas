@@ -1,6 +1,6 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { audit, nextId, round2 } = require('../utils');
 const { VERSION, REGISTRO, normativaVigente, calcularImpuestos } = require('../fiscal-normativa');
 const { guardarDocumento, guardarArchivo } = require('../documentos');
@@ -126,7 +126,7 @@ router.post('/normativa/actualizar', allow('admin', 'dueno', 'supervisor'), asyn
   });
 });
 
-router.put('/normativa/:id', allow('admin', 'dueno'), (req, res) => {
+router.put('/normativa/:id', requirePermiso('fiscal.configurar'), allow('admin', 'dueno'), (req, res) => {
   const db = load();
   const fiscal = asegurarFiscal(db);
   const regla = reglas(fiscal).find((r) => r.id === req.params.id);
@@ -141,7 +141,7 @@ router.put('/normativa/:id', allow('admin', 'dueno'), (req, res) => {
   return res.json({ ok: true, regla });
 });
 
-router.put('/config', allow('admin', 'dueno'), (req, res) => {
+router.put('/config', requirePermiso('fiscal.configurar'), allow('admin', 'dueno'), (req, res) => {
   const db = load();
   const fiscal = asegurarFiscal(db);
   const campos = ['nit', 'razon_social', 'actividad', 'sucursal', 'punto_venta', 'modalidad', 'autorizacion', 'codigo_control', 'fecha_autorizacion', 'facturacion_activa'];
@@ -154,7 +154,7 @@ router.put('/config', allow('admin', 'dueno'), (req, res) => {
 
 // Guarda credenciales SIAT. Los campos sensibles se cifran con SIAT_SECRET_KEY
 // y nunca se devuelven al frontend. Enviar '' significa "mantener el valor".
-router.put('/siat', allow('admin', 'dueno'), (req, res) => {
+router.put('/siat', requirePermiso('fiscal.configurar'), allow('admin', 'dueno'), (req, res) => {
   const db = load();
   const fiscal = asegurarFiscal(db);
   const s = fiscal.siat;
@@ -180,7 +180,7 @@ router.put('/siat', allow('admin', 'dueno'), (req, res) => {
   return res.json({ ok: true, guardados: nuevos, siat: siatPublico(fiscal) });
 });
 
-router.post('/facturas/:id/xml', allow('admin', 'dueno', 'ventas', 'cobranzas'), async (req, res) => {
+router.post('/facturas/:id/xml', requirePermiso('fiscal.emitir'), allow('admin', 'dueno', 'ventas', 'cobranzas'), async (req, res) => {
   const db = load();
   const fiscal = asegurarFiscal(db);
   const pedido = (db.pedidos || []).find((p) => p.id === Number(req.params.id));
@@ -199,7 +199,7 @@ router.post('/facturas/:id/xml', allow('admin', 'dueno', 'ventas', 'cobranzas'),
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
 
-router.post('/facturas/:id/enviar', allow('admin', 'dueno'), async (req, res) => {
+router.post('/facturas/:id/enviar', requirePermiso('fiscal.enviar_sin'), allow('admin', 'dueno'), async (req, res) => {
   const db = load();
   const fiscal = asegurarFiscal(db);
   const s = fiscal.siat || {};
@@ -258,7 +258,7 @@ router.get('/notas', (req, res) => {
 });
 
 // Nota de crédito reduce saldo; nota de débito lo aumenta.
-router.post('/notas', allow('admin', 'dueno', 'cobranzas', 'ventas'), (req, res) => {
+router.post('/notas', requirePermiso('fiscal.emitir'), allow('admin', 'dueno', 'cobranzas', 'ventas'), (req, res) => {
   const db = load();
   const fiscal = asegurarFiscal(db);
   const b = req.body || {};
@@ -300,7 +300,7 @@ router.post('/notas', allow('admin', 'dueno', 'cobranzas', 'ventas'), (req, res)
   return res.status(201).json({ ok: true, nota: notaPublica(db, nota) });
 });
 
-router.post('/notas/:id/xml', allow('admin', 'dueno', 'ventas', 'cobranzas'), async (req, res) => {
+router.post('/notas/:id/xml', requirePermiso('fiscal.emitir'), allow('admin', 'dueno', 'ventas', 'cobranzas'), async (req, res) => {
   const db = load();
   const fiscal = asegurarFiscal(db);
   const nota = notas(db).find((n) => n.id === Number(req.params.id));
@@ -316,7 +316,7 @@ router.post('/notas/:id/xml', allow('admin', 'dueno', 'ventas', 'cobranzas'), as
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
 
-router.post('/notas/:id/enviar', allow('admin', 'dueno'), async (req, res) => {
+router.post('/notas/:id/enviar', requirePermiso('fiscal.enviar_sin'), allow('admin', 'dueno'), async (req, res) => {
   const db = load();
   const fiscal = asegurarFiscal(db);
   const s = fiscal.siat || {};
@@ -347,7 +347,7 @@ router.post('/notas/:id/enviar', allow('admin', 'dueno'), async (req, res) => {
   }
 });
 
-router.post('/notas/:id/anular', allow('admin', 'dueno'), (req, res) => {
+router.post('/notas/:id/anular', requirePermiso('fiscal.anular'), allow('admin', 'dueno'), (req, res) => {
   const db = load();
   const nota = notas(db).find((n) => n.id === Number(req.params.id));
   if (!nota) return res.status(404).json({ error: 'Nota no encontrada.' });
@@ -361,7 +361,7 @@ router.post('/notas/:id/anular', allow('admin', 'dueno'), (req, res) => {
 
 // RND 102600000025: anulación fuera de plazo (día 9 del mes siguiente).
 // El SIN resuelve en hasta 6 meses; aquí se registra la solicitud y su estado.
-router.post('/facturas/:id/anular-fuera-plazo', allow('admin', 'dueno'), (req, res) => {
+router.post('/facturas/:id/anular-fuera-plazo', requirePermiso('fiscal.anular'), allow('admin', 'dueno'), (req, res) => {
   const db = load();
   const pedido = (db.pedidos || []).find((p) => p.id === Number(req.params.id));
   if (!pedido?.factura) return res.status(404).json({ error: 'Factura no encontrada.' });
@@ -393,7 +393,7 @@ router.get('/facturas', (req, res) => {
   res.json({ facturas, total: facturas.length });
 });
 
-router.post('/facturas/:id/pdf', allow('admin', 'dueno', 'ventas', 'cobranzas'), async (req, res) => {
+router.post('/facturas/:id/pdf', requirePermiso('fiscal.emitir'), allow('admin', 'dueno', 'ventas', 'cobranzas'), async (req, res) => {
   const db = load();
   const pedido = (db.pedidos || []).find((p) => p.id === Number(req.params.id));
   if (!pedido?.factura) return res.status(404).json({ error: 'El pedido no tiene factura generada.' });
@@ -406,7 +406,7 @@ router.post('/facturas/:id/pdf', allow('admin', 'dueno', 'ventas', 'cobranzas'),
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
 
-router.post('/facturas/:id/anular', allow('admin', 'dueno'), (req, res) => {
+router.post('/facturas/:id/anular', requirePermiso('fiscal.anular'), allow('admin', 'dueno'), (req, res) => {
   const db = load();
   const pedido = (db.pedidos || []).find((p) => p.id === Number(req.params.id));
   if (!pedido?.factura) return res.status(404).json({ error: 'Factura no encontrada.' });

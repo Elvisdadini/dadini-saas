@@ -1,6 +1,6 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, audit, round2 } = require('../utils');
 const links = require('../whatsapp-links');
 
@@ -55,7 +55,7 @@ router.get('/', (req, res) => {
   });
 });
 
-router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'), (req, res) => {
+router.post('/', requirePermiso('whatsapp.crear'), allow('ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'), (req, res) => {
   const db = load();
   const body = req.body || {};
   const tipo = ['pedido', 'entrega', 'cobranza', 'otro'].includes(body.tipo) ? body.tipo : 'otro';
@@ -97,7 +97,7 @@ router.patch('/:id/estado', (req, res) => {
 });
 
 // Envío a varios empleados: se generan los links wa.me y se deja trazabilidad.
-router.post('/masivo', allow('ventas', 'preventista', 'distribucion', 'cobranzas'), (req, res) => {
+router.post('/masivo', requirePermiso('whatsapp.crear'), allow('ventas', 'preventista', 'distribucion', 'cobranzas'), (req, res) => {
   const db = load();
   const body = req.body || {};
   const ids = Array.isArray(body.usuario_ids) ? body.usuario_ids.map(Number) : [];

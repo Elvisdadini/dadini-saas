@@ -93,6 +93,7 @@ app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/rutas-venta', require('./routes/rutas-venta'));
 app.use('/api/permisos', require('./routes/permisos'));
 app.use('/api/ia', require('./routes/ia'));
+app.use('/api/bi', require('./routes/bi'));
 app.use('/api/fiscal', require('./routes/fiscal'));
 app.use('/api/kardex', require('./routes/kardex'));
 app.use('/api/caja', require('./routes/caja'));

@@ -1,6 +1,6 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { audit, nextId } = require('../utils');
 const kardex = require('../kardex');
 
@@ -73,7 +73,7 @@ router.get('/alertas', (req, res) => {
   res.json({ alertas: lista, vencidos: lista.filter((l) => l.estado === 'vencido').length, proximos: lista.filter((l) => l.estado === 'proximo').length });
 });
 
-router.post('/entrada', allow(...GESTION), (req, res) => {
+router.post('/entrada', requirePermiso('kardex.crear'), allow(...GESTION), (req, res) => {
   const db = load();
   const b = req.body || {};
   if (!b.producto_id || !b.almacen_id) return res.status(400).json({ error: 'Selecciona producto y almacén.' });
@@ -90,7 +90,7 @@ router.post('/entrada', allow(...GESTION), (req, res) => {
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
 
-router.post('/transferencia', allow(...GESTION), (req, res) => {
+router.post('/transferencia', requirePermiso('kardex.editar'), allow(...GESTION), (req, res) => {
   const db = load();
   const b = req.body || {};
   if (!b.producto_id || !b.origen_id || !b.destino_id) return res.status(400).json({ error: 'Faltan producto o almacenes.' });
@@ -130,7 +130,7 @@ router.get('/solicitudes-vencimiento', (req, res) => {
   res.json({ solicitudes: lista, total: lista.length });
 });
 
-router.post('/solicitudes-vencimiento', (req, res) => {
+router.post('/solicitudes-vencimiento', requirePermiso('kardex.solicitar_cambio'), (req, res) => {
   const db = load();
   const lote = (db.lotes || []).find((l) => l.id === Number(req.body?.lote_id));
   if (!lote) return res.status(404).json({ error: 'Lote no encontrado.' });
@@ -161,7 +161,7 @@ router.post('/solicitudes-vencimiento', (req, res) => {
   return res.status(201).json({ ok: true, solicitud });
 });
 
-router.post('/solicitudes-vencimiento/:id/aprobar', allow('admin', 'dueno'), (req, res) => {
+router.post('/solicitudes-vencimiento/:id/aprobar', requirePermiso('kardex.aprobar_cambio'), allow('admin', 'dueno'), (req, res) => {
   const db = load();
   const solicitud = asegurarSolicitudes(db).find((s) => s.id === Number(req.params.id));
   if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada.' });
@@ -182,7 +182,7 @@ router.post('/solicitudes-vencimiento/:id/aprobar', allow('admin', 'dueno'), (re
   return res.json({ ok: true, solicitud, lote });
 });
 
-router.post('/solicitudes-vencimiento/:id/rechazar', allow('admin', 'dueno'), (req, res) => {
+router.post('/solicitudes-vencimiento/:id/rechazar', requirePermiso('kardex.aprobar_cambio'), allow('admin', 'dueno'), (req, res) => {
   const db = load();
   const solicitud = asegurarSolicitudes(db).find((s) => s.id === Number(req.params.id));
   if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada.' });

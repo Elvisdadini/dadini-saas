@@ -1,6 +1,6 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, nextCode, audit, num, round2 } = require('../utils');
 
 const router = express.Router();
@@ -83,7 +83,7 @@ router.get('/resumen', (req, res) => {
   res.json({ fecha, cajas, total: cajas.length });
 });
 
-router.post('/apertura', allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranzas'), (req, res) => {
+router.post('/apertura', requirePermiso('caja.apertura'), allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranzas'), (req, res) => {
   const db = load();
   const existente = cajaAbierta(db, req.user.id);
   if (existente) return res.status(400).json({ error: 'Ya tienes una caja abierta.', caja: resumenCaja(db, existente) });
@@ -103,7 +103,7 @@ router.post('/apertura', allow('admin', 'dueno', 'supervisor', 'ventas', 'cobran
   return res.status(201).json({ caja: resumenCaja(db, caja) });
 });
 
-router.post('/cierre', allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranzas'), (req, res) => {
+router.post('/cierre', requirePermiso('caja.cierre'), allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranzas'), (req, res) => {
   const db = load();
   const caja = cajaAbierta(db, req.user.id);
   if (!caja) return res.status(404).json({ error: 'No tienes una caja abierta.' });
@@ -122,7 +122,7 @@ router.post('/cierre', allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranza
   return res.json({ caja: caja });
 });
 
-router.post('/movimiento', allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranzas'), (req, res) => {
+router.post('/movimiento', requirePermiso('caja.apertura'), allow('admin', 'dueno', 'supervisor', 'ventas', 'cobranzas'), (req, res) => {
   const db = load();
   const tipo = req.body?.tipo === 'egreso' ? 'egreso' : 'ingreso';
   const monto = round2(num(req.body?.monto));

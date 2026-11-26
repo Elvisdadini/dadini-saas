@@ -1,6 +1,6 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, nextCode, audit, num } = require('../utils');
 const { evaluar } = require('../promociones');
 
@@ -106,7 +106,7 @@ async function procesarImagenes(datos, anteriores = []) {
   return datos;
 }
 
-router.post('/', allow('admin', 'ventas', 'almacen'), async (req, res) => {
+router.post('/', requirePermiso('promociones.crear'), allow('admin', 'ventas', 'almacen'), async (req, res) => {
   const db = load();
   const datos = normalizar(req.body || {});
   if (!datos.nombre) return res.status(400).json({ error: 'El nombre de la promoción es obligatorio.' });
@@ -127,7 +127,7 @@ router.post('/', allow('admin', 'ventas', 'almacen'), async (req, res) => {
   return res.status(201).json({ promocion: resumen(promo) });
 });
 
-router.put('/:id', allow('admin', 'ventas', 'almacen'), async (req, res) => {
+router.put('/:id', requirePermiso('promociones.editar'), allow('admin', 'ventas', 'almacen'), async (req, res) => {
   const db = load();
   const promo = db.promociones.find((p) => p.id === Number(req.params.id));
   if (!promo) return res.status(404).json({ error: 'Promoción no encontrada.' });
@@ -140,7 +140,7 @@ router.put('/:id', allow('admin', 'ventas', 'almacen'), async (req, res) => {
   return res.json({ promocion: resumen(promo) });
 });
 
-router.patch('/:id/estado', allow('admin', 'ventas', 'almacen'), (req, res) => {
+router.patch('/:id/estado', requirePermiso('promociones.editar'), allow('admin', 'ventas', 'almacen'), (req, res) => {
   const db = load();
   const promo = db.promociones.find((p) => p.id === Number(req.params.id));
   if (!promo) return res.status(404).json({ error: 'Promoción no encontrada.' });
@@ -150,7 +150,7 @@ router.patch('/:id/estado', allow('admin', 'ventas', 'almacen'), (req, res) => {
   return res.json({ promocion: resumen(promo) });
 });
 
-router.delete('/:id', allow('admin', 'almacen'), async (req, res) => {
+router.delete('/:id', requirePermiso('promociones.eliminar'), allow('admin', 'almacen'), async (req, res) => {
   const db = load();
   const promo = db.promociones.find((p) => p.id === Number(req.params.id));
   if (!promo) return res.status(404).json({ error: 'Promoción no encontrada.' });

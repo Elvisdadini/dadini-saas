@@ -426,6 +426,17 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`. El acceso también está en el encabezado de **Ventas** y en el menú principal.
 - **APK 21.0.6** (`versionCode 7`): compilada con keystore nuevo y publicada en `/uploads/apk/DADINI-SaaS-21.0.6.apk` (archivo versionado en el repo, sobrevive a reinicios). Al cambiar la firma, quienes tenían la versión anterior deben desinstalar antes de instalar. La contraseña del keystore no se versiona: guárdala fuera del repo.
 
+### Permisos granulares en todo el sistema
+
+- El catálogo (`backend/src/permisos-detallados.js`) cubre todos los módulos con **Ver / Crear / Editar / Eliminar** y sub-funciones (descuentos, cobranzas, visitas, kardex, fiscal, sucursales, BI, CRM, demanda, integraciones, WhatsApp, etc.). Los permisos se asignan desde Administración → usuarios/permisos; los códigos nuevos no se otorgan por plantilla (solo admin/dueno pasan siempre).
+- Cada acción sensible está protegida en backend con `requirePermiso` (promociones, devoluciones, kardex, fiscal, integraciones, sucursales, caja, visitas, WhatsApp). `datos.ver_todos` controla la visión global: sin él, cada usuario ve únicamente sus propios registros (ventas, clientes, cobranzas, visitas), sin distracciones de compañeros.
+
+### Tablero interactivo y sugerencias AI
+
+- `/bi` incluye un **explorador interactivo**: `Ventas → Vendedores → Clientes → Productos → Descuentos → Visitas`, con filtros por período (7/30/90 días o rango personalizado) y navegación cada vez más profunda haciendo clic en cada fila. Las visitas muestran **asignadas / visitadas / compraron / no compraron** y su tasa de conversión.
+- El panel **Sugerencias para cumplir objetivos** (`POST /api/ia/sugerencias`) cruza metas mensuales, stock bajo, lotes por vencer ≤15 días, cuentas vencidas, conversión de visitas y descuentos. Funciona con reglas locales (sin créditos de OpenAI); el botón **Analizar con IA** solo reescribe el texto cuando hay API key con créditos, y nunca sustituye los datos calculados.
+- El endpoint `GET /api/bi/drilldown` respeta el alcance por usuario/sucursal: un vendedor nunca puede explorar las ventas de otro.
+
 ### Descuentos y bloqueo de actividades
 
 - Los descuentos aceptan **Bs o porcentaje** en el POS (`ventas.aplicar_descuento`). El servidor recalcula el monto y lo limita al subtotal; `configuracion.ventas.descuento_max_pct` fija el tope. Vendedores sin ese permiso no pueden descontar: el campo queda deshabilitado y la API responde 403 si intentan enviarlo. Supervisores solo pueden si el administrador les otorgó el permiso.

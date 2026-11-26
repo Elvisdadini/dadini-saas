@@ -1,6 +1,6 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { nextId, audit } = require('../utils');
 const { esCoordenaValida, distanciaKm } = require('../geo');
 const { subirFoto } = require('../fotos');
@@ -187,7 +187,7 @@ router.get('/agenda', (req, res) => {
 
 function round2Local(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 
-router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 'distribucion'), async (req, res) => {
+router.post('/', requirePermiso('visitas.crear'), allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 'distribucion'), async (req, res) => {
   const db = load();
   const body = req.body || {};
   if (!esCoordenaValida(body.latitud, body.longitud)) {
@@ -260,7 +260,7 @@ router.post('/', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 
   return res.status(201).json({ visita: enriquecer(db, visita) });
 });
 
-router.patch('/:id', allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 'distribucion'), (req, res) => {
+router.patch('/:id', requirePermiso('visitas.editar'), allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas', 'distribucion'), (req, res) => {
   const db = load();
   const visita = db.visitas.find((v) => v.id === Number(req.params.id));
   if (!visita) return res.status(404).json({ error: 'Visita no encontrada.' });

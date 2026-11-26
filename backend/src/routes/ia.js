@@ -27,6 +27,15 @@ router.get('/alertas', (req, res) => {
   res.json(ai.alertas());
 });
 
+router.post('/sugerencias', limiteIA, async (req, res) => {
+  try {
+    const resultado = await ai.sugerencias(req, { mejorar: req.body?.mejorar === true });
+    res.json(resultado);
+  } catch (error) {
+    res.status(502).json({ error: `No se pudieron calcular las sugerencias: ${error.message}` });
+  }
+});
+
 router.post('/chat', limiteIA, async (req, res) => {
   try {
     const resultado = await ai.chatear({

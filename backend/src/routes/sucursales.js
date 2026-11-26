@@ -1,6 +1,6 @@
 const express = require('express');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, requirePermiso } = require('../auth');
 const { audit, nextId, round2 } = require('../utils');
 const tenant = require('../tenant');
 
@@ -43,7 +43,7 @@ router.get('/mi', (req, res) => {
   });
 });
 
-router.post('/', allow('admin', 'dueno'), (req, res) => {
+router.post('/', requirePermiso('sucursales.crear'), allow('admin', 'dueno'), (req, res) => {
   const db = load();
   const nombre = String(req.body?.nombre || '').trim();
   if (!nombre) return res.status(400).json({ error: 'Indica el nombre de la sucursal.' });
@@ -63,7 +63,7 @@ router.post('/', allow('admin', 'dueno'), (req, res) => {
   return res.status(201).json({ ok: true, sucursal: publica(tenant.dbReal() || db, sucursal) });
 });
 
-router.put('/:id', allow('admin', 'dueno'), (req, res) => {
+router.put('/:id', requirePermiso('sucursales.editar'), allow('admin', 'dueno'), (req, res) => {
   const db = load();
   const sucursal = (db.sucursales || []).find((s) => s.id === Number(req.params.id));
   if (!sucursal) return res.status(404).json({ error: 'Sucursal no encontrada.' });
@@ -75,7 +75,7 @@ router.put('/:id', allow('admin', 'dueno'), (req, res) => {
   return res.json({ ok: true, sucursal });
 });
 
-router.post('/:id/usuarios', allow('admin', 'dueno'), (req, res) => {
+router.post('/:id/usuarios', requirePermiso('sucursales.editar'), allow('admin', 'dueno'), (req, res) => {
   const db = load();
   const real = tenant.dbReal() || db;
   const sucursal = (real.sucursales || []).find((s) => s.id === Number(req.params.id));
@@ -110,7 +110,7 @@ router.get('/importables', allow('admin', 'dueno'), (req, res) => {
   res.json({ origen_id: origen, entidades: opciones });
 });
 
-router.post('/:id/importar', (req, res) => {
+router.post('/:id/importar', requirePermiso('sucursales.migrar'), (req, res) => {
   if (req.user.rol !== 'dueno') return res.status(403).json({ error: 'Solo el dueño del sistema puede migrar datos entre sucursales.' });
   const db = tenant.dbReal() || load();
   const destino = Number(req.params.id);
