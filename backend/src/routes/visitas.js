@@ -31,7 +31,7 @@ function enriquecer(db, visita) {
 router.get('/', (req, res) => {
   const db = load();
   const { tipo, cliente_id, pedido_id, ruta_id, activas, limit, resultado, motivo, ruta_venta, dia_visita, usuario_id, distribuidor_id, desde, hasta } = req.query;
-  let visitas = [...db.visitas];
+  let visitas = require('../alcance').filtrar(req, db.visitas, ['usuario_id', 'distribuidor_id']);
   if (tipo && tipo !== 'todas') visitas = visitas.filter((v) => v.tipo === tipo);
   if (cliente_id) visitas = visitas.filter((v) => v.cliente_id === Number(cliente_id));
   if (pedido_id) visitas = visitas.filter((v) => v.pedido_id === Number(pedido_id));

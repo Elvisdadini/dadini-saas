@@ -118,11 +118,12 @@ function rangoFechas(desde, hasta) {
   return [inicio, fin];
 }
 
-function dashboard(db, periodo = '30d') {
+function dashboard(db, periodo = '30d', req = null) {
   const indices = buildIndices(db);
   const hoyISO = hoy();
   const ayerISO = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const ventas = db.pedidos.filter((p) => p.estado !== 'cancelado');
+  let ventas = db.pedidos.filter((p) => p.estado !== 'cancelado');
+  if (req) ventas = require('./alcance').filtrar(req, ventas, ['vendedor_id', 'repartidor_asignado_id', 'usuario_id']);
   const hoyVentas = ventas.filter((p) => fechaCorta(p.created_at) === hoyISO);
   const ayerVentas = ventas.filter((p) => fechaCorta(p.created_at) === ayerISO);
   const totalHoy = round2(hoyVentas.reduce((s, p) => s + p.total, 0));
@@ -243,13 +244,14 @@ function dashboard(db, periodo = '30d') {
   };
 }
 
-function reporte(db, desde, hasta) {
+function reporte(db, desde, hasta, req = null) {
   const indices = buildIndices(db);
   const [inicio, fin] = rangoFechas(desde, hasta);
-  const ventas = db.pedidos.filter((p) => {
+  let ventas = db.pedidos.filter((p) => {
     const f = fechaCorta(p.created_at);
     return p.estado !== 'cancelado' && f >= inicio && f <= fin;
   });
+  if (req) ventas = require('./alcance').filtrar(req, ventas, ['vendedor_id', 'repartidor_asignado_id', 'usuario_id']);
   const total = round2(ventas.reduce((s, p) => s + p.total, 0));
   const costo = round2(ventas.reduce((s, p) => s + (p.items || []).reduce((x, it) => x + (it.costo_unitario || 0) * it.cantidad, 0), 0));
   const porDiaMap = new Map();

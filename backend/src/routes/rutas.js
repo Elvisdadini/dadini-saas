@@ -191,7 +191,7 @@ function ajustarPedidoEntrega(db, pedido, itemsFinales, ruta, req) {
 router.get('/', (req, res) => {
   const db = load();
   const { fecha, estado, repartidor_id, desde, hasta } = req.query;
-  let rutas = db.rutas.map((r) => rutaResumen(db, r));
+  let rutas = require('../alcance').filtrar(req, db.rutas, ['repartidor_id', 'usuario_id', 'creado_por']).map((r) => rutaResumen(db, r));
   if (fecha) rutas = rutas.filter((r) => r.fecha === fecha);
   if (desde) rutas = rutas.filter((r) => r.fecha >= desde);
   if (hasta) rutas = rutas.filter((r) => r.fecha <= hasta);

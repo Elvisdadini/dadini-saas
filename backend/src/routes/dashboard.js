@@ -9,7 +9,7 @@ const router = express.Router();
 // un job en segundo plano (ver server.js) o POST /api/cobranzas/sincronizar.
 router.get('/', authRequired, (req, res) => {
   const db = load();
-  const data = dashboard(db, String(req.query.periodo || '30d'));
+  const data = dashboard(db, String(req.query.periodo || '30d'), req);
   const notificaciones = db.notificaciones.filter((n) => !n.leida);
   return res.json({ ...data, notificaciones });
 });

@@ -15,6 +15,9 @@ const CATALOGO = [
 
     ] },
     { base: 'clientes', etiqueta: 'Clientes', sub: [] },
+    { base: 'datos', etiqueta: 'Alcance de información', sub: [
+      { codigo: 'datos.ver_todos', etiqueta: 'Ver los registros de todos los usuarios' },
+    ] },
     { base: 'cambios', etiqueta: 'Cambios de producto', sub: [
       { codigo: 'cambios.confirmar', etiqueta: 'Verificar y confirmar el cambio desde distribución' },
     ] },

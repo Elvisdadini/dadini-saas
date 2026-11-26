@@ -28,6 +28,7 @@ router.get('/', (req, res) => {
   } else if (rol === 'ventas' || rol === 'preventista') {
     pedidos = pedidos.filter((p) => p.responsable_cobro_id === req.user.id && !p.en_mora);
   }
+  pedidos = require('../alcance').filtrar(req, pedidos, ['responsable_cobro_id', 'vendedor_id', 'usuario_id']);
   if (cliente_id) pedidos = pedidos.filter((p) => p.cliente_id === Number(cliente_id));
   if (vencidas === 'true') pedidos = pedidos.filter((p) => p.vencido);
   if (search) pedidos = pedidos.filter((p) => `${p.codigo} ${p.cliente_nombre}`.toLowerCase().includes(String(search).toLowerCase()));
@@ -52,7 +53,7 @@ router.get('/', (req, res) => {
     })
     .sort((a, b) => b.saldo - a.saldo);
 
-  const pagos = db.pagos
+  const pagos = require('../alcance').filtrar(req, db.pagos, ['usuario_id', 'responsable_cobro_id', 'vendedor_id'])
     .slice()
     .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
     .slice(0, 25)

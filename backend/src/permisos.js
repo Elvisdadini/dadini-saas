@@ -6,6 +6,7 @@ const MODULOS = [
   { codigo: 'venta_nueva', etiqueta: 'Nueva venta (POS)', grupo: 'Operación', descripcion: 'Registrar ventas en mostrador, ruta o WhatsApp' },
   { codigo: 'rutas_venta', etiqueta: 'Rutas y zonas de venta', grupo: 'Operación', descripcion: 'Crear rutas, zonas, días de visita y vendedores' },
   { codigo: 'clientes', etiqueta: 'Clientes', grupo: 'Operación', descripcion: 'Consultar y mantener la cartera de clientes' },
+  { codigo: 'datos', etiqueta: 'Alcance de información', grupo: 'General', descripcion: 'Permiso datos.ver_todos para ver registros de otros usuarios' },
   { codigo: 'mi_camion', etiqueta: 'Mi camión', grupo: 'Operación', descripcion: 'Stock, solicitudes y devoluciones del almacén móvil' },
   { codigo: 'cobranzas', etiqueta: 'Cobranzas', grupo: 'Operación', descripcion: 'Consultar cuentas por cobrar y registrar cobros' },
   { codigo: 'objetivos', etiqueta: 'Objetivos', grupo: 'Gestión', descripcion: 'Generar metas mensuales por vendedor' },
@@ -92,6 +93,7 @@ const PLANTILLAS = [
     descripcion: 'Supervisa ventas, objetivos, rentabilidad y reportes. Puede corregir, pero no eliminar.',
     permisos: [
       'dashboard',
+      'datos.ver_todos',
       ...expandir('ventas', ['ver', 'editar']),
       ...expandir('clientes', ['ver', 'editar']),
       ...expandir('rutas_venta', ['ver', 'editar']),
@@ -219,6 +221,7 @@ function asegurarEstructura(db) {
     // Migración suave: los usuarios ya creados no tienen los códigos del
     // módulo nuevo de cambios. Se agregan los que corresponden a su rol.
     const nuevos = permisosPorRol(u.rol).filter((c) => c === 'cambios' || c.startsWith('cambios.'));
+    if (u.rol === 'supervisor') nuevos.push('datos.ver_todos');
     const faltan = nuevos.filter((c) => !u.permisos.includes(c));
     if (faltan.length) { u.permisos = [...u.permisos, ...faltan]; cambio = true; }
     if (!u.usuario) {

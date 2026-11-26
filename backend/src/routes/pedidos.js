@@ -38,15 +38,17 @@ function setStock(db, productoId, almacenId, cantidad) {
 
 router.get('/', (req, res) => {
   const db = load();
-  const pedidos = buscarPedidos(db, req.query);
+  const alcance = require('../alcance');
+  const pedidos = alcance.filtrar(req, buscarPedidos(db, req.query), ['vendedor_id', 'repartidor_asignado_id', 'usuario_id']);
+  const propios = alcance.filtrar(req, db.pedidos, ['vendedor_id', 'repartidor_asignado_id', 'usuario_id']);
   const counts = {
-    todos: db.pedidos.length,
-    pendiente: db.pedidos.filter((p) => p.estado === 'pendiente').length,
-    preparando: db.pedidos.filter((p) => p.estado === 'preparando').length,
-    enviado: db.pedidos.filter((p) => p.estado === 'enviado').length,
-    entregado: db.pedidos.filter((p) => p.estado === 'entregado').length,
-    cancelado: db.pedidos.filter((p) => p.estado === 'cancelado').length,
-    por_cobrar: db.pedidos.filter((p) => p.saldo > 0 && p.estado !== 'cancelado').length,
+    todos: propios.length,
+    pendiente: propios.filter((p) => p.estado === 'pendiente').length,
+    preparando: propios.filter((p) => p.estado === 'preparando').length,
+    enviado: propios.filter((p) => p.estado === 'enviado').length,
+    entregado: propios.filter((p) => p.estado === 'entregado').length,
+    cancelado: propios.filter((p) => p.estado === 'cancelado').length,
+    por_cobrar: propios.filter((p) => p.saldo > 0 && p.estado !== 'cancelado').length,
   };
   return res.json({ pedidos, counts });
 });

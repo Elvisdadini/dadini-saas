@@ -15,7 +15,7 @@ function resumen(promo) {
 router.get('/', (req, res) => {
   const db = load();
   const { tipo, estado, search } = req.query;
-  let promos = db.promociones.map(resumen);
+  let promos = require('../alcance').filtrar(req, db.promociones, ['usuario_id']).map(resumen);
   if (tipo && tipo !== 'todas') promos = promos.filter((p) => p.tipo === tipo);
   if (estado === 'activas') promos = promos.filter((p) => p.activa);
   if (estado === 'inactivas') promos = promos.filter((p) => !p.activa);
@@ -93,6 +93,7 @@ router.post('/', allow('admin', 'ventas', 'almacen'), async (req, res) => {
     id: nextId(db.promociones),
     codigo: nextCode(db.promociones, 'codigo', 'PROM', 1),
     ...datos,
+    usuario_id: req.user.id,
     created_at: ahora,
     updated_at: ahora,
   };

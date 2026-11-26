@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, Filter, MapPin, Plus, Search, ShoppingCart, Target, Truck } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Eye, Filter, MapPin, Plus, Search, ShoppingCart, Target, Truck, Undo2 } from 'lucide-react';
 import { api, qs } from '../api';
 import { puede, useAuth } from '../auth';
 import { Badge, EmptyState, Estado, Fecha, Money, PageHeader, SkeletonRows, Tabs, useToast } from '../ui';
@@ -67,6 +67,7 @@ export default function Ventas() {
         actions={(
           <>
             <BotonExcel filas={pedidos} nombre="pedidos" columnas={['codigo', 'cliente_nombre', 'fecha', 'vendedor_nombre', 'canal', 'total', 'saldo', 'estado', 'estado_pago']} />
+            {puede(user, 'cambios') && <Link className="btn btn-soft" to="/cambios"><Undo2 size={14} /> Cambios de producto</Link>}
             {puede(user, 'objetivos') && <button className="btn btn-outline" onClick={() => navigate('/ventas/objetivos')}><Target size={14} /> Generar objetivos</button>}
             <button className="btn btn-navy" onClick={() => navigate('/ventas/agenda?iniciar=1')}><MapPin size={14} /> Iniciar ruta</button>
             <button className="btn btn-outline" onClick={() => navigate('/clientes')}><Search size={14} /> Clientes</button>

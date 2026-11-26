@@ -23,7 +23,7 @@ function resumen(db, d) {
 router.get('/', (req, res) => {
   const db = load();
   const { estado, tipo, fecha, desde, hasta } = req.query;
-  let items = db.devoluciones_movil.map((d) => resumen(db, d));
+  let items = require('../alcance').filtrar(req, db.devoluciones_movil, ['usuario_id', 'vendedor_id', 'repartidor_id']).map((d) => resumen(db, d));
   if (estado && estado !== 'todos') items = items.filter((d) => d.estado === estado);
   if (tipo && tipo !== 'todos') items = items.filter((d) => d.tipo === tipo);
   if (fecha) items = items.filter((d) => String(d.fecha).slice(0, 10) === fecha);

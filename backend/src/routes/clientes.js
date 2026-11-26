@@ -28,6 +28,7 @@ router.get('/', (req, res) => {
       ultima_compra: pedidos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]?.created_at || null,
     };
   });
+  clientes = require('../alcance').filtrar(req, clientes, ['vendedor_id', 'usuario_id', 'creado_por']);
   if (tipo && tipo !== 'todos') clientes = clientes.filter((c) => c.tipo === tipo);
   if (zona && zona !== 'todas') clientes = clientes.filter((c) => c.zona === zona);
   if (con_saldo === 'true') clientes = clientes.filter((c) => c.saldo > 0);

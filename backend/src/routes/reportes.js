@@ -9,7 +9,7 @@ router.use(authRequired);
 
 router.get('/', (req, res) => {
   const db = load();
-  return res.json(reporte(db, req.query.desde, req.query.hasta));
+  return res.json(reporte(db, req.query.desde, req.query.hasta, req));
 });
 
 router.get('/export', (req, res) => {

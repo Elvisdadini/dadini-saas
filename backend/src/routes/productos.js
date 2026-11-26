@@ -59,7 +59,7 @@ router.get('/', (req, res) => {
 router.get('/movimientos', (req, res) => {
   const db = load();
   const { producto_id, tipo, almacen_id, desde, hasta, limit } = req.query;
-  let movimientos = db.movimientos.map((m) => {
+  let movimientos = require('../alcance').filtrar(req, db.movimientos, ['usuario_id']).map((m) => {
     const producto = db.productos.find((p) => p.id === m.producto_id);
     const almacen = db.almacenes.find((a) => a.id === m.almacen_id);
     const usuario = db.usuarios.find((u) => u.id === m.usuario_id);
