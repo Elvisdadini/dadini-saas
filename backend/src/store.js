@@ -141,7 +141,17 @@ async function guardar(db) {
     await cliente.query('BEGIN');
     for (const entidad of ENTIDADES) {
       await cliente.query(`TRUNCATE TABLE ${ESQUEMA}.${entidad}`);
-      const filas = db[entidad] || [];
+      // Un restore o una importación puede dejar IDs repetidos en memoria.
+      // Se normaliza antes de insertar para no tumbar el arranque con 23505.
+      const porId = new Map();
+      let siguiente = (db[entidad] || []).reduce((m, f) => Math.max(m, Number(f.id) || 0), 0) + 1;
+      (db[entidad] || []).forEach((fila) => {
+        let id = Number(fila.id) || 0;
+        if (!id || porId.has(id)) id = siguiente++;
+        porId.set(id, { ...fila, id });
+      });
+      const filas = [...porId.values()];
+      db[entidad] = filas;
       if (filas.length) {
         await cliente.query(
           `INSERT INTO ${ESQUEMA}.${entidad} (id, datos)
