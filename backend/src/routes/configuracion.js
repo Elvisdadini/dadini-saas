@@ -55,7 +55,7 @@ router.get('/', (req, res) => {
 
 router.put('/', allow(), (req, res) => {
   const db = load();
-  const { empresa, plan, credito, planes, descuentos_globales, cobranza, branding, reposicion, rutas: cfgRutas } = req.body || {};
+  const { empresa, plan, credito, planes, descuentos_globales, cobranza, branding, reposicion, rutas: cfgRutas, apk } = req.body || {};
   if (empresa) {
     const campos = ['nombre', 'slogan', 'nit', 'direccion', 'telefono', 'email', 'ciudad', 'pais', 'moneda', 'horario'];
     campos.forEach((c) => { if (empresa[c] !== undefined) db.configuracion.empresa[c] = empresa[c]; });
@@ -83,6 +83,7 @@ router.put('/', allow(), (req, res) => {
       if (db.configuracion.reposicion[c] !== undefined) db.configuracion.reposicion[c] = num(db.configuracion.reposicion[c]);
     });
   }
+  if (apk) db.configuracion.apk = { ...(db.configuracion.apk || {}), ...apk };
   if (branding) {
     db.configuracion.branding = {
       ...(db.configuracion.branding || {}),
