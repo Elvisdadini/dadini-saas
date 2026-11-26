@@ -15,6 +15,7 @@ const { buildIndices, porId } = require('../indexes');
 const { tienePermiso } = require('../permisos');
 const { requireActividad } = require('../actividades');
 const horario = require('../horario');
+const requireHorarioVentas = horario.requireHorarioVentas;
 
 const DOCUMENTOS_ENTREGA = ['factura_siat', 'comprobante_entrega'];
 

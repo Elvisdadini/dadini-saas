@@ -4,6 +4,15 @@ const { TODOS, permisosUsuario, tienePermiso } = require('../src/permisos');
 const { limpiar } = require('../src/auth');
 const horario = require('../src/horario');
 
+test('todas las rutas cargan sin errores de inicialización', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const dir = path.join(__dirname, '..', 'src', 'routes');
+  fs.readdirSync(dir).filter((f) => f.endsWith('.js')).forEach((f) => {
+    assert.doesNotThrow(() => require(path.join(dir, f)), `No se pudo cargar ${f}`);
+  });
+});
+
 test('techo por rol: un preventista con todos los códigos no puede exceder su puesto', () => {
   const permisos = permisosUsuario({ rol: 'preventista', permisos: [...TODOS] });
   for (const codigo of ['rentabilidad', 'finanzas.ver_margenes', 'inventario.ver_costos',

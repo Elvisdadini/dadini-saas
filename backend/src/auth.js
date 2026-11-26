@@ -23,8 +23,9 @@ function verify(token) {
 // ni supervisores. El filtro se aplica a TODA respuesta JSON de la API, así
 // la APK ( mismo SPA ) y la web reciben exactamente los mismos datos.
 const OCULTOS = {
-  'finanzas.ver_margenes': ['margen', 'margen_bruto', 'utilidad', 'utilidad_neta', 'utilidad_porcentaje',
-    'rentabilidad', 'ganancia', 'ganancia_neta', 'costo_ventas', 'capital_total', 'capital_almacenes', 'capital_movil'],
+  'finanzas.ver_margenes': ['margen', 'margen_bruto', 'margen_periodo', 'margen_total', 'utilidad',
+    'utilidad_bruta', 'utilidad_neta', 'utilidad_porcentaje', 'rentabilidad', 'ganancia', 'ganancia_bruta',
+    'ganancia_neta', 'costo_ventas', 'capital_total', 'capital_almacenes', 'capital_movil'],
   'inventario.ver_costos': ['costo', 'costo_unitario', 'costo_total', 'valor_inventario'],
 };
 
