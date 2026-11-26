@@ -497,7 +497,6 @@ function GlobalSearch({ user, puede, navigate }) {
         e.preventDefault();
         setVisible(true);
         setOpen(true);
-        window.requestAnimationFrame(() => inputRef.current?.focus());
       }
       if (e.key === 'Escape') { setOpen(false); setVisible(false); inputRef.current?.blur(); }
     };
@@ -508,6 +507,8 @@ function GlobalSearch({ user, puede, navigate }) {
       document.removeEventListener('keydown', onKey);
     };
   }, []);
+
+  useEffect(() => { if (visible) inputRef.current?.focus(); }, [visible]);
 
   useEffect(() => {
     if (!term.trim()) { setResults({ productos: [], clientes: [] }); return; }
