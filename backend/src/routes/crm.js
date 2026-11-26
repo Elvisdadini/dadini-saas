@@ -34,6 +34,12 @@ router.get('/clientes/:id', (req, res) => {
 
 router.post('/clientes/:id/notas', allow(...EDITAR), (req, res) => {
   const db = load();
+  const cliente = (db.clientes || []).find((c) => c.id === Number(req.params.id));
+  if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
+  if (!['admin', 'dueno', 'supervisor', 'cobranzas'].includes(req.user.rol)
+    && Number(cliente.vendedor_id) !== Number(req.user.id)) {
+    return res.status(403).json({ error: 'Solo puedes gestionar los clientes que se te asignaron.' });
+  }
   try {
     const nota = crm.agregarNota(db, req.params.id, req.body, req.user.id);
     audit(db, req, 'Nota CRM agregada', 'Clientes', `Cliente ${nota.cliente_id} · ${nota.tipo}`);

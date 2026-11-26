@@ -47,6 +47,7 @@ const Administracion = lazy(() => import('./pages/Administracion'));
 const Sucursales = lazy(() => import('./pages/Sucursales'));
 const Demanda = lazy(() => import('./pages/Demanda'));
 const BIRol = lazy(() => import('./pages/BIRol'));
+const Cambios = lazy(() => import('./pages/Cambios'));
 const RutasVenta = lazy(() => import('./pages/RutasVenta'));
 const Permisos = lazy(() => import('./pages/Permisos'));
 
@@ -86,6 +87,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="bi" element={<BIRol />} />
             <Route path="ventas" element={<Guard module="ventas"><Ventas /></Guard>} />
+            <Route path="cambios" element={<Guard module="cambios"><Cambios /></Guard>} />
             <Route path="ventas/nueva" element={<Guard module="venta_nueva"><VentaNueva /></Guard>} />
             <Route path="ventas/preparado" element={<Navigate to="/inventario/preparado" replace />} />
             <Route path="inventario/preparado" element={<Guard module="inventario"><PreparadoCarga /></Guard>} />

@@ -40,6 +40,7 @@ export const PERMISOS = {
   inventario: ['admin', 'almacen'],
   catalogo: ['admin', 'dueno', 'almacen', 'supervisor', 'ventas', 'preventista', 'vendedor_camion', 'cobranzas', 'distribucion'],
   distribucion: ['admin', 'distribucion', 'ventas', 'preventista'],
+  cambios: ['admin', 'dueno', 'supervisor', 'ventas', 'preventista', 'vendedor_camion', 'distribucion'],
   reportes: ['admin', 'dueno', 'supervisor', 'preventista'],
   administracion: ['admin', 'dueno'],
   dueno: ['dueno'],

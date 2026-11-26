@@ -72,6 +72,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/sucursales', require('./routes/sucursales'));
 app.use('/api/integraciones', require('./routes/integraciones'));
 app.use('/api/importacion', require('./routes/importacion'));
+app.use('/api/cambios', require('./routes/cambios'));
 app.use('/api/public/v1', require('./routes/public-v1'));
 app.use('/api/demanda', require('./routes/demanda'));
 app.use('/api/rag', require('./routes/rag'));

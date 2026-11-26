@@ -9,6 +9,13 @@ const { asignarCliente, distribuidorDeVendedor, tiposClienteOrdenados } = requir
 const router = express.Router();
 router.use(authRequired);
 
+// Todos pueden VER clientes; solo supervisión/cobranzas o el vendedor
+// asignado pueden modificarlos.
+function puedeGestionar(req, cliente) {
+  if (['admin', 'dueno', 'supervisor', 'cobranzas'].includes(req.user.rol)) return true;
+  return Number(cliente.vendedor_id) === Number(req.user.id);
+}
+
 router.get('/', (req, res) => {
   const db = load();
   const { search, tipo, zona, con_saldo, ruta_venta, dia_visita, agenda, categoria_cliente_id, vendedor_id, solo_mios } = req.query;
@@ -143,6 +150,7 @@ router.patch('/:id/bloqueo', allow('admin', 'dueno', 'cobranzas'), (req, res) =>
   const db = load();
   const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
+  if (!puedeGestionar(req, cliente)) return res.status(403).json({ error: 'Solo puedes gestionar los clientes que se te asignaron.' });
   const activar = req.body?.activo !== false;
   cliente.activo = activar;
   cliente.bloqueado_por_deuda = activar ? false : Boolean(req.body?.por_deuda);
@@ -295,6 +303,7 @@ router.put('/:id', requirePermiso('clientes_editar'), allow('ventas', 'preventis
   const db = load();
   const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
+  if (!puedeGestionar(req, cliente)) return res.status(403).json({ error: 'Solo puedes gestionar los clientes que se te asignaron.' });
   const campos = ['nombre', 'tipo', 'zona', 'direccion', 'telefono', 'whatsapp', 'email', 'contacto', 'notas', 'activo'];
   campos.forEach((c) => { if (req.body?.[c] !== undefined) cliente[c] = req.body[c]; });
   if (req.body?.limite_credito !== undefined) cliente.limite_credito = num(req.body.limite_credito);
@@ -317,6 +326,7 @@ router.delete('/:id', allow(), (req, res) => {
   const db = load();
   const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
+  if (!puedeGestionar(req, cliente)) return res.status(403).json({ error: 'Solo puedes gestionar los clientes que se te asignaron.' });
   if (cliente.saldo > 0) return res.status(400).json({ error: 'No se puede desactivar un cliente con saldo pendiente.' });
   cliente.activo = false;
   audit(db, req, 'Cliente desactivado', 'Clientes', cliente.nombre);

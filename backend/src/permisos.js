@@ -14,6 +14,7 @@ const MODULOS = [
   { codigo: 'inventario', etiqueta: 'Inventario', grupo: 'Catálogo', descripcion: 'Productos, stock, promociones y almacenes móviles' },
   { codigo: 'catalogo', etiqueta: 'Catálogo', grupo: 'Catálogo', descripcion: 'Generar y compartir catálogos PDF' },
   { codigo: 'distribucion', etiqueta: 'Distribución', grupo: 'Logística', descripcion: 'Programar rutas y controlar entregas' },
+  { codigo: 'cambios', etiqueta: 'Cambios de producto', grupo: 'Operación', descripcion: 'Registrar cambios con foto y razón, y confirmarlos desde distribución' },
   { codigo: 'reportes', etiqueta: 'Reportes', grupo: 'Análisis', descripcion: 'Consultar reportes mensuales y exportar' },
   { codigo: 'administracion', etiqueta: 'Administración', grupo: 'Sistema', descripcion: 'Usuarios, roles, permisos y auditoría' },
   { codigo: 'dueno', etiqueta: 'Panel del dueño', grupo: 'Sistema', descripcion: 'Indicadores ejecutivos de la empresa' },
@@ -51,6 +52,7 @@ const PLANTILLAS = [
       ...expandir('objetivos', ['ver'], ['objetivos.ver_mios']),
       ...expandir('cobranzas', ['ver', 'crear'], ['cobranzas.registrar', 'cobranzas.mis_comprobantes']),
       ...expandir('catalogo', ['ver'], ['catalogo.ver', 'catalogo.compartir_whatsapp']),
+      ...expandir('cambios', ['ver', 'crear']),
       ...expandir('reportes', ['ver'], ['reportes.consultar_exportar', 'reportes.ver_diarios_ventas', 'reportes.ver_diarios_clientes']),
     ],
   },
@@ -63,6 +65,7 @@ const PLANTILLAS = [
       ...expandir('clientes', ['ver']),
       ...expandir('rutas_venta', ['ver']),
       ...expandir('distribucion', ['ver', 'crear', 'editar'], ['distribucion.registrar_entregas']),
+      ...expandir('cambios', ['ver', 'editar'], ['cambios.confirmar']),
       ...expandir('catalogo', ['ver'], ['catalogo.ver']),
       ...expandir('reportes', ['ver'], ['reportes.ver_diarios_entregas']),
     ],
@@ -95,6 +98,7 @@ const PLANTILLAS = [
       ...expandir('objetivos', ['ver', 'crear', 'editar']),
       ...expandir('cobranzas', ['ver']),
       ...expandir('distribucion', ['ver']),
+      ...expandir('cambios', ['ver', 'editar', 'eliminar']),
       ...expandir('rentabilidad', ['ver']),
       ...expandir('devoluciones', ['ver'], ['devoluciones.reportes_mios']),
       ...expandir('catalogo', ['ver'], ['catalogo.ver']),
@@ -110,6 +114,7 @@ const PLANTILLAS = [
       ...expandir('clientes', ['ver', 'crear']),
       ...expandir('mi_camion', ['ver', 'crear'], ['mi_camion.realizar_ventas']),
       ...expandir('catalogo', ['ver'], ['catalogo.ver', 'catalogo.compartir_whatsapp']),
+      ...expandir('cambios', ['ver', 'crear']),
       ...expandir('cobranzas', ['ver']),
     ],
   },
@@ -175,7 +180,7 @@ function tienePermiso(usuario, codigo) {
 // Agrega las colecciones nuevas y los permisos de los usuarios ya creados.
 function asegurarEstructura(db) {
   let cambio = false;
-  ['zonas', 'tipos_cliente', 'rutas_venta', 'producto_categorias', 'producto_marcas', 'conteos_inventario', 'qrs_pago', 'notificaciones', 'cajas', 'movimientos_caja', 'lotes', 'kardex', 'notas_fiscales', 'crm_notas', 'documentos_rag', 'api_tokens', 'webhooks', 'webhook_entregas'].forEach((clave) => {
+  ['zonas', 'tipos_cliente', 'rutas_venta', 'producto_categorias', 'producto_marcas', 'conteos_inventario', 'qrs_pago', 'notificaciones', 'cajas', 'movimientos_caja', 'lotes', 'kardex', 'notas_fiscales', 'crm_notas', 'documentos_rag', 'api_tokens', 'webhooks', 'webhook_entregas', 'cambios_producto'].forEach((clave) => {
     if (!Array.isArray(db[clave])) { db[clave] = []; cambio = true; }
   });
   const ahora = new Date().toISOString();
@@ -211,6 +216,11 @@ function asegurarEstructura(db) {
   if (!db.configuracion) { db.configuracion = {}; cambio = true; }
   (db.usuarios || []).forEach((u) => {
     if (!Array.isArray(u.permisos)) { u.permisos = permisosPorRol(u.rol); cambio = true; }
+    // Migración suave: los usuarios ya creados no tienen los códigos del
+    // módulo nuevo de cambios. Se agregan los que corresponden a su rol.
+    const nuevos = permisosPorRol(u.rol).filter((c) => c === 'cambios' || c.startsWith('cambios.'));
+    const faltan = nuevos.filter((c) => !u.permisos.includes(c));
+    if (faltan.length) { u.permisos = [...u.permisos, ...faltan]; cambio = true; }
     if (!u.usuario) {
       const base = String(u.email || u.nombre || 'usuario').split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'usuario';
       let candidato = base;

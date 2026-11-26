@@ -15,6 +15,9 @@ const CATALOGO = [
 
     ] },
     { base: 'clientes', etiqueta: 'Clientes', sub: [] },
+    { base: 'cambios', etiqueta: 'Cambios de producto', sub: [
+      { codigo: 'cambios.confirmar', etiqueta: 'Verificar y confirmar el cambio desde distribución' },
+    ] },
     { base: 'rutas_venta', etiqueta: 'Rutas y zonas de Venta', sub: [] },
     { base: 'objetivos', etiqueta: 'Generar objetivos', sub: [
       { codigo: 'objetivos.ver_mios', etiqueta: 'Visualizar los detalles de tus objetivos' },

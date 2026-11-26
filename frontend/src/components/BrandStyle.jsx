@@ -13,14 +13,26 @@ const VALORES = {
 export default function BrandStyle() {
   const { branding } = useAuth();
   useEffect(() => {
-    if (!branding || !Object.keys(branding).length) return;
+    if (!branding || !Object.keys(branding).length) return undefined;
     const raiz = document.documentElement;
-    Object.entries(VALORES).forEach(([clave, variable]) => {
-      const valor = branding[clave];
-      if (valor !== undefined && valor !== null && valor !== '') {
-        raiz.style.setProperty(variable, clave === 'radio' ? `${valor}px` : valor);
-      }
-    });
+    const aplicar = () => {
+      const oscuro = raiz.dataset.theme === 'oscuro';
+      Object.entries(VALORES).forEach(([clave, variable]) => {
+        // El color de fondo de la marca es claro; en modo oscuro no debe
+        // sobrescribir la variable --bg del tema (un estilo inline gana a CSS).
+        if (oscuro && variable === '--bg') {
+          raiz.style.removeProperty('--bg');
+          return;
+        }
+        const valor = branding[clave];
+        if (valor !== undefined && valor !== null && valor !== '') {
+          raiz.style.setProperty(variable, clave === 'radio' ? `${valor}px` : valor);
+        }
+      });
+    };
+    aplicar();
+    window.addEventListener('dadini:tema', aplicar);
+    return () => window.removeEventListener('dadini:tema', aplicar);
   }, [branding]);
   return null;
 }

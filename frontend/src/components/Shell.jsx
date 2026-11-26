@@ -27,6 +27,7 @@ const NAV = [
       { to: '/ventas/zonas-mapa', label: 'Mapa de zonas', icon: Crosshair, key: 'rutas_venta' },
       { to: '/ventas/objetivos', label: 'Generar objetivos', icon: Target, key: 'objetivos' },
       { to: '/mi-camion', label: 'Mi camión', icon: Truck, key: 'mi_camion', roles: ['vendedor_camion', 'admin', 'dueno'] },
+      { to: '/cambios', label: 'Cambios de producto', icon: Undo2, key: 'cambios' },
       { to: '/clientes', label: 'Clientes', icon: Users, key: 'clientes' },
       { to: '/clientes/categorias', label: 'Categorías', icon: Tag, key: 'clientes' },
       { to: '/cobranzas', label: 'Cobranzas', labelVendedor: 'Mis créditos', icon: Wallet, key: 'cobranzas', alert: 'vencidas' },
@@ -87,6 +88,7 @@ const PAGE_TITLES = {
   '/ventas/objetivos': ['Generar objetivos', 'Metas mensuales'],
   '/mi-camion': ['Mi camión', 'Stock, solicitudes y devoluciones'],
   '/clientes': ['Clientes', 'Cartera comercial'],
+  '/cambios': ['Cambios de producto', 'Registro y verificación por distribución'],
   '/clientes/categorias': ['Categorías de clientes', 'Descuentos y precios'],
   '/cobranzas': ['Cobranzas', 'Cuentas por cobrar'],
   '/caja': ['Caja y arqueo', 'Apertura, movimientos y cierre'],
@@ -151,6 +153,7 @@ export default function Shell({ children }) {
   useEffect(() => {
     document.documentElement.dataset.theme = tema;
     localStorage.setItem('dadini_tema', tema);
+    window.dispatchEvent(new CustomEvent('dadini:tema'));
   }, [tema]);
 
   useEffect(() => {

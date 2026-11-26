@@ -10,7 +10,7 @@ const ENTIDADES = [
   'cliente_categorias', 'zonas', 'tipos_cliente', 'rutas_venta', 'sucursales', 'cajas', 'movimientos_caja', 'lotes', 'kardex', 'notas_fiscales', 'crm_notas', 'documentos_rag', 'almacenes_moviles', 'solicitudes_carga', 'devoluciones_movil',
   'objetivos_mensuales', 'confirmaciones_carga',
   'proveedores', 'tipos_gasto', 'solicitudes_compra', 'ordenes_compra', 'gastos', 'pagos_proveedor',
-  'api_tokens', 'webhooks', 'webhook_entregas',
+  'api_tokens', 'webhooks', 'webhook_entregas', 'cambios_producto',
   'boletas_pago', 'conceptos_nomina', 'producto_categorias', 'producto_marcas', 'conteos_inventario', 'qrs_pago',
 ];
 

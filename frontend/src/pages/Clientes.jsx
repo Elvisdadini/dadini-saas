@@ -365,7 +365,7 @@ export default function Clientes() {
                     <td className="nowrap">{c.ultima_compra ? <Fecha value={c.ultima_compra} short /> : '—'}</td>
                     <td className="actions">
                       <button className="icon-btn" title="Ver ficha" onClick={(e) => { e.stopPropagation(); verDetalle(c); }}><Eye size={15} /></button>
-                      {puedeEditar && <button className="icon-btn" title="Editar" onClick={(e) => { e.stopPropagation(); abrirEditar(c); }}><Pencil size={14} /></button>}
+                      {puedeEditar && (['admin', 'dueno', 'supervisor'].includes(user?.rol) || Number(c.vendedor_id) === Number(user?.id)) && <button className="icon-btn" title="Editar" onClick={(e) => { e.stopPropagation(); abrirEditar(c); }}><Pencil size={14} /></button>}
                     </td>
                   </tr>
                 ))}

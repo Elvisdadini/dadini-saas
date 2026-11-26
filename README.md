@@ -414,6 +414,14 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - **Onboarding guiado** de 5 pasos al primer ingreso (demanda, BI por rol, CRM, sucursales y asistente), omitible y recordado. Los módulos nuevos incluyen tooltips en sus acciones principales.
 - **Exportar a Excel** desde cualquier listado principal (clientes, productos, pedidos, cartera y proveedores) con `xlsx` cargado de forma diferida; se descarga `.xlsx` con columnas ya normalizadas.
 - **Ver cliente 360°** desde el detalle de cualquier pedido: abre el CRM centrado en ese cliente con su RFM, historial y notas.
+- **Modo oscuro**: la marca ya no fuerza el fondo claro con estilo inline al activar el tema oscuro.
+
+### Clientes, permisos y cambios de producto
+
+- Todos los roles con acceso a Clientes pueden **ver** toda la cartera; solo administración, dueño, supervisor y cobranzas, o el **vendedor asignado**, pueden editar, bloquear, desactivar o añadir notas CRM. El backend devuelve 403 si el cliente no está asignado al vendedor.
+- Nuevo módulo **Cambios de producto** (`/cambios`): el vendedor registra el producto con detalle, cantidad, razón (defecto, vencimiento corto, baja rotación o producto incorrecto), detalle y **foto**. Distribución ve los pendientes, confirma que el **producto bueno entregado coincide** con el registrado (el backend rechaza la confirmación si no coincide) o rechaza con motivo. Cada confirmación deja movimientos de trazabilidad; el producto con detalle **no vuelve al stock vendible**.
+- Permisos en cascada: `cambios.ver/crear/editar/eliminar` y `cambios.confirmar`, con plantillas por rol y migración suave para usuarios ya creados. Vendedores: ver+crear; distribución: ver+editar+confirmar; supervisor: ver+editar+eliminar; admin/dueno: todos.
+- Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`.
 
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
