@@ -10,6 +10,7 @@
     "seed": "node --env-file-if-exists=.env src/reset.js",
     "preparar:produccion": "node --env-file-if-exists=.env src/preparar-produccion.js",
     "migrar:pg": "node --env-file-if-exists=.env scripts/migrar-json-a-postgres.js",
+    "importar:operacion": "node --env-file-if-exists=.env scripts/importar-operacion.js",
     "test": "node --test test/*.test.js && node --check src/server.js && node --check src/db.js && node --check src/store.js && node --check src/seed.js"
   },
   "dependencies": {
