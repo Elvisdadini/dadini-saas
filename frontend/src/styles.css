@@ -1064,7 +1064,7 @@ button.sidebar-brand:focus-visible { box-shadow: inset 0 0 0 2px var(--orange); 
 }
 
 /* Modo oscuro */
-[data-theme='dark'] {
+[data-theme='oscuro'] {
   --bg: #0b1522;
   --surface: #122033;
   --surface-2: #16283e;
@@ -1082,21 +1082,21 @@ button.sidebar-brand:focus-visible { box-shadow: inset 0 0 0 2px var(--orange); 
   --shadow-sm: 0 1px 2px rgba(0,0,0,.25);
   --shadow: 0 8px 28px rgba(0,0,0,.35);
 }
-[data-theme='dark'] body { background: var(--bg); color: var(--text); }
-[data-theme='dark'] .sidebar, [data-theme='dark'] .topbar,
-[data-theme='dark'] .panel, [data-theme='dark'] .card,
-[data-theme='dark'] .stat-card, [data-theme='dark'] .modal,
-[data-theme='dark'] .dropdown, [data-theme='dark'] .search-panel,
-[data-theme='dark'] .notice, [data-theme='dark'] .summary-box,
-[data-theme='dark'] .mini-stat, [data-theme='dark'] .preview-box {
+[data-theme='oscuro'] body { background: var(--bg); color: var(--text); }
+[data-theme='oscuro'] .sidebar, [data-theme='oscuro'] .topbar,
+[data-theme='oscuro'] .panel, [data-theme='oscuro'] .card,
+[data-theme='oscuro'] .stat-card, [data-theme='oscuro'] .modal,
+[data-theme='oscuro'] .dropdown, [data-theme='oscuro'] .search-panel,
+[data-theme='oscuro'] .notice, [data-theme='oscuro'] .summary-box,
+[data-theme='oscuro'] .mini-stat, [data-theme='oscuro'] .preview-box {
   background: var(--surface); color: var(--text);
 }
-[data-theme='dark'] .input, [data-theme='dark'] .select, [data-theme='dark'] .textarea {
+[data-theme='oscuro'] .input, [data-theme='oscuro'] .select, [data-theme='oscuro'] .textarea {
   background: var(--surface-2); color: var(--text); border-color: var(--line);
 }
-[data-theme='dark'] .data-table th { background: var(--surface-2); color: var(--muted); }
-[data-theme='dark'] .data-table td, [data-theme='dark'] .data-table tbody tr:hover { color: var(--text); }
-[data-theme='dark'] .data-table tbody tr:hover { background: var(--surface-2); }
-[data-theme='dark'] .btn-ghost, [data-theme='dark'] .chip { color: var(--text); }
-[data-theme='dark'] .chip.active { background: var(--orange-soft); }
-[data-theme='dark'] .login-page { background: var(--bg); }
+[data-theme='oscuro'] .data-table th { background: var(--surface-2); color: var(--muted); }
+[data-theme='oscuro'] .data-table td, [data-theme='oscuro'] .data-table tbody tr:hover { color: var(--text); }
+[data-theme='oscuro'] .data-table tbody tr:hover { background: var(--surface-2); }
+[data-theme='oscuro'] .btn-ghost, [data-theme='oscuro'] .chip { color: var(--text); }
+[data-theme='oscuro'] .chip.active { background: var(--orange-soft); }
+[data-theme='oscuro'] .login-page { background: var(--bg); }
