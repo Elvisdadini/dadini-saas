@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { TODOS, permisosUsuario, tienePermiso } = require('../src/permisos');
+const { TODOS, CODIGOS_DETALLADOS, TECHO_POR_ROL, permisosUsuario, tienePermiso } = require('../src/permisos');
 const { limpiar } = require('../src/auth');
 const horario = require('../src/horario');
 
@@ -11,6 +11,25 @@ test('todas las rutas cargan sin errores de inicialización', () => {
   fs.readdirSync(dir).filter((f) => f.endsWith('.js')).forEach((f) => {
     assert.doesNotThrow(() => require(path.join(dir, f)), `No se pudo cargar ${f}`);
   });
+});
+
+test('Mi reporte existe para vendedores, distribución y cobranzas, y no para almacén ni supervisión', () => {
+  assert.equal(TODOS.includes('mi_reporte'), true, 'mi_reporte debe ser un módulo válido');
+  const esperados = ['mi_reporte.ver', 'mi_reporte.crear', 'mi_reporte.editar', 'mi_reporte.eliminar',
+    'mi_reporte.ver_ventas', 'mi_reporte.ver_objetivo', 'mi_reporte.ver_entregas',
+    'mi_reporte.ver_cobranzas', 'mi_reporte.ver_devoluciones'];
+  esperados.forEach((c) => assert.equal(CODIGOS_DETALLADOS.includes(c), true, `${c} debe estar en el catálogo`));
+  ['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'].forEach((rol) => {
+    assert.equal(TECHO_POR_ROL[rol].includes('mi_reporte'), true, `${rol} debe tener Mi reporte`);
+  });
+  ['almacen', 'supervisor'].forEach((rol) => {
+    assert.equal(TECHO_POR_ROL[rol].includes('mi_reporte'), false, `${rol} no debe tener Mi reporte`);
+  });
+  const almacen = permisosUsuario({ rol: 'almacen', permisos: [...TODOS] });
+  assert.equal(almacen.includes('mi_reporte'), false);
+  const vendedor = permisosUsuario({ rol: 'preventista', permisos: [...TODOS] });
+  assert.equal(vendedor.includes('mi_reporte'), true);
+  assert.equal(tienePermiso({ rol: 'preventista', permisos: vendedor }, 'mi_reporte.ver_ventas'), true);
 });
 
 test('techo por rol: un preventista con todos los códigos no puede exceder su puesto', () => {

@@ -56,6 +56,7 @@ export const PERMISOS = {
   logistica: ['admin', 'dueno', 'supervisor', 'distribucion'],
   reportes_automaticos: ['admin', 'dueno', 'supervisor'],
   reportes: ['admin', 'dueno', 'supervisor', 'preventista'],
+  mi_reporte: ['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'],
   administracion: ['admin', 'dueno'],
   dueno: ['dueno'],
 };

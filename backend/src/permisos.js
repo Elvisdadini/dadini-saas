@@ -17,6 +17,7 @@ const MODULOS = [
   { codigo: 'distribucion', etiqueta: 'Distribución', grupo: 'Logística', descripcion: 'Programar rutas y controlar entregas' },
   { codigo: 'cambios', etiqueta: 'Cambios de producto', grupo: 'Operación', descripcion: 'Registrar cambios con foto y razón, y confirmarlos desde distribución' },
   { codigo: 'reportes', etiqueta: 'Reportes', grupo: 'Análisis', descripcion: 'Consultar reportes mensuales y exportar' },
+  { codigo: 'mi_reporte', etiqueta: 'Mi reporte', grupo: 'Análisis', descripcion: 'Reporte diario y mensual exclusivo de mis resultados' },
   { codigo: 'administracion', etiqueta: 'Administración', grupo: 'Sistema', descripcion: 'Usuarios, roles, permisos y auditoría' },
   { codigo: 'dueno', etiqueta: 'Panel del dueño', grupo: 'Sistema', descripcion: 'Indicadores ejecutivos de la empresa' },
 ];
@@ -39,6 +40,14 @@ const { CATALOGO, CRUD, CODIGOS_DETALLADOS, expandir } = require('./permisos-det
 
 const TODOS = [...new Set([...[...MODULOS, ...ACCIONES].map((p) => p.codigo), ...CODIGOS_DETALLADOS])];
 
+// Solo vendedores, distribuidores y cobranzas pueden consultar su propio
+// reporte. Nunca se otorga a almacén ni a supervisión por plantilla.
+const SUB_MI_REPORTE = [
+  'mi_reporte.ver_ventas', 'mi_reporte.ver_objetivo', 'mi_reporte.ver_entregas',
+  'mi_reporte.ver_cobranzas', 'mi_reporte.ver_devoluciones',
+];
+const PERMISOS_MI_REPORTE = expandir('mi_reporte', ['ver'], SUB_MI_REPORTE);
+
 // Modelos listos para seleccionar al crear un usuario. Cada modelo otorga
 // solamente las funciones que corresponden a ese puesto.
 const PLANTILLAS = [
@@ -55,6 +64,7 @@ const PLANTILLAS = [
       ...expandir('catalogo', ['ver'], ['catalogo.ver', 'catalogo.compartir_whatsapp']),
       ...expandir('cambios', ['ver', 'crear']),
       ...expandir('reportes', ['ver'], ['reportes.consultar_exportar', 'reportes.ver_diarios_ventas', 'reportes.ver_diarios_clientes']),
+      ...PERMISOS_MI_REPORTE,
     ],
   },
   {
@@ -69,6 +79,7 @@ const PLANTILLAS = [
       ...expandir('cambios', ['ver', 'editar'], ['cambios.confirmar']),
       ...expandir('catalogo', ['ver'], ['catalogo.ver']),
       ...expandir('reportes', ['ver'], ['reportes.ver_diarios_entregas']),
+      ...PERMISOS_MI_REPORTE,
     ],
   },
   {
@@ -118,6 +129,7 @@ const PLANTILLAS = [
       ...expandir('catalogo', ['ver'], ['catalogo.ver', 'catalogo.compartir_whatsapp']),
       ...expandir('cambios', ['ver', 'crear']),
       ...expandir('cobranzas', ['ver']),
+      ...PERMISOS_MI_REPORTE,
     ],
   },
   {
@@ -130,6 +142,7 @@ const PLANTILLAS = [
       ...expandir('cobranzas', ['ver', 'crear', 'editar'], ['cobranzas.registrar', 'cobranzas.mis_comprobantes']),
       ...expandir('catalogo', ['ver'], ['catalogo.ver']),
       ...expandir('reportes', ['ver'], ['reportes.consultar_exportar']),
+      ...PERMISOS_MI_REPORTE,
     ],
   },
 ];
@@ -156,20 +169,20 @@ function normalizarPermisos(lista) {
 // porque ambas consumen esta API.
 const TECHO_POR_ROL = {
   ventas: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'cobranzas', 'catalogo', 'cambios',
-    'rutas_venta', 'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'reportes', 'geocerca'],
+    'rutas_venta', 'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'reportes', 'geocerca', 'mi_reporte'],
   preventista: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'cobranzas', 'catalogo', 'cambios',
-    'rutas_venta', 'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'reportes', 'geocerca'],
+    'rutas_venta', 'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'reportes', 'geocerca', 'mi_reporte'],
   vendedor_camion: ['dashboard', 'ventas', 'venta_nueva', 'clientes', 'mi_camion', 'cambios', 'catalogo',
-    'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'geocerca'],
+    'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'geocerca', 'mi_reporte'],
   distribucion: ['dashboard', 'ventas', 'clientes', 'distribucion', 'cambios', 'catalogo', 'visitas',
-    'whatsapp', 'notificaciones', 'objetivos', 'bi', 'logistica', 'geocerca'],
+    'whatsapp', 'notificaciones', 'objetivos', 'bi', 'logistica', 'geocerca', 'mi_reporte'],
   almacen: ['dashboard', 'inventario', 'kardex', 'compras', 'cambios', 'distribucion', 'catalogo',
     'notificaciones', 'bi', 'reportes', 'logistica', 'inventario.ver_costos'],
   supervisor: ['dashboard', 'ventas', 'clientes', 'cobranzas', 'distribucion', 'inventario', 'kardex',
     'caja', 'objetivos', 'bi', 'visitas', 'whatsapp', 'notificaciones', 'reportes', 'catalogo',
     'logistica', 'cambios', 'rutas_venta', 'geocerca', 'mi_camion', 'datos.ver_todos'],
   cobranzas: ['dashboard', 'cobranzas', 'clientes', 'ventas', 'caja', 'bi', 'notificaciones',
-    'whatsapp', 'reportes', 'objetivos'],
+    'whatsapp', 'reportes', 'objetivos', 'mi_reporte'],
 };
 
 function permisosUsuario(usuario) {
@@ -246,6 +259,9 @@ function asegurarEstructura(db) {
     // Migración suave: los usuarios ya creados no tienen los códigos del
     // módulo nuevo de cambios. Se agregan los que corresponden a su rol.
     const nuevos = permisosPorRol(u.rol).filter((c) => c === 'cambios' || c.startsWith('cambios.'));
+    if (['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'].includes(u.rol)) {
+      nuevos.push(...PERMISOS_MI_REPORTE);
+    }
     if (u.rol === 'supervisor') nuevos.push('datos.ver_todos');
     const faltan = nuevos.filter((c) => !u.permisos.includes(c));
     if (faltan.length) { u.permisos = [...u.permisos, ...faltan]; cambio = true; }

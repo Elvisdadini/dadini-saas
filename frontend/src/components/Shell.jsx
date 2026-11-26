@@ -59,6 +59,7 @@ const NAV = [
     { to: '/inventario/devoluciones', label: 'Devoluciones', icon: Undo2, key: 'inventario' },
   ] },
   { group: 'Análisis', items: [
+    { to: '/mi-reporte', label: 'Mi reporte', icon: ClipboardList, key: 'mi_reporte', roles: ['ventas', 'preventista', 'vendedor_camion', 'distribucion', 'cobranzas'] },
     { to: '/reportes', label: 'Reportes', icon: BarChart3, key: 'reportes' },
     { to: '/reportes/automatico', label: 'Reportes automáticos', icon: MessageCircle, key: 'reportes' },
     { to: '/crm', label: 'CRM 360', icon: HeartHandshake, key: 'clientes' },
@@ -111,6 +112,7 @@ const PAGE_TITLES = {
   '/inventario/almacenes-moviles': ['Almacenes móviles', 'Carga para venta directa'],
   '/inventario/devoluciones': ['Devoluciones', 'Verificación y reingreso'],
   '/reportes': ['Reportes', 'Análisis del negocio'],
+  '/mi-reporte': ['Mi reporte', 'Solo mis resultados diarios y mensuales'],
   '/reportes/automatico': ['Reportes automáticos', 'Resumen diario preparado para WhatsApp'],
   '/crm': ['CRM 360', 'Scoring RFM y plan de acción por cliente'],
   '/dueno': ['Panel del dueño', 'Planes, precios y descuentos'],

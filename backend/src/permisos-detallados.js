@@ -97,6 +97,13 @@ const CATALOGO = [
     ] },
   ] },
   { grupo: 'Análisis', modulos: [
+    { base: 'mi_reporte', etiqueta: 'Mi reporte (solo mis resultados)', sub: [
+      { codigo: 'mi_reporte.ver_ventas', etiqueta: 'Ver mis ventas diarias y del mes' },
+      { codigo: 'mi_reporte.ver_objetivo', etiqueta: 'Ver mi avance hacia el objetivo' },
+      { codigo: 'mi_reporte.ver_entregas', etiqueta: 'Ver mis entregas' },
+      { codigo: 'mi_reporte.ver_cobranzas', etiqueta: 'Ver mis cobranzas' },
+      { codigo: 'mi_reporte.ver_devoluciones', etiqueta: 'Ver mis devoluciones' },
+    ] },
     { base: 'bi', etiqueta: 'Tableros e indicadores', sub: [
       { codigo: 'bi.explorar', etiqueta: 'Explorar ventas por vendedor, cliente, producto y visitas' },
     ] },

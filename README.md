@@ -426,6 +426,12 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`. El acceso también está en el encabezado de **Ventas** y en el menú principal.
 - **APK 21.0.6** (`versionCode 7`): compilada con keystore nuevo y publicada en `/uploads/apk/DADINI-SaaS-21.0.6.apk` (archivo versionado en el repo, sobrevive a reinicios). Al cambiar la firma, quienes tenían la versión anterior deben desinstalar antes de instalar. La contraseña del keystore no se versiona: guárdala fuera del repo.
 
+### Mi reporte (solo mis resultados)
+
+- Nuevo módulo **Mi reporte** (`/mi-reporte`, `GET /api/mi-reporte`) disponible **solo** para vendedores (`ventas`, `preventista`, `vendedor_camion`), distribuidores y cobranzas. No aparece en el menú de almacén ni supervisión, y el backend devuelve 403 a cualquier otro rol (`requirePermiso('mi_reporte.ver')` + `allow`).
+- Muestra **ventas diarias**, **avance hacia el objetivo del mes** (meta, vendido, falta, meta diaria y %), **ventas del mes**, y las mismas vistas para **entregas, cobranzas y devoluciones**, más un resumen de visitas propias. Filtros: Hoy / 7 días / 30 días / Este mes.
+- Aislamiento estricto: pedidos por `vendedor_id`/`repartidor_asignado_id`/`usuario_id` (o `responsable_cobro_id` en cobranzas), rutas por `repartidor_id` del distribuidor, pagos y devoluciones por `usuario_id`, visitas por `usuario_id`/`distribuidor_id`. No se reutilizan los agregados globales de `/api/dashboard`. **Un vendedor nunca ve los clientes ni ventas de otro vendedor.**
+
 ### Accesos idénticos en web y APK · información financiera protegida
 
 - La APK es el mismo SPA de la web: **no existe un permiso distinto en el celular**. Toda petición pasa por el backend y `authRequired` devuelve los permisos **limitados al puesto** (`TECHO_POR_ROL` en `permisos.js`). Un preventista/distribuidor/vendedor con permisos guardados amplios (o heredados de otro rol) **pierde automáticamente** `rentabilidad`, `administracion`, `sucursales`, `dueno`, `inventario.ver_costos`, `finanzas.ver_margenes` y `datos.ver_todos`. Al cambiar el rol de un usuario se recalculan sus permisos.
