@@ -55,7 +55,7 @@ router.get('/', (req, res) => {
 
 router.put('/', allow(), (req, res) => {
   const db = load();
-  const { empresa, plan, credito, planes, descuentos_globales, cobranza, branding } = req.body || {};
+  const { empresa, plan, credito, planes, descuentos_globales, cobranza, branding, reposicion, rutas: cfgRutas } = req.body || {};
   if (empresa) {
     const campos = ['nombre', 'slogan', 'nit', 'direccion', 'telefono', 'email', 'ciudad', 'pais', 'moneda', 'horario'];
     campos.forEach((c) => { if (empresa[c] !== undefined) db.configuracion.empresa[c] = empresa[c]; });
@@ -71,6 +71,18 @@ router.put('/', allow(), (req, res) => {
   if (planes) db.configuracion.planes = planes;
   if (descuentos_globales) db.configuracion.descuentos_globales = descuentos_globales;
   if (cobranza) db.configuracion.cobranza = { ...(db.configuracion.cobranza || {}), ...cobranza };
+  if (cfgRutas) {
+    db.configuracion.rutas = { ...(db.configuracion.rutas || {}), ...cfgRutas };
+    ['velocidad_kmh', 'minutos_por_parada'].forEach((c) => {
+      if (db.configuracion.rutas[c] !== undefined) db.configuracion.rutas[c] = num(db.configuracion.rutas[c]);
+    });
+  }
+  if (reposicion) {
+    db.configuracion.reposicion = { ...(db.configuracion.reposicion || {}), ...reposicion };
+    ['dias_historial', 'lead_time_dias', 'stock_seguridad_dias'].forEach((c) => {
+      if (db.configuracion.reposicion[c] !== undefined) db.configuracion.reposicion[c] = num(db.configuracion.reposicion[c]);
+    });
+  }
   if (branding) {
     db.configuracion.branding = {
       ...(db.configuracion.branding || {}),

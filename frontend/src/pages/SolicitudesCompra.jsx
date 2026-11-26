@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, ClipboardList, PackagePlus, Plus, RefreshCcw, Truck, XCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CheckCircle2, ClipboardList, PackagePlus, Plus, RefreshCcw, TrendingUp, Truck, XCircle } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { Badge, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
@@ -14,6 +15,7 @@ export default function SolicitudesCompra() {
   const [productos, setProductos] = useState([]);
   const [catalogo, setCatalogo] = useState([]);
   const [proveedores, setProveedores] = useState([]);
+  const [demanda, setDemanda] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ almacen_id: 1, proveedor_id: '', notas: '', items: [] });
@@ -28,21 +30,29 @@ export default function SolicitudesCompra() {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, p, todos, prov] = await Promise.all([api.get('/solicitudes-compra'), api.get('/productos?bajo_stock=true'), api.get('/productos'), api.get('/proveedores?activo=true')]);
+      const [s, p, todos, prov, dem] = await Promise.all([
+        api.get('/solicitudes-compra'), api.get('/productos?bajo_stock=true'), api.get('/productos'),
+        api.get('/proveedores?activo=true'), api.get('/demanda/sugerencias?solo_urgentes=true'),
+      ]);
       setData(s);
       setProductos(p.productos || []);
       setCatalogo(todos.productos || []);
       setProveedores(prov.proveedores || []);
+      setDemanda(dem.sugerencias || []);
     } catch (error) { toast(error.message, 'error'); } finally { setLoading(false); }
   }, [toast]);
   useEffect(() => { cargar(); }, [cargar]);
 
   const abrirNueva = () => {
+    const sugeridas = demanda.filter((s) => s.sugerido > 0);
+    const items = sugeridas.length
+      ? sugeridas.map((s) => ({ producto_id: s.producto_id, nombre: s.nombre, cantidad: s.sugerido, precio_estimado: s.precio_estimado, proveedor_id: s.proveedor_id }))
+      : productos.map((p) => ({ producto_id: p.id, nombre: p.nombre, cantidad: Math.max(1, p.stock_minimo - p.stock_total), precio_estimado: p.costo }));
     setForm({
       almacen_id: 1,
-      proveedor_id: proveedores[0]?.id || '',
-      notas: '',
-      items: productos.map((p) => ({ producto_id: p.id, nombre: p.nombre, cantidad: Math.max(1, p.stock_minimo - p.stock_total), precio_estimado: p.costo })),
+      proveedor_id: sugeridas.find((s) => s.proveedor_id)?.proveedor_id || proveedores[0]?.id || '',
+      notas: sugeridas.length ? 'Sugerencias calculadas por predicción de demanda' : '',
+      items,
     });
     setModal(true);
   };
@@ -112,7 +122,7 @@ export default function SolicitudesCompra() {
   return (
     <>
       <PageHeader eyebrow="Compras / Reposición" title="Solicitudes de compra" subtitle="El almacenero solicita stock bajo; el administrador aprueba y la recepción actualiza el inventario."
-        actions={<><button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button><button className="btn btn-primary" onClick={abrirNueva}><Plus size={15} /> Nueva solicitud</button></>} />
+        actions={<><Link className="btn btn-outline" to="/compras/demanda"><TrendingUp size={14} /> Demanda</Link><button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button><button className="btn btn-primary" onClick={abrirNueva}><Plus size={15} /> Nueva solicitud</button></>} />
       <div className="stat-grid mb-16" style={{ gridTemplateColumns: 'repeat(3, minmax(0,1fr))' }}>
         <StatCard label="Pendientes" value={resumen.pendientes || 0} icon={ClipboardList} tone="amber" hint="Por aprobar" />
         <StatCard label="Aprobadas" value={resumen.aprobadas || 0} icon={CheckCircle2} tone="blue" hint="Órdenes generadas" />
@@ -147,7 +157,7 @@ export default function SolicitudesCompra() {
         )}
       </div>
 
-      <Modal open={modal} onClose={() => setModal(false)} title="Nueva solicitud de reposición" subtitle="Productos con stock por debajo del mínimo" size="lg"
+      <Modal open={modal} onClose={() => setModal(false)} title="Nueva solicitud de reposición" subtitle="Cantidades sugeridas por demanda histórica, cobertura y lead time" size="lg"
         footer={<><button className="btn btn-ghost" onClick={() => setModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={guardar} disabled={busy}>Enviar solicitud</button></>}>
         <div className="form-stack">
           <div className="field-row">

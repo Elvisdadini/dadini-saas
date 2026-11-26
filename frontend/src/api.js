@@ -4,7 +4,7 @@ const COLA_KEY = 'dadini_cola_offline';
 
 // Rutas que nunca se encolan: credenciales, archivos grandes y Firmas/APK.
 const NO_ENCOLAR = [
-  '/auth/login', '/auth/pin', '/auth/perfil', '/auth/password', '/auth/2fa', '/telemetria',
+  '/auth/login', '/auth/pin', '/auth/perfil', '/auth/password', '/auth/2fa', '/telemetria', '/ia',
   '/configuracion/apk', '/catalogo-pdf/guardar', '/productos-imagenes',
 ];
 

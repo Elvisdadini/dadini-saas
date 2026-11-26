@@ -34,6 +34,7 @@ const NAV = [
     { to: '/distribucion/programados', label: 'Pedidos programados', icon: ClipboardList, key: 'distribucion' },
   ] },
   { group: 'Compras y rentabilidad', items: [
+    { to: '/compras/demanda', label: 'Demanda y reposición', icon: TrendingUp, key: 'compras' },
     { to: '/compras/solicitudes', label: 'Solicitudes de compra', icon: ClipboardList, key: 'compras' },
     { to: '/compras/ordenes', label: 'Órdenes y pagos', icon: Receipt, key: 'compras' },
     { to: '/compras/proveedores', label: 'Proveedores', icon: Truck, key: 'compras' },
@@ -88,6 +89,7 @@ const PAGE_TITLES = {
   '/distribucion': ['Distribución', 'Rutas y entregas'],
   '/distribucion/programados': ['Pedidos programados', 'Entregas del día siguiente'],
   '/compras/solicitudes': ['Solicitudes de compra', 'Reposición de inventario'],
+  '/compras/demanda': ['Demanda y reposición', 'Predicción por historial de ventas'],
   '/compras/ordenes': ['Órdenes y pagos', 'Compras a proveedores'],
   '/compras/proveedores': ['Proveedores', 'Configuración de proveedores'],
   '/compras/gastos': ['Gastos', 'Tipos y movimientos'],

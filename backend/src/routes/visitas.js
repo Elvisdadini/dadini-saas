@@ -44,7 +44,8 @@ router.get('/', (req, res) => {
   if (usuario_id) visitas = visitas.filter((v) => v.usuario_id === Number(usuario_id));
   if (distribuidor_id) {
     const vendedorIds = db.usuarios.filter((u) => u.repartidor_id === Number(distribuidor_id)).map((u) => u.id);
-    visitas = visitas.filter((v) => v.repartidor_id === Number(distribuidor_id) || vendedorIds.includes(v.usuario_id));
+    visitas = visitas.filter((v) => v.distribuidor_id === Number(distribuidor_id)
+      || v.repartidor_id === Number(distribuidor_id) || vendedorIds.includes(v.usuario_id));
   }
   if (desde) visitas = visitas.filter((v) => String(v.fecha).slice(0, 10) >= desde);
   if (hasta) visitas = visitas.filter((v) => String(v.fecha).slice(0, 10) <= hasta);

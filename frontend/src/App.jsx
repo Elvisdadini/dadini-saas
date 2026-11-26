@@ -45,6 +45,7 @@ const Reportes = lazy(() => import('./pages/Reportes'));
 const ReportesAutomaticos = lazy(() => import('./pages/ReportesAutomaticos'));
 const Administracion = lazy(() => import('./pages/Administracion'));
 const Sucursales = lazy(() => import('./pages/Sucursales'));
+const Demanda = lazy(() => import('./pages/Demanda'));
 const RutasVenta = lazy(() => import('./pages/RutasVenta'));
 const Permisos = lazy(() => import('./pages/Permisos'));
 
@@ -109,6 +110,7 @@ export default function App() {
             <Route path="distribucion" element={<Guard module="distribucion"><Distribucion /></Guard>} />
             <Route path="distribucion/programados" element={<Guard module="distribucion"><PedidosProgramados /></Guard>} />
             <Route path="distribucion/:id" element={<Guard module="distribucion"><RutaDetalle /></Guard>} />
+            <Route path="compras/demanda" element={<Guard module="compras"><Demanda /></Guard>} />
             <Route path="compras/solicitudes" element={<Guard module="compras"><SolicitudesCompra /></Guard>} />
             <Route path="compras/ordenes" element={<Guard module="compras"><OrdenesCompra /></Guard>} />
             <Route path="compras/proveedores" element={<Guard module="compras"><Proveedores /></Guard>} />

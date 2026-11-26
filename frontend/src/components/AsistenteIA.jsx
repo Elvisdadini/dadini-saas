@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Bot, Check, Loader2, Send, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, Bot, Check, Loader2, Mic, MicOff, Send, Sparkles, X } from 'lucide-react';
 import { api } from '../api';
 import { Badge, useToast } from '../ui';
 
@@ -19,7 +19,9 @@ export default function AsistenteIA({ pagina }) {
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [ejecutando, setEjecutando] = useState('');
+  const [escuchando, setEscuchando] = useState(false);
   const finRef = useRef(null);
+  const reconocedorRef = useRef(null);
 
   const cargarAlertas = useCallback(async () => {
     try {
@@ -53,6 +55,37 @@ export default function AsistenteIA({ pagina }) {
       toast(error.message, 'error');
       setMensajes((m) => [...m, { rol: 'ia', texto: `No pude responder: ${error.message}` }]);
     } finally { setEnviando(false); }
+  };
+
+  const hablar = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return toast('Tu navegador no soporta dictado por voz. Usa Chrome, Edge o la APK.', 'error');
+    if (escuchando) {
+      reconocedorRef.current?.stop();
+      setEscuchando(false);
+      return;
+    }
+    const r = new SR();
+    r.lang = 'es-BO';
+    r.continuous = false;
+    r.interimResults = true;
+    r.onresult = (evento) => {
+      let transcripcion = '';
+      for (let i = evento.resultIndex; i < evento.results.length; i += 1) transcripcion += evento.results[i][0].transcript;
+      setTexto(transcripcion);
+      if (evento.results[evento.results.length - 1].isFinal) {
+        setEscuchando(false);
+        if (transcripcion.trim()) enviar(transcripcion.trim());
+      }
+    };
+    r.onerror = (evento) => {
+      setEscuchando(false);
+      toast(`No se pudo escuchar: ${evento.error}`, 'error');
+    };
+    r.onend = () => setEscuchando(false);
+    reconocedorRef.current = r;
+    try { r.start(); setEscuchando(true); }
+    catch (error) { toast('No se pudo iniciar el micrófono.', 'error'); }
   };
 
   const confirmar = async (propuesta) => {
@@ -153,6 +186,9 @@ export default function AsistenteIA({ pagina }) {
               placeholder="Ej. ¿Qué clientes debo cobrar hoy?"
               disabled={!estado?.configurado || enviando}
             />
+            <button className={`btn btn-sm ${escuchando ? 'btn-danger' : 'btn-soft'}`} type="button" onClick={hablar} title="Pedido por voz" disabled={enviando || !estado?.configurado}>
+              {escuchando ? <MicOff size={14} /> : <Mic size={14} />}
+            </button>
             <button className="btn btn-primary btn-sm" type="submit" disabled={!texto.trim() || enviando || !estado?.configurado}><Send size={14} /></button>
           </form>
         </div>

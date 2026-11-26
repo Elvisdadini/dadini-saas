@@ -26,6 +26,7 @@ export default function RutaDetalle() {
   const [nuevo, setNuevo] = useState('');
   const [ubicacion, setUbicacion] = useState(null);
   const [ubicando, setUbicando] = useState(false);
+  const [tracking, setTracking] = useState(null);
   const [visitas, setVisitas] = useState([]);
   const [entrega, setEntrega] = useState(null);
   const [entregaDetallada, setEntregaDetallada] = useState(null);
@@ -57,13 +58,38 @@ export default function RutaDetalle() {
     } catch (error) { /* no bloquea la ruta */ }
   };
 
+  const cargarTracking = async () => {
+    try { setTracking(await api.get(`/rutas/${id}/tracking`)); } catch (error) { /* opcional */ }
+  };
+
   useEffect(() => {
     cargar();
     cargarVisitas();
-    const timer = window.setInterval(() => { cargarVisitas(); cargar(); }, 15000);
+    cargarTracking();
+    const timer = window.setInterval(() => { cargarVisitas(); cargar(); cargarTracking(); }, 15000);
     return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const optimizar = async () => {
+    setBusy(true);
+    try {
+      const r = await api.post(`/rutas/${id}/optimizar`, {});
+      setRuta(r.ruta);
+      toast(`Ruta optimizada por distancia · ${r.ruta.geo?.distancia_total_km || 0} km · ETA recalculado`);
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+  };
+
+  const enviarUbicacion = async () => {
+    setUbicando(true);
+    try {
+      const pos = await obtenerUbicacion();
+      setUbicacion(pos);
+      await api.patch(`/rutas/${id}/tracking`, pos);
+      await cargarTracking();
+      toast('Ubicación enviada al seguimiento en vivo');
+    } catch (error) { toast(error.message, 'error'); } finally { setUbicando(false); }
+  };
 
   const cambiarEstadoRuta = async (estado) => {
     setBusy(true);
@@ -273,6 +299,8 @@ export default function RutaDetalle() {
           <>
             <button className="btn btn-ghost" onClick={() => navigate('/distribucion')}><ArrowLeft size={15} /> Volver</button>
             <button className="btn btn-outline" onClick={() => window.print()}><Printer size={14} /> Hoja de ruta</button>
+            {puedeEditar && ruta.estado === 'programada' && <button className="btn btn-soft" onClick={optimizar} disabled={busy}><RouteIcon size={14} /> Optimizar por distancia</button>}
+            {puedeEditar && ruta.estado === 'en_camino' && <button className="btn btn-soft" onClick={enviarUbicacion} disabled={ubicando}><Navigation size={14} /> Enviar ubicación</button>}
             {puedeEditar && ruta.estado === 'programada' && <button className="btn btn-primary" onClick={() => setConfirm('en_camino')}><Truck size={14} /> Iniciar ruta</button>}
             {puedeEditar && ruta.estado === 'en_camino' && <button className="btn btn-navy" onClick={() => setConfirm('completada')}><Flag size={14} /> Cerrar ruta</button>}
           </>
@@ -284,6 +312,7 @@ export default function RutaDetalle() {
         <div className="card card-pad" style={{ padding: 14 }}><span className="small muted">Vehículo</span><strong style={{ display: 'block', fontSize: 13, marginTop: 3 }}>{ruta.vehiculo_placa}</strong><span className="small muted">{ruta.vehiculo_modelo}</span></div>
         <div className="card card-pad" style={{ padding: 14 }}><span className="small muted">Avance</span><strong style={{ display: 'block', fontSize: 13, marginTop: 3 }}>{ruta.entregadas}/{ruta.total_paradas} entregas</strong><ProgressBar value={ruta.progreso} tone={ruta.progreso === 100 ? 'green' : 'orange'} /></div>
         <div className="card card-pad" style={{ padding: 14 }}><span className="small muted">Monto en ruta</span><strong style={{ display: 'block', fontSize: 15, marginTop: 3 }}><Money value={ruta.monto_total} /></strong><Estado valor={ruta.estado} /></div>
+        <div className="card card-pad" style={{ padding: 14 }}><span className="small muted">Seguimiento en vivo</span><strong style={{ display: 'block', fontSize: 12, marginTop: 3 }}>{tracking?.ultima_posicion ? formatoCoords(tracking.ultima_posicion.latitud, tracking.ultima_posicion.longitud) : 'Sin posición'}</strong><span className="small muted">{tracking?.ultima_posicion ? <Fecha value={tracking.ultima_posicion.fecha} time /> : 'El repartidor aún no envió ubicación'}</span></div>
       </div>
 
       <div className="panel mb-16">
@@ -317,6 +346,12 @@ export default function RutaDetalle() {
                 descripcion: v.notas,
                 tipo: 'distribucion',
               })),
+              ...(tracking?.ultima_posicion ? [{
+                id: 'tracking', latitud: tracking.ultima_posicion.latitud, longitud: tracking.ultima_posicion.longitud,
+                nombre: `${ruta.repartidor_emoji || ''} ${ruta.repartidor_nombre} · en vivo`,
+                descripcion: tracking.ultima_posicion.fecha ? new Date(tracking.ultima_posicion.fecha).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) : '',
+                tipo: 'distribucion',
+              }] : []),
               ...(ubicacion ? [{ id: 'yo', latitud: ubicacion.latitud, longitud: ubicacion.longitud, nombre: 'Tu ubicación', tipo: 'visita' }] : []),
             ]}
           />
@@ -349,7 +384,8 @@ export default function RutaDetalle() {
                         <span><MapPin size={11} style={{ verticalAlign: -1 }} /> {p?.entrega_direccion || p?.cliente_zona}{p?.cliente_latitud ? ` · ${formatoCoords(p.cliente_latitud, p.cliente_longitud)}` : ''}</span>
                         <span><Phone size={11} style={{ verticalAlign: -1 }} /> {p?.cliente_telefono}</span>
                         <span><Package size={11} style={{ verticalAlign: -1 }} /> {p?.items_count} unidades</span>
-                        <span><Clock3 size={11} style={{ verticalAlign: -1 }} /> {parada.hora_estimada}</span>
+                        <span><Clock3 size={11} style={{ verticalAlign: -1 }} /> ETA {parada.hora_estimada}{parada.minutos_estimados ? ` · ${parada.minutos_estimados} min` : ''}</span>
+                        {parada.distancia_km_desde_anterior !== undefined && <span><RouteIcon size={11} style={{ verticalAlign: -1 }} /> {parada.distancia_km_desde_anterior} km desde anterior</span>}
                         <span><Money value={p?.total} /></span>
                       </div>
                       {parada.notas && <div className="stop-note">{parada.notas}</div>}

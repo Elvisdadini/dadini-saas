@@ -351,6 +351,30 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Datos preexistentes se migran suavemente a la sucursal 1 (`Casa Matriz`) al iniciar; una sucursal nueva empieza vacía. `sucursales` se agregó a `ENTIDADES` para persistir en PostgreSQL.
 - Endpoints: `GET /api/sucursales`, `GET /mi`, `POST /`, `PUT /:id` y `POST /:id/usuarios`. Las sucursales inactivas no aparecen en el selector.
 
+### Predicción de demanda y reposición
+
+- Nueva página **Compras → Demanda y reposición** (`/compras/demanda`): calcula demanda diaria desde el historial real de pedidos (excluye cancelados y bonificaciones), descuenta lotes vencidos del stock, estima días de cobertura, punto de reorden y fecha de quiebra. Clasifica urgencia (crítica/alta/media/baja) y sugiere proveedor por categoría.
+- Parámetros ajustables: días de historial (30), lead time (7 días) y stock de seguridad (3 días), guardados en `configuracion.reposicion`. Botón **Generar solicitud** convierte las sugerencias en una solicitud de compra con el payload que ya acepta el backend.
+- **Solicitudes de compra** ahora precarga cantidades desde la predicción (antes usaba solo `mínimo − stock`). Endpoints: `GET /api/demanda/sugerencias`, `/demanda/producto/:id`.
+
+### Optimización de rutas y tracking en vivo
+
+- **Optimizar por distancia** en el detalle de ruta: nearest-neighbor sobre las coordenadas de los clientes, con ETA recalculado por distancia/velocidad y tiempo de servicio por parada. Velocidad, minutos por parada y hora de inicio se configuran en `configuracion.rutas`.
+- Cada parada guarda `distancia_km_desde_anterior`, `minutos_estimados` y su `hora_estimada` real. La ruta guarda `iniciada_en`, `cerrada_en`, `optimizada_en` y `ultima_posicion` con un historial `rastreo` (máx. 200 puntos).
+- El repartidor puede **Enviar ubicación** desde la ruta; el mapa muestra su marcador en vivo junto a los check-ins y el panel lateral la última posición. Se mantiene el polling de 15 s. Endpoints: `POST /rutas/:id/optimizar`, `GET/PATCH /rutas/:id/tracking`. Se corrigió el filtro de visitas por distribuidor (`distribuidor_id`).
+
+### Agente AI con memoria y pedidos por voz
+
+- **Memoria RAG** (`documentos_rag`, entidad persistida y aislada por sucursal): indexa automáticamente productos, políticas de crédito/cobranza y normativa SIAT vigente, más notas/FAQs escritas por el equipo. La búsqueda usa similitud coseno sobre bolsa de palabras (`normalize`, sin embeddings) y el contexto se inyecta en el prompt del sistema.
+- Nuevas herramientas: `buscar_documentos` (lectura) y **`crear_pedido`** (escritura, con confirmación previa): valida cliente, stock FEFO y límite de crédito, calcula precios en servidor y registra `origen_ia: true`. No aplica promociones, factura SIAT ni caja: esos pasos quedan para el flujo comercial habitual.
+- **Pedidos por voz**: botón de micrófono en el Asistente IA usando Web Speech API (`es-BO`); la transcripción se envía como texto al mismo `/ia/chat`. Sin audio ni dependencias nuevas. Las peticiones `/ia` no se encolan offline.
+- Endpoints de memoria: `GET/POST /api/rag/documentos`, `DELETE /api/rag/documentos/:id`, `POST /api/rag/buscar`.
+
+### Proveedores: categorías reales y eliminación
+
+- El formulario de proveedores ya no usa una lista fija: toma las **categorías activas reales** desde `/api/producto-catalogo`, así aparecen las nuevas y dejan de mostrarse las eliminadas. El backend filtra también las categorías guardadas en proveedores existentes al listar/editar.
+- Botón **Eliminar proveedor** (admin/dueno) con confirmación. La baja se bloquea si hay solicitudes u órdenes de compra que lo referencian, para no dejar compras huérfanas.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.

@@ -7,6 +7,10 @@ const { audit, round2, num } = require('./utils');
 const { dashboard } = require('./services');
 const { tienePermiso } = require('./permisos');
 const { asignarCliente } = require('./asignacion');
+const rag = require('./rag');
+const kardex = require('./kardex');
+const { nextCode } = require('./utils');
+const { recalcularCliente } = require('./services');
 
 const MODEL = process.env.AI_MODEL || 'gpt-4o-mini';
 const BASE_URL = (process.env.AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
@@ -105,6 +109,35 @@ const HERRAMIENTAS = [
     permiso: 'visitas.crear',
     escritura: true,
   },
+  {
+    name: 'buscar_documentos',
+    description: 'Busca en la memoria interna: productos, políticas de crédito y cobranza, normativa SIAT y notas del equipo.',
+    parameters: {
+      type: 'object',
+      properties: { consulta: { type: 'string' }, tipo: { type: 'string' }, limite: { type: 'number' } },
+      required: ['consulta'],
+    },
+    permiso: null,
+    escritura: false,
+  },
+  {
+    name: 'crear_pedido',
+    description: 'Registra un pedido por voz o chat. Requiere cliente_id, items [{producto_id,cantidad}], canal y forma_pago. Precio lo calcula el servidor; evalúa stock FEFO y crédito.',
+    parameters: {
+      type: 'object',
+      properties: {
+        cliente_id: { type: 'number' },
+        items: { type: 'array', items: { type: 'object', properties: { producto_id: { type: 'number' }, cantidad: { type: 'number' } }, required: ['producto_id', 'cantidad'] } },
+        canal: { type: 'string', enum: ['mostrador', 'delivery', 'ruta', 'whatsapp'] },
+        forma_pago: { type: 'string', enum: ['efectivo', 'qr', 'transferencia', 'credito'] },
+        almacen_id: { type: 'number' },
+        notas: { type: 'string' },
+      },
+      required: ['cliente_id', 'items', 'canal', 'forma_pago'],
+    },
+    permiso: 'ventas.crear',
+    escritura: true,
+  },
 ];
 
 function herramientaPorNombre(nombre) {
@@ -176,6 +209,81 @@ function topProductos(db, args = {}) {
   return { productos: data.top_productos };
 }
 
+// Pedido registrado desde el asistente (voz/chat). Usa precios del servidor y
+// stock FEFO. No aplica promociones, factura SIAT ni caja: queda marcado con
+// origen_ia para que el equipo los complete en el flujo habitual si hace falta.
+function crearPedidoPorIA(db, args, req) {
+  if (!['admin', 'dueno', 'ventas', 'preventista', 'vendedor_camion'].includes(req.user?.rol)) {
+    return { error: 'Tu rol no puede registrar pedidos.' };
+  }
+  const cliente = (db.clientes || []).find((c) => c.id === Number(args.cliente_id));
+  if (!cliente || cliente.activo === false) return { error: 'Selecciona un cliente válido.' };
+  if (cliente.bloqueado_por_deuda) return { error: `El cliente está bloqueado: ${cliente.motivo_bloqueo || 'deuda pendiente'}.` };
+  const productos = Array.isArray(args.items) ? args.items : [];
+  if (!productos.length) return { error: 'Indica al menos un producto con cantidad.' };
+  const canal = String(args.canal || 'mostrador');
+  const formaPago = String(args.forma_pago || 'efectivo');
+  if (!['mostrador', 'delivery', 'ruta', 'whatsapp'].includes(canal)) return { error: 'Canal inválido.' };
+  if (!['efectivo', 'qr', 'transferencia', 'credito'].includes(formaPago)) return { error: 'Forma de pago inválida.' };
+  const almacenId = Number(args.almacen_id) || (db.almacenes || [])[0]?.id || 1;
+  if (!(db.almacenes || []).some((a) => a.id === almacenId)) return { error: 'Almacén inválido.' };
+
+  const ahora = new Date().toISOString();
+  const lineas = [];
+  const consumos = [];
+  for (const item of productos) {
+    const producto = (db.productos || []).find((p) => p.id === Number(item.producto_id) && p.activo !== false);
+    const cantidad = Math.max(0, Math.round(Number(item.cantidad) || 0));
+    if (!producto || !cantidad) return { error: 'Producto o cantidad inválida.' };
+    try {
+      const consumo = kardex.consumir(db, {
+        producto_id: producto.id, almacen_id: almacenId, cantidad,
+        motivo: 'Venta por asistente AI', referencia: 'IA', usuario_id: req.user.id, fecha: ahora,
+      });
+      consumos.push({ producto, cantidad, lotes: consumo.lotes });
+      lineas.push({
+        producto_id: producto.id, nombre: producto.nombre, emoji: producto.emoji,
+        cantidad, precio: round2(producto.precio || 0), costo_unitario: round2(producto.costo || 0),
+        subtotal: round2(cantidad * Number(producto.precio || 0)), lotes: consumo.lotes,
+      });
+    } catch (error) {
+      consumos.forEach((c) => c.lotes.forEach((l) => kardex.registrarEntrada(db, {
+        producto_id: c.producto.id, almacen_id: almacenId, cantidad: l.cantidad,
+        lote: l.lote, fecha_vencimiento: l.fecha_vencimiento,
+        motivo: 'Reversa por pedido IA rechazado', referencia: 'IA', usuario_id: req.user.id,
+      })));
+      return { error: error.message };
+    }
+  }
+
+  const total = round2(lineas.reduce((s, l) => s + l.subtotal, 0));
+  if (formaPago === 'credito' && (!cliente.limite_credito || Number(cliente.saldo || 0) + total > Number(cliente.limite_credito))) {
+    consumos.forEach((c) => c.lotes.forEach((l) => kardex.registrarEntrada(db, {
+      producto_id: c.producto.id, almacen_id: almacenId, cantidad: l.cantidad,
+      lote: l.lote, fecha_vencimiento: l.fecha_vencimiento,
+      motivo: 'Reversa por límite de crédito (IA)', referencia: 'IA', usuario_id: req.user.id,
+    })));
+    return { error: `El cliente superaría su límite de crédito (Bs ${cliente.limite_credito || 0}).` };
+  }
+
+  const pedido = {
+    id: require('./utils').nextId(db.pedidos),
+    codigo: nextCode(db.pedidos, 'codigo', 'VTA', 1001),
+    cliente_id: cliente.id, vendedor_id: req.user.id, canal,
+    estado: 'pendiente', estado_pago: formaPago === 'credito' ? 'pendiente' : 'pagado',
+    forma_pago: formaPago, almacen_id: almacenId,
+    subtotal: total, descuento: 0, envio: 0, total,
+    pagado: formaPago === 'credito' ? 0 : total, saldo: formaPago === 'credito' ? total : 0,
+    items: lineas, notas: String(args.notas || '').trim() || 'Pedido registrado por asistente AI',
+    origen_ia: true, created_at: ahora, updated_at: ahora, ruta_id: null,
+  };
+  db.pedidos.push(pedido);
+  recalcularCliente(db, cliente.id);
+  audit(db, req, 'Pedido creado por asistente AI', 'Ventas', `${pedido.codigo} · Bs ${total}`);
+  save();
+  return { ok: true, pedido: { id: pedido.id, codigo: pedido.codigo, total, saldo: pedido.saldo, estado: pedido.estado } };
+}
+
 // Ejecuta una herramienta. Si es de escritura y no viene confirmada, solo
 // devuelve la propuesta para que el frontend pida aprobación.
 function ejecutarHerramienta(db, herramienta, args, req, confirmada = false) {
@@ -191,6 +299,11 @@ function ejecutarHerramienta(db, herramienta, args, req, confirmada = false) {
     case 'stock_bajo': return stockBajo(db, args);
     case 'clientes_por_zona_dia': return clientesPorZonaDia(db, args);
     case 'top_productos': return topProductos(db, args);
+    case 'buscar_documentos': {
+      const resultados = rag.buscar(db, String(args.consulta || ''), { tipo: args.tipo, limite: Number(args.limite) || 5 });
+      return { ok: true, resultados };
+    }
+    case 'crear_pedido': return crearPedidoPorIA(db, args, req);
 
     case 'crear_cliente': {
       const nombre = String(args.nombre || '').trim();
@@ -255,17 +368,19 @@ function resumenAccion(nombre, args) {
   if (nombre === 'crear_cliente') return `Crear cliente "${args.nombre}"${args.zona ? ` en zona ${args.zona}` : ''}.`;
   if (nombre === 'actualizar_precio') return `Cambiar el precio de ${args.sku} a Bs ${args.precio}.`;
   if (nombre === 'registrar_visita') return `Registrar visita al cliente #${args.cliente_id} con resultado "${args.resultado}".`;
+  if (nombre === 'crear_pedido') return `Registrar pedido para el cliente #${args.cliente_id} con ${(args.items || []).length} producto(s). El precio y el stock se validarán en el servidor.`;
   return 'Ejecutar acción.';
 }
 
-function systemPrompt(req, pagina) {
+function systemPrompt(req, pagina, contextoRag = '') {
   const db = load();
   const rol = req.user?.rol || 'usuario';
   const permisos = (req.user?.permisos || []).slice(0, 25).join(', ') || 'según su rol';
+  const memoria = contextoRag ? `\nConocimiento interno relevante (úsalo SOLO para productos, políticas y normas;\nno lo inventes; si no responde, dilo y sugiere confirmar con administración):\n${contextoRag}\n` : '';
   return `Eres DADINI Assistant, el agente AI interno del SaaS DADINI (ventas, distribución, inventario y cobranzas en Bolivia).
 Responde SIEMPRE en español, de forma breve, concreta y accionable. Usa Bs para montos.
 El usuario tiene rol ${rol} y permisos: ${permisos}. Está en la página ${pagina || 'Dashboard'}.
-Fecha actual: ${new Date().toISOString().slice(0, 10)}. Empresa: ${db.configuracion?.empresa?.nombre || 'DADINI'}.
+Fecha actual: ${new Date().toISOString().slice(0, 10)}. Empresa: ${db.configuracion?.empresa?.nombre || 'DADINI'}.${memoria}
 Reglas:
 - Usa las herramientas disponibles para obtener datos reales; NUNCA inventes cifras.
 - Para acciones que escriben, primero propón la acción y espera confirmación del usuario.
@@ -305,8 +420,9 @@ async function chatear({ mensaje, pagina, historial = [] }, req) {
     return { ok: false, error: 'El asistente AI aún no está configurado. Define OPENAI_API_KEY en Render.' };
   }
   const db = load();
+  const contextoRag = rag.contexto(db, String(mensaje || ''));
   const mensajes = [
-    { role: 'system', content: systemPrompt(req, pagina) },
+    { role: 'system', content: systemPrompt(req, pagina, contextoRag) },
     ...historial.slice(-8).map((m) => ({ role: m.rol === 'ia' ? 'assistant' : 'user', content: String(m.texto || '').slice(0, 2000) })),
     { role: 'user', content: String(mensaje || '').slice(0, 4000) },
   ];

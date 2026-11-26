@@ -279,6 +279,7 @@ router.patch('/:id/estado', allow('distribucion'), (req, res) => {
   if (!transiciones[ruta.estado]?.includes(estado)) return res.status(400).json({ error: `No se puede pasar de "${ruta.estado}" a "${estado}".` });
   ruta.estado = estado;
   if (estado === 'en_camino') {
+    ruta.iniciada_en = new Date().toISOString();
     ruta.paradas.forEach((p) => { if (p.estado === 'pendiente') p.estado = 'pendiente'; });
     ruta.paradas.forEach((p) => {
       const pedido = db.pedidos.find((x) => x.id === p.pedido_id);
@@ -286,6 +287,7 @@ router.patch('/:id/estado', allow('distribucion'), (req, res) => {
     });
   }
   if (estado === 'completada') {
+    ruta.cerrada_en = new Date().toISOString();
     ruta.paradas.forEach((p) => {
       const pedido = db.pedidos.find((x) => x.id === p.pedido_id);
       if (pedido && p.estado === 'entregada') pedido.estado = 'entregado';
@@ -542,6 +544,98 @@ router.delete('/:id', requirePermiso('rutas_eliminar'), allow(), (req, res) => {
   audit(db, req, 'Ruta eliminada', 'Distribución', ruta.codigo);
   save();
   return res.json({ ok: true });
+});
+
+// Optimización por distancia (nearest-neighbor) y ETA con velocidad configurable.
+router.post('/:id/optimizar', allow('admin', 'dueno', 'supervisor', 'distribucion'), (req, res) => {
+  const db = load();
+  const ruta = db.rutas.find((r) => r.id === Number(req.params.id));
+  if (!ruta) return res.status(404).json({ error: 'Ruta no encontrada.' });
+  if (!ruta.paradas?.length) return res.status(400).json({ error: 'La ruta no tiene paradas.' });
+  const puntos = ruta.paradas.map((parada) => {
+    const pedido = db.pedidos.find((p) => p.id === parada.pedido_id);
+    const cliente = db.clientes.find((c) => c.id === pedido?.cliente_id);
+    return { parada, latitud: cliente?.latitud ?? null, longitud: cliente?.longitud ?? null };
+  });
+  const conCoords = puntos.filter((p) => esCoordenaValida(p.latitud, p.longitud));
+  if (!conCoords.length) return res.status(400).json({ error: 'Ninguna parada tiene coordenadas válidas.' });
+  const velocidad = Math.max(5, Number(db.configuracion?.rutas?.velocidad_kmh) || 25);
+  const servicio = Math.max(0, Number(db.configuracion?.rutas?.minutos_por_parada) || 8);
+  const [horaInicio, minutoInicio] = String(db.configuracion?.rutas?.hora_inicio || '09:00').split(':').map(Number);
+  const inicioMinutos = (horaInicio || 9) * 60 + (minutoInicio || 0);
+
+  // Se empieza por la primera parada pendiente con coordenadas y se sigue
+  // con la más cercana; las paradas sin coordenadas quedan al final.
+  const pendientes = conCoords.filter((p) => p.parada.estado !== 'entregada');
+  const entregadas = conCoords.filter((p) => p.parada.estado === 'entregada');
+  const sinCoords = puntos.filter((p) => !conCoords.includes(p));
+  const ordenadas = [];
+  let actual = pendientes.shift() || entregadas.shift();
+  while (actual) {
+    ordenadas.push(actual);
+    if (!pendientes.length) break;
+    let mejor = 0;
+    let menor = Infinity;
+    pendientes.forEach((p, i) => {
+      const d = distanciaKm(actual, p);
+      if (d < menor) { menor = d; mejor = i; }
+    });
+    actual = pendientes.splice(mejor, 1)[0];
+  }
+  const todas = [...ordenadas, ...pendientes, ...entregadas, ...sinCoords];
+  let minutos = inicioMinutos;
+  ruta.paradas = todas.map((punto, index) => {
+    const anterior = index ? todas[index - 1] : null;
+    const distkm = anterior ? distanciaKm(anterior, punto) : 0;
+    const minutosViaje = Math.round((distanciaKm(anterior || punto, punto) / velocidad) * 60);
+    minutos += minutosViaje + servicio;
+    const hh = String(Math.floor(minutos / 60) % 24).padStart(2, '0');
+    const mm = String(minutos % 60).padStart(2, '0');
+    return {
+      ...punto.parada,
+      orden: index + 1,
+      distancia_km_desde_anterior: round2(distkm),
+      minutos_estimados: minutosViaje + servicio,
+      hora_estimada: `${hh}:${mm}`,
+    };
+  });
+  ruta.optimizada_en = new Date().toISOString();
+  audit(db, req, 'Ruta optimizada por distancia', 'Distribución', `${ruta.codigo} · ${distanciaAcumulada(todas)} km`);
+  save();
+  return res.json({ ruta: rutaResumen(db, ruta), optimizada: true, velocidad_kmh: velocidad });
+});
+
+router.get('/:id/tracking', (req, res) => {
+  const db = load();
+  const ruta = db.rutas.find((r) => r.id === Number(req.params.id));
+  if (!ruta) return res.status(404).json({ error: 'Ruta no encontrada.' });
+  return res.json({
+    ruta_id: ruta.id,
+    codigo: ruta.codigo,
+    estado: ruta.estado,
+    en_vivo: ruta.estado === 'en_camino',
+    ultima_posicion: ruta.ultima_posicion || null,
+    iniciada_en: ruta.iniciada_en || null,
+    rastreo: (ruta.rastreo || []).slice(-100),
+  });
+});
+
+router.patch('/:id/tracking', allow('distribucion', 'admin', 'dueno'), (req, res) => {
+  const db = load();
+  const ruta = db.rutas.find((r) => r.id === Number(req.params.id));
+  if (!ruta) return res.status(404).json({ error: 'Ruta no encontrada.' });
+  const { latitud, longitud, precision } = req.body || {};
+  if (!esCoordenaValida(latitud, longitud)) return res.status(400).json({ error: 'Coordenadas inválidas.' });
+  const punto = {
+    latitud: Number(latitud), longitud: Number(longitud),
+    precision: Number(precision) || null, fecha: new Date().toISOString(),
+  };
+  ruta.ultima_posicion = punto;
+  if (!Array.isArray(ruta.rastreo)) ruta.rastreo = [];
+  ruta.rastreo.push(punto);
+  if (ruta.rastreo.length > 200) ruta.rastreo = ruta.rastreo.slice(-200);
+  save();
+  return res.json({ ok: true, ...punto });
 });
 
 module.exports = router;
