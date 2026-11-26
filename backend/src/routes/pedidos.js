@@ -9,6 +9,7 @@ const { subirFoto } = require('../fotos');
 const { calcularImpuestos, normativaVigente } = require('../fiscal-normativa');
 const cajaModule = require('./caja');
 const kardex = require('../kardex');
+const webhooks = require('../webhooks');
 const { evaluar: evaluarPromociones } = require('../promociones');
 const { buildIndices, porId } = require('../indexes');
 
@@ -372,6 +373,11 @@ router.post('/', requirePermiso('ventas.crear'), allow('ventas', 'preventista', 
   recalcularCliente(db, cliente.id);
   audit(db, req, 'Venta registrada', 'Ventas', `${pedido.codigo} · ${cliente.nombre} · Bs ${total.toFixed(2)}${evaluacion.aplicadas.length ? ` · Promos: ${evaluacion.aplicadas.map((p) => p.codigo).join(', ')}` : ''}`);
   save();
+  webhooks.emitir('pedido.creado', {
+    pedido: pedidoResumen(db, pedido, false, indices),
+    cliente: { id: cliente.id, nombre: cliente.nombre, nit: cliente.nit, zona: cliente.zona },
+  });
+  if (pedido.factura) webhooks.emitir('factura.emitida', pedido.factura);
   return res.status(201).json({ pedido: pedidoResumen(db, pedido, true, indices) });
 });
 
@@ -544,6 +550,10 @@ router.post('/:id/pagos', requirePermiso('cobranzas.registrar', 'ventas.registra
   const cliente = db.clientes.find((c) => c.id === pedido.cliente_id);
   audit(db, req, 'Pago registrado', 'Cobranzas', `${pedido.codigo} · Bs ${monto.toFixed(2)} · ${cliente?.nombre || ''}${detalle}`);
   save();
+  webhooks.emitir('cobro.registrado', {
+    pago, pedido: { id: pedido.id, codigo: pedido.codigo, saldo: pedido.saldo, estado_pago: pedido.estado_pago, total: pedido.total },
+    cliente: { id: cliente?.id, nombre: cliente?.nombre },
+  });
   return res.json({ pedido: pedidoResumen(db, pedido, true), pago });
 });
 

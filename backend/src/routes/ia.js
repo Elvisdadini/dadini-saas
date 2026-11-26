@@ -48,4 +48,13 @@ router.post('/ejecutar', limiteIA, (req, res) => {
   res.status(resultado.ok ? 200 : 400).json(resultado);
 });
 
+router.post('/ocr-factura', limiteIA, async (req, res) => {
+  try {
+    const resultado = await ai.extraerFactura(req.body?.imagen);
+    res.status(resultado.ok ? 200 : 400).json(resultado);
+  } catch (error) {
+    res.status(502).json({ ok: false, error: `No se pudo leer la factura: ${error.message}` });
+  }
+});
+
 module.exports = router;

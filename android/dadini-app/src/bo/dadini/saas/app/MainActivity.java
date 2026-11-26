@@ -3,6 +3,10 @@ package bo.dadini.saas.app;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -25,6 +29,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.JavascriptInterface;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -69,7 +74,14 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(Color.WHITE);
 
         // ---------- WebView: interfaz completa del SaaS ----------
+        crearCanalNotificaciones();
         webView = new WebView(this);
+        webView.addJavascriptInterface(new Object() {
+            @JavascriptInterface
+            public void notificar(String titulo, String detalle, String url) {
+                mostrarNotificacion(titulo, detalle, url);
+            }
+        }, "DadiniBridge");
         webView.setBackgroundColor(Color.WHITE);
         root.addView(webView, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -298,6 +310,7 @@ public class MainActivity extends Activity {
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.CAMERA,
             Manifest.permission.READ_CONTACTS,
+            Build.VERSION.SDK_INT >= 33 ? Manifest.permission.POST_NOTIFICATIONS : Manifest.permission.READ_EXTERNAL_STORAGE,
             Build.VERSION.SDK_INT >= 33
                 ? Manifest.permission.READ_MEDIA_IMAGES
                 : Manifest.permission.READ_EXTERNAL_STORAGE
@@ -322,6 +335,39 @@ public class MainActivity extends Activity {
     // Se resuelve por nombre para no depender de la generación de R.java.
     private int logoResource() {
         return getResources().getIdentifier("splash_logo", "drawable", getPackageName());
+    }
+
+    private void crearCanalNotificaciones() {
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel canal = new NotificationChannel(
+                "dadini_avisos", "Avisos DADINI", NotificationManager.IMPORTANCE_DEFAULT);
+            canal.setDescription("Cobranzas, rutas e incidencias del sistema DADINI");
+            NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (manager != null) manager.createNotificationChannel(canal);
+        }
+    }
+
+    private void mostrarNotificacion(String titulo, String detalle, String url) {
+        if (Build.VERSION.SDK_INT >= 33
+            && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return;
+        String destino = esDelSitio(url) ? url : SITE_URL;
+        int id = (int) (System.currentTimeMillis() % 100000);
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(destino));
+        intent.setPackage(getPackageName());
+        PendingIntent pending = PendingIntent.getActivity(this, id, intent,
+            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        Notification.Builder builder;
+        if (Build.VERSION.SDK_INT >= 26) builder = new Notification.Builder(this, "dadini_avisos");
+        else builder = new Notification.Builder(this);
+        Notification aviso = builder
+            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setContentTitle(titulo == null ? "DADINI SaaS" : titulo)
+            .setContentText(detalle == null ? "" : detalle)
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .build();
+        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (manager != null) manager.notify(id, aviso);
     }
 
     private boolean esDelSitio(String url) {

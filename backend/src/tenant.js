@@ -9,7 +9,7 @@ const contexto = new AsyncLocalStorage();
 let real = null;
 
 // Catálogos globales: usuarios (acceso), auditoría (inmutable) y notificaciones.
-const GLOBALES = new Set(['usuarios', 'auditoria', 'notificaciones', 'sucursales']);
+const GLOBALES = new Set(['usuarios', 'auditoria', 'notificaciones', 'sucursales', 'api_tokens', 'webhooks', 'webhook_entregas']);
 const FILTRABLES = ENTIDADES.filter((e) => !GLOBALES.has(e));
 
 function registrar(db) { real = db; }

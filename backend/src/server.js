@@ -70,6 +70,8 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/sucursales', require('./routes/sucursales'));
+app.use('/api/integraciones', require('./routes/integraciones'));
+app.use('/api/public/v1', require('./routes/public-v1'));
 app.use('/api/demanda', require('./routes/demanda'));
 app.use('/api/rag', require('./routes/rag'));
 app.use('/api/dashboard', require('./routes/dashboard'));
@@ -104,6 +106,7 @@ app.use('/api/cargas', require('./routes/cargas'));
 app.use('/api/campo', require('./routes/campo'));
 app.use('/api/whatsapp', require('./routes/whatsapp'));
 app.use('/api/telemetria', require('./routes/telemetria'));
+app.use('/api/notificaciones', require('./routes/notificaciones'));
 app.use('/api/promociones', require('./routes/promociones'));
 app.use('/api/categorias', require('./routes/categorias'));
 app.use('/api/almacenes-moviles', require('./routes/almacenes-moviles'));
@@ -157,6 +160,10 @@ async function arrancar() {
   setInterval(() => {
     try { sincronizarCobros(load()); } catch (error) { console.error('[cobranzas]', error.message); }
   }, 5 * 60 * 1000).unref();
+  const webhooks = require('./webhooks');
+  setInterval(() => {
+    try { webhooks.procesarPendientes(); } catch (error) { console.error('[webhooks]', error.message); }
+  }, 5000).unref();
   // Reportes automáticos: prepara los chats wa.me a la hora configurada.
   // No envía por sí solo (no hay Business API): deja los links listos para abrir.
   const reportesAuto = require('./reportes-auto');

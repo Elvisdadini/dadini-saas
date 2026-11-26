@@ -12,7 +12,10 @@ import BrandStyle from './BrandStyle';
 import AsistenteIA from './AsistenteIA';
 
 const NAV = [
-  { group: 'Principal', items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard, key: 'dashboard', end: true }] },
+  { group: 'Principal', items: [
+    { to: '/', label: 'Dashboard', icon: LayoutDashboard, key: 'dashboard', end: true },
+    { to: '/bi', label: 'Tablero por rol', icon: BarChart3, key: 'dashboard' },
+  ] },
   {
     group: 'Operación',
     items: [
@@ -73,6 +76,7 @@ const NAV = [
 
 const PAGE_TITLES = {
   '/': ['Panel general', 'Resumen operativo'],
+  '/bi': ['Tablero por rol', 'Métricas según tu responsabilidad'],
   '/ventas': ['Ventas', 'Pedidos y facturación'],
   '/ventas/nueva': ['Nueva venta', 'Punto de venta'],
   '/inventario/preparado': ['Preparado de carga', 'Cierre y carga de camión'],
@@ -193,6 +197,29 @@ export default function Shell({ children }) {
       setNotifs(data.notificaciones || []);
     }).catch((error) => { if (vivo) setErrorResumen(error.message); });
     return () => { vivo = false; };
+  }, [user]);
+
+  // Notificacionespush: la APK expone DadiniBridge.notificar; en navegador
+  // solo actualiza la campana. Se consulta cada minuto sin bloquear la UI.
+  useEffect(() => {
+    if (!user) return undefined;
+    const clave = 'dadini_notif_last_id';
+    let vivo = true;
+    const consultar = async () => {
+      try {
+        const desde = Number(localStorage.getItem(clave) || 0);
+        const r = await api.get(`/notificaciones/pendientes?desde_id=${desde}`);
+        if (!vivo || !r.notificaciones?.length) return;
+        localStorage.setItem(clave, String(r.ultimo_id));
+        setNotifs((actual) => [...r.notificaciones, ...actual].slice(0, 20));
+        if (window.DadiniBridge?.notificar) {
+          r.notificaciones.forEach((n) => window.DadiniBridge.notificar(n.titulo, n.detalle, '/'));
+        }
+      } catch { /* silencioso: es un aviso secundario */ }
+    };
+    consultar();
+    const timer = window.setInterval(consultar, 60_000);
+    return () => { vivo = false; window.clearInterval(timer); };
   }, [user]);
 
   useEffect(() => {

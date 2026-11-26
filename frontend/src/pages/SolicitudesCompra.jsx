@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, ClipboardList, PackagePlus, Plus, RefreshCcw, TrendingUp, Truck, XCircle } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FileUp, PackagePlus, Plus, RefreshCcw, ScanLine, TrendingUp, Truck, XCircle } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { Badge, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
@@ -26,6 +26,10 @@ export default function SolicitudesCompra() {
   const [busy, setBusy] = useState(false);
   const [editando, setEditando] = useState(null);
   const [editForm, setEditForm] = useState({ almacen_id: 1, proveedor_id: '', notas: '', items: [] });
+  const [ocrOpen, setOcrOpen] = useState(false);
+  const [ocrImagen, setOcrImagen] = useState('');
+  const [ocrFactura, setOcrFactura] = useState(null);
+  const [ocrBusy, setOcrBusy] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -119,10 +123,59 @@ export default function SolicitudesCompra() {
   };
 
   const resumen = data?.resumen || {};
+  const norm = (v) => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+
+  const leerFactura = async (evento) => {
+    const archivo = evento.target.files?.[0];
+    if (!archivo) return;
+    setOcrBusy(true);
+    setOcrFactura(null);
+    try {
+      const imagen = await new Promise((resolve, reject) => {
+        const lector = new FileReader();
+        lector.onload = () => resolve(String(lector.result));
+        lector.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+        lector.readAsDataURL(archivo);
+      });
+      setOcrImagen(imagen);
+      const r = await api.post('/ia/ocr-factura', { imagen });
+      if (!r.ok) throw new Error(r.error || 'No se pudo leer la factura.');
+      setOcrFactura(r.factura);
+      toast(`Factura leída · ${r.factura.items.length} producto(s)`);
+    } catch (error) { toast(error.message, 'error'); } finally { setOcrBusy(false); }
+  };
+
+  const aplicarOcr = () => {
+    const items = (ocrFactura?.items || []).map((it) => {
+      const clave = norm(it.sku || it.nombre);
+      const producto = catalogo.find((p) => norm(p.sku) === clave)
+        || catalogo.find((p) => norm(p.nombre).includes(clave) || clave.includes(norm(p.nombre)));
+      return {
+        producto_id: producto?.id || null,
+        nombre: producto?.nombre || it.nombre,
+        cantidad: it.cantidad,
+        precio_estimado: it.precio || producto?.costo || 0,
+        proveedor_id: null,
+      };
+    });
+    const sinResolver = items.filter((i) => !i.producto_id).length;
+    if (sinResolver) toast(`${sinResolver} producto(s) no se pudieron vincular: revísalos antes de guardar.`, 'error');
+    const proveedor = proveedores.find((p) => norm(p.nit) === norm(ocrFactura?.nit)
+      || norm(p.nombre) === norm(ocrFactura?.proveedor));
+    setForm({
+      almacen_id: 1,
+      proveedor_id: proveedor?.id || '',
+      notas: `Factura de ${ocrFactura?.proveedor || 'proveedor'} · ${ocrFactura?.fecha || ''} · OCR`,
+      items,
+    });
+    setOcrOpen(false);
+    setModal(true);
+  };
+
   return (
     <>
       <PageHeader eyebrow="Compras / Reposición" title="Solicitudes de compra" subtitle="El almacenero solicita stock bajo; el administrador aprueba y la recepción actualiza el inventario."
-        actions={<><Link className="btn btn-outline" to="/compras/demanda"><TrendingUp size={14} /> Demanda</Link><button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button><button className="btn btn-primary" onClick={abrirNueva}><Plus size={15} /> Nueva solicitud</button></>} />
+        actions={<><Link className="btn btn-outline" to="/compras/demanda"><TrendingUp size={14} /> Demanda</Link><button className="btn btn-soft" onClick={() => setOcrOpen(true)}><ScanLine size={14} /> Subir factura (OCR)</button><button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button><button className="btn btn-primary" onClick={abrirNueva}><Plus size={15} /> Nueva solicitud</button></>} />
       <div className="stat-grid mb-16" style={{ gridTemplateColumns: 'repeat(3, minmax(0,1fr))' }}>
         <StatCard label="Pendientes" value={resumen.pendientes || 0} icon={ClipboardList} tone="amber" hint="Por aprobar" />
         <StatCard label="Aprobadas" value={resumen.aprobadas || 0} icon={CheckCircle2} tone="blue" hint="Órdenes generadas" />
@@ -238,6 +291,26 @@ export default function SolicitudesCompra() {
             </table>
           </div>
           <div className="field"><label>Notas</label><textarea className="textarea" value={editForm.notas} onChange={(e) => setEditForm({ ...editForm, notas: e.target.value })} /></div>
+        </div>
+      </Modal>
+
+      <Modal open={ocrOpen} onClose={() => setOcrOpen(false)} title="Cargar factura de proveedor con OCR" subtitle="Lee la factura y la convierte en una solicitud editable" size="lg"
+        footer={<><button className="btn btn-ghost" onClick={() => setOcrOpen(false)}>Cancelar</button><button className="btn btn-primary" onClick={aplicarOcr} disabled={!ocrFactura?.items?.length}>Revisar solicitud</button></>}
+      >
+        <div className="form-stack">
+          <div className="notice notice-info"><FileUp size={15} /> Sube una foto o captura clara de la factura. El modelo extrae proveedor, NIT, fecha, productos, cantidades y precios; siempre podrás corregirlos.</div>
+          <div className="field"><label>Imagen de la factura</label><input className="input" type="file" accept="image/jpeg,image/png,image/webp" onChange={leerFactura} /></div>
+          {ocrBusy && <div className="notice notice-warn"><ScanLine size={15} /> Leyendo factura…</div>}
+          {ocrImagen && <img src={ocrImagen} alt="Factura" style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 8 }} />}
+          {ocrFactura && (
+            <div className="summary-box">
+              <div className="split"><span className="small muted">Proveedor</span><strong>{ocrFactura.proveedor || '—'} · NIT {ocrFactura.nit || '—'}</strong></div>
+              <div className="split"><span className="small muted">Fecha / total</span><strong>{ocrFactura.fecha || '—'} · Bs {Number(ocrFactura.total || 0).toFixed(2)}</strong></div>
+              <div className="table-wrap mt-8"><table className="data-table"><thead><tr><th>SKU / producto</th><th className="num">Cantidad</th><th className="num">Precio</th></tr></thead><tbody>
+                {ocrFactura.items.map((it, i) => <tr key={i}><td className="cell-strong">{it.sku || '—'}<span className="cell-sub">{it.nombre}</span></td><td className="num">{it.cantidad}</td><td className="num">Bs {it.precio.toFixed(2)}</td></tr>)}
+              </tbody></table></div>
+            </div>
+          )}
         </div>
       </Modal>
     </>

@@ -46,6 +46,7 @@ const ReportesAutomaticos = lazy(() => import('./pages/ReportesAutomaticos'));
 const Administracion = lazy(() => import('./pages/Administracion'));
 const Sucursales = lazy(() => import('./pages/Sucursales'));
 const Demanda = lazy(() => import('./pages/Demanda'));
+const BIRol = lazy(() => import('./pages/BIRol'));
 const RutasVenta = lazy(() => import('./pages/RutasVenta'));
 const Permisos = lazy(() => import('./pages/Permisos'));
 
@@ -83,6 +84,7 @@ export default function App() {
         <Route element={<RequireAuth />}>
           <Route element={<Shell><Outlet /></Shell>}>
             <Route index element={<Dashboard />} />
+            <Route path="bi" element={<BIRol />} />
             <Route path="ventas" element={<Guard module="ventas"><Ventas /></Guard>} />
             <Route path="ventas/nueva" element={<Guard module="venta_nueva"><VentaNueva /></Guard>} />
             <Route path="ventas/preparado" element={<Navigate to="/inventario/preparado" replace />} />

@@ -375,6 +375,38 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - El formulario de proveedores ya no usa una lista fija: toma las **categorías activas reales** desde `/api/producto-catalogo`, así aparecen las nuevas y dejan de mostrarse las eliminadas. El backend filtra también las categorías guardadas en proveedores existentes al listar/editar.
 - Botón **Eliminar proveedor** (admin/dueno) con confirmación. La baja se bloquea si hay solicitudes u órdenes de compra que lo referencian, para no dejar compras huérfanas.
 
+### OCR de facturas de proveedores
+
+- Botón **Subir factura (OCR)** en Solicitudes de compra: se envía una imagen JPEG/PNG/WebP a `/api/ia/ocr-factura`, que usa visión del mismo modelo configurado (`AI_MODEL`) sin SDK ni dependencias nuevas. Devuelve `{ proveedor, nit, fecha, items[{sku,nombre,cantidad,precio}], total }`.
+- La UI muestra la imagen y lo extraído, vincula SKU/nombre contra el catálogo real, resuelve el proveedor por NIT/nombre y abre el formulario de solicitud con los datos listos para corregir. Nada se guarda sin confirmación.
+- Requiere `OPENAI_API_KEY` con créditos; si el modelo no tiene visión, el endpoint responde un error claro.
+
+### BI embebido por rol
+
+- Nueva página **Tablero por rol** (`/bi`) disponible para todos los roles autenticados. Adapta KPIs, gráficos y alertas según `user.rol`: **dueño/admin** (rentabilidad, capital, ranking de vendedores), **supervisor** (equipo, visitas, rutas), **vendedor** (mis ventas, agenda, mis créditos) y **cobrador** (cartera por antigüedad, deudores, cobros y caja). Almacén/distribución ven el tablero operativo.
+- Reutiliza `/dashboard`, `/reportes`, `/rentabilidad`, `/visitas`, `/rutas`, `/pedidos`, `/cobranzas` y `/caja`; la normalización para `AreaChart`, `Bars` y `Donut` se hace en adaptadores, sin duplicar endpoints.
+- Nota de seguridad: los endpoints agregados siguen siendo globales en backend; el tablero filtra la **presentación** por rol, no los datos. Para aislar cifras entre vendedores haría falta añadir filtros por `vendedor_id` en el backend (no implementado en este cambio).
+
+### API pública y webhooks
+
+- **API keys** con prefijo `ddsk_live_`, estado y scopes (`catalogo:read`, `clientes:read`, `ventas:read`, `ventas:write`, `facturas:read`, `reportes:read`, `integraciones:write`). El token plano se muestra **una sola vez**; en BD solo queda el hash SHA-256. Endpoints de administración: `GET/POST /api/integraciones/api-keys`, `DELETE /:id`.
+- **API pública** `/api/public/v1/*` con `X-API-Key`, rate limit propio por key (120/min configurable con `API_PUBLIC_RATE_LIMIT`) y contexto de sucursal. Expone `health, productos, clientes, pedidos, facturas, dashboard, reportes` y `POST /pedidos`. Las respuestas van en `{ ok, fecha, data }` y nunca incluyen secretos.
+- **Webhooks salientes** con eventos `pedido.creado`, `factura.emitida`, `cobro.registrado` (y más). Firma HMAC SHA-256 en `X-DADINI-Signature` con `X-DADINI-Entrega` para idempotencia, reintentos con backoff hasta 5 intentos y registro de cada entrega. Configuración en `GET/POST /api/integraciones/webhooks`; el worker corre cada 5 s. El secreto se cifra con la misma clave maestra que SIAT.
+- Recepción de eventos externos: `POST /api/public/v1/webhooks/entrantes/:proveedor` registra el payload para revisión. Reutiliza `whatsapp-links.js` para notificaciones `wa.me` (no hay Business API).
+
+### Notificaciones push en la APK
+
+- El backend expone `GET /api/notificaciones/pendientes?desde_id=` y `POST /leer/:id`; el Shell consulta cada minuto, guarda el último id en `localStorage` y llama a `window.DadiniBridge.notificar(...)` cuando la app es la APK.
+- `MainActivity.java` crea el canal `dadini_avisos`, expone el bridge `DadiniBridge` con un `NotificationManager` del framework y whitelistea la URL antes de abrirla. Permiso `POST_NOTIFICATIONS` para Android 13+. **Sin FCM ni dependencias nuevas**: funciona con la app abierta/en segundo plano; el push con la app cerrada exigiría migrar el build a Gradle + FCM.
+- Versión de la APK subida a **21.0.6** (`versionCode 7`) en `AndroidManifest.xml`, `build-dadini-apk.ps1` y `backend/src/apk.js`. Para generar el binario: `$env:DADINI_APK_PASSWORD=...; .\android\build-dadini-apk.ps1`.
+
+### Migración a Postgres como fuente principal
+
+- `store.js` acepta `DATABASE_URL` (recomendado en Render/Supabase) además de `DB_HOST/DB_*`. Con `DB_SSL=true` (default) se conecta con TLS `rejectUnauthorized:false`; para local usa `DB_SSL=false`.
+- Script de migración única: `DATABASE_URL=postgres://... npm run migrar:pg` lee `DADINI_DATA_DIR/dadini.json` y escribe todas las entidades en Postgres sin borrar el JSON original. Las tablas se crean automáticamente en el esquema `dadini_saas`.
+- Supabase sigue haciendo de réplica/backup: el snapshot JSON se sube a la tabla configurada en `SUPABASE_SYNC_TABLE`. Antes de activar `DATABASE_URL` en Render, ejecuta la migración con los datos actuales; de lo contrario el sistema arrancaría con el seed vacío.
+- Para activar: configurar `DATABASE_URL` en Render (y `DB_SSL=true`) y reiniciar. El health check debe mostrar `"motor": "postgres"`.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.

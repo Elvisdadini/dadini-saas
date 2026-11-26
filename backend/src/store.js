@@ -10,6 +10,7 @@ const ENTIDADES = [
   'cliente_categorias', 'zonas', 'tipos_cliente', 'rutas_venta', 'sucursales', 'cajas', 'movimientos_caja', 'lotes', 'kardex', 'notas_fiscales', 'crm_notas', 'documentos_rag', 'almacenes_moviles', 'solicitudes_carga', 'devoluciones_movil',
   'objetivos_mensuales', 'confirmaciones_carga',
   'proveedores', 'tipos_gasto', 'solicitudes_compra', 'ordenes_compra', 'gastos', 'pagos_proveedor',
+  'api_tokens', 'webhooks', 'webhook_entregas',
   'boletas_pago', 'conceptos_nomina', 'producto_categorias', 'producto_marcas', 'conteos_inventario', 'qrs_pago',
 ];
 
@@ -18,6 +19,24 @@ let pool = null;
 let jsonDir = null;
 
 function configPg() {
+  // DATABASE_URL es la forma recomendada en Render/Supabase. Las variables
+  // DB_* se conservan para instalaciones locales existentes.
+  if (process.env.DATABASE_URL) {
+    try {
+      const url = new URL(process.env.DATABASE_URL);
+      if (url.protocol.startsWith('postgres')) {
+        return {
+          host: url.hostname,
+          port: Number(url.port || 5432),
+          database: decodeURIComponent(url.pathname.replace(/^\//, '')),
+          user: decodeURIComponent(url.username),
+          password: decodeURIComponent(url.password),
+          ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
+          connectionTimeoutMillis: 5000,
+        };
+      }
+    } catch { /* se cae al modo DB_* o JSON */ }
+  }
   const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD } = process.env;
   if (!DB_HOST || !DB_NAME || !DB_USER || DB_PASSWORD === undefined) return null;
   return {
@@ -26,6 +45,7 @@ function configPg() {
     database: DB_NAME,
     user: DB_USER,
     password: DB_PASSWORD,
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
     connectionTimeoutMillis: 5000,
   };
 }

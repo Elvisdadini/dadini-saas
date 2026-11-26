@@ -530,8 +530,66 @@ function alertas() {
   return { alertas: resultado, generado_en: new Date().toISOString() };
 }
 
+// OCR de facturas de proveedores con visión del mismo modelo (sin SDK).
+async function extraerFactura(imagen) {
+  if (!estaConfigurado()) return { ok: false, error: 'OPENAI_API_KEY no está configurada en el servidor.' };
+  const dato = String(imagen || '');
+  if (!/^data:image\/(jpeg|png|webp);base64,/i.test(dato)) {
+    return { ok: false, error: 'La factura debe ser una imagen JPEG, PNG o WebP.' };
+  }
+  if (dato.length > 8 * 1024 * 1024) return { ok: false, error: 'La imagen es demasiado grande (máx. 6 MB aprox.).' };
+  const respuesta = await fetch(`${BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+    body: JSON.stringify({
+      model: MODEL,
+      temperature: 0,
+      max_tokens: 1500,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content: 'Extrae los datos de esta factura de proveedor. Responde SOLO JSON válido con la forma {"proveedor":"","nit":"","fecha":"YYYY-MM-DD","items":[{"sku":"","nombre":"","cantidad":0,"precio":0}],"total":0}. No inventes datos; usa null si no puedes leerlos. Los números sin comillas.',
+        },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Lee la factura adjunta y devuelve el JSON solicitado.' },
+            { type: 'image_url', image_url: { url: dato, detail: 'high' } },
+          ],
+        },
+      ],
+    }),
+  });
+  const texto = await respuesta.text();
+  let datos;
+  try { datos = JSON.parse(texto); }
+  catch { throw new Error(`OpenAI devolvió una respuesta inválida (${respuesta.status}): ${texto.slice(0, 200)}`); }
+  if (!respuesta.ok) throw new Error(datos.error?.message || `OpenAI respondió ${respuesta.status}.`);
+  const contenido = datos.choices?.[0]?.message?.content;
+  let factura;
+  try { factura = JSON.parse(contenido || '{}'); }
+  catch { return { ok: false, error: 'No se pudo interpretar la factura. Intenta con una imagen más nítida.' }; }
+  const items = Array.isArray(factura.items) ? factura.items.map((i) => ({
+    sku: String(i.sku || '').trim(),
+    nombre: String(i.nombre || '').trim(),
+    cantidad: Math.max(0, Number(i.cantidad) || 0),
+    precio: Math.max(0, Number(i.precio) || 0),
+  })).filter((i) => i.cantidad > 0) : [];
+  return {
+    ok: true,
+    factura: {
+      proveedor: String(factura.proveedor || '').trim(),
+      nit: String(factura.nit || '').trim(),
+      fecha: String(factura.fecha || '').slice(0, 10) || null,
+      items,
+      total: Math.max(0, Number(factura.total) || 0),
+    },
+  };
+}
+
 module.exports = {
-  estaConfigurado, chatear, ejecutarAccion, alertas,
+  estaConfigurado, chatear, ejecutarAccion, alertas, extraerFactura, crearPedido: crearPedidoPorIA,
   resumenVentas, cobranzasVencidas, stockBajo, clientesPorZonaDia, topProductos,
   HERRAMIENTAS: HERRAMIENTAS.map(({ name, description }) => ({ name, description, escritura: herramientaPorNombre(name).escritura })),
   modelo: MODEL,
