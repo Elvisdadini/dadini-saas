@@ -6,7 +6,8 @@ const cadena = require('./auditoria-chain');
 const { asegurarEstructura } = require('./permisos');
 const { recalcularCliente } = require('./services');
 
-const COLECCIONES = ['productos', 'stock', 'almacenes', 'clientes', 'pedidos', 'pagos', 'movimientos', 'rutas', 'visitas'];
+const COLECCIONES = ['productos', 'stock', 'almacenes', 'clientes', 'pedidos', 'pagos', 'movimientos', 'rutas', 'visitas',
+  'cajas', 'movimientos_caja'];
 
 function aplicar(db, viejo) {
   if (!viejo || typeof viejo !== 'object') throw new Error('El archivo debe contener un objeto JSON.');
