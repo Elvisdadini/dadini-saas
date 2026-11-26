@@ -63,14 +63,19 @@ router.get('/drilldown', (req, res) => {
     const mapa = new Map();
     const seleccion = vendedorId ? pedidos.filter((p) => Number(p.vendedor_id) === vendedorId) : pedidos;
     const clientes = clienteId ? seleccion.filter((p) => Number(p.cliente_id) === clienteId) : seleccion;
-    clientes.forEach((p) => (p.items || []).forEach((i) => {
-      const id = Number(i.producto_id);
-      const f = mapa.get(id) || { producto_id: id, producto: i.nombre || nombre(db, id, 'productos'), unidades: 0, total: 0, descuento: round2(Number(p.descuento || 0)), pedidos: 0 };
-      f.unidades += Number(i.cantidad || 0);
-      f.total = round2(f.total + Number(i.subtotal || 0));
-      f.pedidos += 1;
-      mapa.set(id, f);
-    }));
+    clientes.forEach((p) => {
+      const bruto = (p.items || []).reduce((s, i) => s + Number(i.subtotal || 0), 0);
+      (p.items || []).forEach((i) => {
+        const id = Number(i.producto_id);
+        const f = mapa.get(id) || { producto_id: id, producto: i.nombre || nombre(db, id, 'productos'), unidades: 0, total: 0, descuento: 0, pedidos: 0 };
+        const parte = bruto > 0 ? Number(i.subtotal || 0) / bruto : 0;
+        f.unidades += Number(i.cantidad || 0);
+        f.total = round2(f.total + Number(p.total || 0) * parte);
+        f.descuento = round2(f.descuento + Number(p.descuento || 0) * parte);
+        f.pedidos += 1;
+        mapa.set(id, f);
+      });
+    });
     filas = [...mapa.values()].sort((a, b) => b.unidades - a.unidades);
   } else if (nivel === 'visitas') {
     const mapa = new Map();
