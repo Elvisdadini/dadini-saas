@@ -10,7 +10,7 @@ import { puede, useAuth } from '../auth';
 import Mapa from '../components/Mapa';
 import BotonExcel from '../components/BotonExcel';
 import { abrirEnMapas, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
-import { Badge, EmptyState, Estado, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
+import { Badge, Confirm, EmptyState, Estado, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
 const VACIO = { nombre: '', tipo: 'minorista', tipo_cliente_id: '', zona: '', direccion: '', telefono: '', whatsapp: '', email: '', limite_credito: 0, contacto: '', notas: '', activo: true, latitud: '', longitud: '', precision: null, ruta_venta: '', dia_visita: '', categoria_cliente_id: '', vendedor_id: '' };
 
