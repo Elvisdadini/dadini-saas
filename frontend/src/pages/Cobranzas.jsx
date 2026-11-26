@@ -7,6 +7,7 @@ import { api } from '../api';
 import { useAuth } from '../auth';
 import Mapa from '../components/Mapa';
 import BotonWhatsapp from '../components/BotonWhatsapp';
+import BotonExcel from '../components/BotonExcel';
 import { distanciaMetros, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, EmptyState, Estado, Fecha, Modal, Money, PageHeader, SkeletonRows, StatCard, Tabs, useToast } from '../ui';
 
@@ -190,6 +191,7 @@ export default function Cobranzas() {
           : 'Solo cuentas vencidas. Las ventas a crédito al día son cobradas por su vendedor.'}
         actions={(
           <>
+            <BotonExcel filas={data?.pedidos || []} nombre="cartera" columnas={['codigo', 'cliente_nombre', 'total_a_cobrar', 'saldo', 'dias_vencido', 'en_mora', 'estado_pago']} />
             <button className={`btn ${avanceAbierto ? 'btn-navy' : 'btn-primary'}`} onClick={() => setAvanceAbierto(!avanceAbierto)}>
               <BarChart3 size={14} /> {avanceAbierto ? 'Ocultar avance de ruta' : 'Avance de ruta'}
             </button>

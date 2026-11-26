@@ -4,6 +4,7 @@ import { Eye, Filter, MapPin, Plus, Search, ShoppingCart, Target, Truck } from '
 import { api, qs } from '../api';
 import { puede, useAuth } from '../auth';
 import { Badge, EmptyState, Estado, Fecha, Money, PageHeader, SkeletonRows, Tabs, useToast } from '../ui';
+import BotonExcel from '../components/BotonExcel';
 
 export default function Ventas() {
   const { user } = useAuth();
@@ -65,6 +66,7 @@ export default function Ventas() {
         subtitle="Registra ventas, da seguimiento a los pedidos y controla los cobros de tu cartera."
         actions={(
           <>
+            <BotonExcel filas={pedidos} nombre="pedidos" columnas={['codigo', 'cliente_nombre', 'fecha', 'vendedor_nombre', 'canal', 'total', 'saldo', 'estado', 'estado_pago']} />
             {puede(user, 'objetivos') && <button className="btn btn-outline" onClick={() => navigate('/ventas/objetivos')}><Target size={14} /> Generar objetivos</button>}
             <button className="btn btn-navy" onClick={() => navigate('/ventas/agenda?iniciar=1')}><MapPin size={14} /> Iniciar ruta</button>
             <button className="btn btn-outline" onClick={() => navigate('/clientes')}><Search size={14} /> Clientes</button>

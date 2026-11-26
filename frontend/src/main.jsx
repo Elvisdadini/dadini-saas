@@ -9,6 +9,9 @@ import './styles.css';
 
 instalarTelemetria();
 
+// Tema persistido antes del primer render para evitar parpadeo.
+document.documentElement.dataset.theme = localStorage.getItem('dadini_tema') || 'claro';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>

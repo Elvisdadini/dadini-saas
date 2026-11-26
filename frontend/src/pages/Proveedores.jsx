@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Building2, Pencil, Plus, RefreshCcw, Trash2 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../auth';
+import BotonExcel from '../components/BotonExcel';
 import { Badge, Confirm, EmptyState, Modal, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
 const VACIO = { nombre: '', nit: '', contacto: '', telefono: '', email: '', direccion: '', ciudad: 'Cochabamba', categorias: [], dias_entrega: [], condiciones_pago: 'Contado', activo: true };
@@ -56,7 +57,7 @@ export default function Proveedores() {
   return (
     <>
       <PageHeader eyebrow="Compras / Configuración" title="Proveedores" subtitle="Administra proveedores, categorías que surten, días de entrega y condiciones de pago."
-        actions={<><button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button><button className="btn btn-primary" onClick={() => abrir()}><Plus size={15} /> Nuevo proveedor</button></>} />
+        actions={<><BotonExcel filas={data?.proveedores || []} nombre="proveedores" columnas={['codigo', 'nombre', 'nit', 'contacto', 'telefono', 'email', 'condiciones_pago', 'activo']} /><button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button><button className="btn btn-primary" onClick={() => abrir()}><Plus size={15} /> Nuevo proveedor</button></>} />
       <div className="stat-grid mb-16" style={{ gridTemplateColumns: 'repeat(3, minmax(0,1fr))' }}>
         <StatCard label="Proveedores" value={data?.total || 0} icon={Building2} tone="blue" hint="Registrados" />
         <StatCard label="Activos" value={(data?.proveedores || []).filter((p) => p.activo).length} icon={Building2} tone="green" hint="Disponibles" />

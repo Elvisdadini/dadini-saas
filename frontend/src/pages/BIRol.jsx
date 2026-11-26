@@ -167,7 +167,7 @@ export default function BIRol() {
       <PageHeader eyebrow="Inteligencia de negocio / Por rol" title={TITULO[perfil][0]} subtitle={TITULO[perfil][1]}
         actions={<>
           <select className="select" value={periodo} onChange={(e) => setPeriodo(e.target.value)}>{PERIODOS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}</select>
-          <button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>
+          <button className="btn btn-outline" title="Recalcula los indicadores de tu tablero" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>
           <button className="btn btn-primary" onClick={() => navigate('/')}><BarChart3 size={14} /> Panel general</button>
         </>}
       />

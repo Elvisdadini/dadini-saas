@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle, ArrowLeft, ArrowRight, CalendarDays, Check, CheckCircle2, CircleDollarSign, Clock3, CreditCard, Crosshair,
   MapPin, Navigation, Package, PackageCheck, Phone, Printer, Receipt, Truck, UserRound, Wallet, X,
@@ -191,6 +191,7 @@ export default function PedidoDetalle() {
           <>
             <button className="btn btn-ghost" onClick={() => navigate('/ventas')}><ArrowLeft size={15} /> Volver</button>
             <button className="btn btn-outline" onClick={() => window.print()}><Printer size={14} /> Imprimir</button>
+            <Link className="btn btn-soft" to={`/crm?cliente=${pedido.cliente_id}`} title="Abrir ficha 360° del cliente (RFM, historial y notas)"><UserRound size={14} /> Ver cliente 360°</Link>
             <BotonWhatsapp tipo="pedido" clienteId={pedido.cliente_id} pedidoId={pedido.id} telefono={pedido.cliente_telefono} latitud={pedido.cliente_latitud} longitud={pedido.cliente_longitud} monto={pedido.total} label="Enviar pedido" />
             {pedido.saldo > 0 && pedido.estado !== 'cancelado' && puedeCobrar && <button className="btn btn-primary" onClick={abrirPago}><Wallet size={14} /> Registrar cobro</button>}
             {siguiente && puedeVender && <button className="btn btn-navy" onClick={() => {

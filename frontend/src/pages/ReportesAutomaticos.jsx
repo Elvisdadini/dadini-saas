@@ -95,7 +95,7 @@ export default function ReportesAutomaticos() {
         actions={<>
           <Link className="btn btn-outline" to="/reportes"><ArrowLeft size={14} /> Reportes</Link>
           <button className="btn btn-primary" onClick={guardar} disabled={guardando}><CheckCircle2 size={14} /> {guardando ? 'Guardando…' : 'Guardar configuración'}</button>
-          <button className="btn btn-green" onClick={generarAhora} disabled={guardando || !form.destinatarios.length}><Send size={14} /> Generar ahora</button>
+          <button className="btn btn-green" title="Prepara los chats de WhatsApp con el resumen actual sin esperar a la hora programada" onClick={generarAhora} disabled={guardando || !form.destinatarios.length}><Send size={14} /> Generar ahora</button>
         </>}
       />
 

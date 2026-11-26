@@ -63,7 +63,7 @@ export default function Demanda() {
         actions={<>
           <button className={`chip ${soloRiesgo ? 'active' : ''}`} onClick={() => setSoloRiesgo(!soloRiesgo)}><AlertTriangle size={12} /> Solo riesgo</button>
           <button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>
-          <button className="btn btn-primary" onClick={generarSolicitud} disabled={busy || !(data?.sugerencias || []).some((s) => s.sugerido > 0)}><ShoppingCart size={14} /> Generar solicitud</button>
+          <button className="btn btn-primary" title="Convierte todas las sugerencias en una solicitud de compra editable" onClick={generarSolicitud} disabled={busy || !(data?.sugerencias || []).some((s) => s.sugerido > 0)}><ShoppingCart size={14} /> Generar solicitud</button>
         </>}
       />
 

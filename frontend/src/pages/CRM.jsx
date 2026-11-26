@@ -171,7 +171,7 @@ export default function CRM() {
                     <td className="num"><Money value={c.saldo} />{c.en_mora && <span className="cell-sub">Vencido <Money value={c.vencido} /></span>}</td>
                     <td className="num"><Badge tone={c.prioridad >= 5 ? 'red' : c.prioridad >= 4 ? 'amber' : c.prioridad >= 3 ? 'blue' : 'green'}>P{c.prioridad}</Badge></td>
                     <td className="actions">
-                      <button className="btn btn-soft btn-sm" onClick={() => abrir(c.id)}><Sparkles size={12} /> Ver 360</button>
+                      <button className="btn btn-soft btn-sm" title="Abre la ficha 360° del cliente con RFM, historial y notas" onClick={() => abrir(c.id)}><Sparkles size={12} /> Ver 360</button>
                       <BotonWhatsapp tipo="otro" clienteId={c.id} telefono={c.whatsapp} mensaje={`Hola ${c.nombre}, desde DADINI queremos recordarte que estamos listos para ayudarte con tu próximo pedido. ¿Te agendamos una visita?`} label="Contactar" />
                     </td>
                   </tr>

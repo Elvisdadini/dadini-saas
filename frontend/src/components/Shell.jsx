@@ -3,13 +3,14 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   BadgePercent, Bell, BarChart3, Building2, ChevronDown, ClipboardList, Crown, LayoutDashboard, LogOut, Menu, Palette, Receipt, Tag, Target, TrendingUp, Undo2,
   MapPin, Package, PackageCheck, Search, Settings, ShoppingCart, Truck, Users, Wallet, X, UserRound, Lock,
-  FileText, ArrowUpRight, CheckCircle2, AlertTriangle, RefreshCw, Crosshair, WifiOff, CloudUpload, MessageCircle, HeartHandshake,
+  FileText, ArrowUpRight, CheckCircle2, AlertTriangle, RefreshCw, Crosshair, WifiOff, CloudUpload, MessageCircle, HeartHandshake, Moon, Sun,
 } from 'lucide-react';
 import { api, contarCola, reenviarCola } from '../api';
 import { useAuth, puede, ROL_LABEL } from '../auth';
 import { Avatar, Badge, Modal, useToast } from '../ui';
 import BrandStyle from './BrandStyle';
 import AsistenteIA from './AsistenteIA';
+import Onboarding from './Onboarding';
 
 const NAV = [
   { group: 'Principal', items: [
@@ -125,6 +126,7 @@ export default function Shell({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [tema, setTema] = useState(() => localStorage.getItem('dadini_tema') || 'claro');
   const [resumen, setResumen] = useState(null);
   const [errorResumen, setErrorResumen] = useState('');
   const [enLinea, setEnLinea] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
@@ -145,6 +147,11 @@ export default function Shell({ children }) {
     setNotifOpen(false);
     setUserOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = tema;
+    localStorage.setItem('dadini_tema', tema);
+  }, [tema]);
 
   useEffect(() => {
     const actualizar = () => setColaPendiente(contarCola());
@@ -357,6 +364,9 @@ export default function Shell({ children }) {
           </div>
           <GlobalSearch puede={puede} user={user} navigate={navigate} />
           <div className="topbar-actions">
+            <button className="icon-btn" title={tema === 'oscuro' ? 'Modo claro' : 'Modo oscuro'} onClick={() => setTema(tema === 'oscuro' ? 'claro' : 'oscuro')}>
+              {tema === 'oscuro' ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             {sucursales.length > 1 && (
               <select className="select" value={sucursalId || ''} onChange={(e) => cambiarSucursal(e.target.value)} title="Sucursal activa">
                 {sucursales.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
@@ -467,6 +477,7 @@ export default function Shell({ children }) {
           </>
         )}
       </Modal>
+      <Onboarding />
     </div>
   );
 }
@@ -476,11 +487,24 @@ function GlobalSearch({ user, puede, navigate }) {
   const [results, setResults] = useState({ productos: [], clientes: [] });
   const [open, setOpen] = useState(false);
   const boxRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     const onClick = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+        setOpen(true);
+      }
+      if (e.key === 'Escape') { setOpen(false); inputRef.current?.blur(); }
+    };
     document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
   }, []);
 
   useEffect(() => {
@@ -502,11 +526,13 @@ function GlobalSearch({ user, puede, navigate }) {
     <div className="topbar-search" ref={boxRef}>
       <Search size={15} className="search-icon" />
       <input
+        ref={inputRef}
         value={term}
         onChange={(e) => { setTerm(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         placeholder="Buscar clientes o productos…"
       />
+      <kbd className="search-kbd">{typeof navigator !== 'undefined' && navigator.platform?.toLowerCase().includes('mac') ? '⌘K' : 'Ctrl+K'}</kbd>
 
       {open && (
         <div className="search-panel">

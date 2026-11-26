@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { api, qs } from '../api';
 import { optimizarImagen, pesoDeDataUrl, skuDeArchivo } from '../imagen';
+import BotonExcel from '../components/BotonExcel';
 import { useAuth } from '../auth';
 import {
   Badge, Confirm, EmptyState, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, Tabs, useToast,
@@ -295,6 +296,7 @@ export default function Inventario() {
         subtitle="Controla existencias por almacén, movimientos, transferencias y alertas de reposición."
         actions={(
           <>
+            <BotonExcel filas={productos} nombre="productos" columnas={['sku', 'nombre', 'categoria', 'unidad', 'precio', 'costo', 'stock_total', 'stock_minimo']} />
             <Link className="btn btn-ghost" to="/inventario/promociones"><BadgePercent size={14} /> Promociones</Link>
             <Link className="btn btn-ghost" to="/inventario/almacenes-moviles"><Truck size={14} /> Almacenes móviles</Link>
             <Link className="btn btn-ghost" to="/inventario/devoluciones"><Undo2 size={14} /> Devoluciones</Link>

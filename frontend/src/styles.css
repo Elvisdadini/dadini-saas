@@ -1049,3 +1049,45 @@ button.sidebar-brand:focus-visible { box-shadow: inset 0 0 0 2px var(--orange); 
 .map-popup-action.blue { background: #2563eb; }
 .map-popup-action.red { background: #dc2626; }
 .map-popup-action.navy { background: #061c33; }
+
+/* Atajo de búsqueda */
+.search-kbd { position: absolute; right: 10px; font: 10px var(--font); color: var(--muted-2); border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; pointer-events: none; }
+.topbar-search input { padding-right: 60px; }
+
+/* Modo oscuro */
+[data-theme='dark'] {
+  --bg: #0b1522;
+  --surface: #122033;
+  --surface-2: #16283e;
+  --line: #253a52;
+  --line-strong: #34506e;
+  --text: #e8f0f8;
+  --muted: #a2b6ca;
+  --muted-2: #8299af;
+  --orange-soft: #3a2414;
+  --green-soft: #12372e;
+  --red-soft: #3d1e28;
+  --amber-soft: #3a2f14;
+  --blue-soft: #162c4a;
+  --purple-soft: #252044;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.25);
+  --shadow: 0 8px 28px rgba(0,0,0,.35);
+}
+[data-theme='dark'] body { background: var(--bg); color: var(--text); }
+[data-theme='dark'] .sidebar, [data-theme='dark'] .topbar,
+[data-theme='dark'] .panel, [data-theme='dark'] .card,
+[data-theme='dark'] .stat-card, [data-theme='dark'] .modal,
+[data-theme='dark'] .dropdown, [data-theme='dark'] .search-panel,
+[data-theme='dark'] .notice, [data-theme='dark'] .summary-box,
+[data-theme='dark'] .mini-stat, [data-theme='dark'] .preview-box {
+  background: var(--surface); color: var(--text);
+}
+[data-theme='dark'] .input, [data-theme='dark'] .select, [data-theme='dark'] .textarea {
+  background: var(--surface-2); color: var(--text); border-color: var(--line);
+}
+[data-theme='dark'] .data-table th { background: var(--surface-2); color: var(--muted); }
+[data-theme='dark'] .data-table td, [data-theme='dark'] .data-table tbody tr:hover { color: var(--text); }
+[data-theme='dark'] .data-table tbody tr:hover { background: var(--surface-2); }
+[data-theme='dark'] .btn-ghost, [data-theme='dark'] .chip { color: var(--text); }
+[data-theme='dark'] .chip.active { background: var(--orange-soft); }
+[data-theme='dark'] .login-page { background: var(--bg); }

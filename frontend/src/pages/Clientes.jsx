@@ -8,6 +8,7 @@ import {
 import { api, qs } from '../api';
 import { puede, useAuth } from '../auth';
 import Mapa from '../components/Mapa';
+import BotonExcel from '../components/BotonExcel';
 import { abrirEnMapas, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, EmptyState, Estado, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
@@ -309,6 +310,7 @@ export default function Clientes() {
         subtitle="Gestiona mayoristas, minoristas, zonas de reparto y cupos de crédito."
         actions={<>
             <Link className="btn btn-ghost" to="/crm"><Sparkles size={14} /> CRM 360</Link>
+            <BotonExcel filas={data?.clientes || []} nombre="clientes" columnas={['codigo', 'nombre', 'tipo', 'zona', 'telefono', 'pedidos', 'comprado', 'saldo']} />
             {puedeEditar && <>
             <Link className="btn btn-ghost" to="/clientes/categorias"><Tag size={14} /> Categorías</Link>
             <Link className="btn btn-ghost" to="/ventas/rutas"><MapPin size={14} /> Rutas y zonas</Link>

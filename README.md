@@ -407,6 +407,14 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Supabase sigue haciendo de réplica/backup: el snapshot JSON se sube a la tabla configurada en `SUPABASE_SYNC_TABLE`. Antes de activar `DATABASE_URL` en Render, ejecuta la migración con los datos actuales; de lo contrario el sistema arrancaría con el seed vacío.
 - Para activar: configurar `DATABASE_URL` en Render (y `DB_SSL=true`) y reiniciar. El health check debe mostrar `"motor": "postgres"`.
 
+### Quick wins de interfaz
+
+- **⌘K / Ctrl+K** enfoca la búsqueda global desde cualquier pantalla, con `Esc` para cerrar y atajo visible en el buscador.
+- **Modo oscuro** con toggle en la barra superior, persistido en `localStorage` y aplicado antes del primer render (sin parpadeo).
+- **Onboarding guiado** de 5 pasos al primer ingreso (demanda, BI por rol, CRM, sucursales y asistente), omitible y recordado. Los módulos nuevos incluyen tooltips en sus acciones principales.
+- **Exportar a Excel** desde cualquier listado principal (clientes, productos, pedidos, cartera y proveedores) con `xlsx` cargado de forma diferida; se descarga `.xlsx` con columnas ya normalizadas.
+- **Ver cliente 360°** desde el detalle de cualquier pedido: abre el CRM centrado en ese cliente con su RFM, historial y notas.
+
 **Promociones** en Inventario → Promociones:
 - **Volumen:** escalas por cantidad con descuento porcentual o fijo.
 - **Bonificación:** por cada N unidades, llevar M productos gratis.

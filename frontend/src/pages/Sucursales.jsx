@@ -69,7 +69,7 @@ export default function Sucursales() {
         subtitle="Cada sucursal opera con clientes, inventario, cobranzas y reportes aislados."
         actions={<>
           <button className="btn btn-outline" onClick={cargar}><RefreshCcw size={14} /> Actualizar</button>
-          <button className="btn btn-primary" onClick={abrirNueva}><Plus size={14} /> Nueva sucursal</button>
+          <button className="btn btn-primary" title="Crear una sucursal vacía con datos aislados" onClick={abrirNueva}><Plus size={14} /> Nueva sucursal</button>
         </>}
       />
 
