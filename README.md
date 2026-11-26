@@ -424,7 +424,7 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Nuevo módulo **Cambios de producto** (`/cambios`): el vendedor registra el producto con detalle, cantidad, razón (defecto, vencimiento corto, baja rotación o producto incorrecto), detalle y **foto**. Distribución ve los pendientes, confirma que el **producto bueno entregado coincide** con el registrado (el backend rechaza la confirmación si no coincide) o rechaza con motivo. Cada confirmación deja movimientos de trazabilidad; el producto con detalle **no vuelve al stock vendible**.
 - Permisos en cascada: `cambios.ver/crear/editar/eliminar` y `cambios.confirmar`, con plantillas por rol y migración suave para usuarios ya creados. Vendedores: ver+crear; distribución: ver+editar+confirmar; supervisor: ver+editar+eliminar; admin/dueno: todos.
 - Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`. El acceso también está en el encabezado de **Ventas** y en el menú principal.
-- **APK 21.0.6** (`versionCode 7`): compilada con keystore nuevo y publicada en `/uploads/apk/`. Al cambiar la firma, quienes tenían la versión anterior deben desinstalar antes de instalar. La contraseña del keystore no se versiona: guárdala fuera del repo.
+- **APK 21.0.6** (`versionCode 7`): compilada con keystore nuevo y publicada en `/uploads/apk/DADINI-SaaS-21.0.6.apk` (archivo versionado en el repo, sobrevive a reinicios). Al cambiar la firma, quienes tenían la versión anterior deben desinstalar antes de instalar. La contraseña del keystore no se versiona: guárdala fuera del repo.
 
 ### Alcance de información por usuario
 
