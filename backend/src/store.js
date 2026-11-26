@@ -174,7 +174,8 @@ async function guardar(db) {
 
 function base() {
   if (modo === 'postgres') {
-    return `PostgreSQL ${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME} · esquema ${ESQUEMA}`;
+    const cfg = configPg() || {};
+    return `PostgreSQL ${cfg.host || process.env.DB_HOST}:${cfg.port || 5432}/${cfg.database || process.env.DB_NAME} · esquema ${ESQUEMA}`;
   }
   return archivoJson();
 }

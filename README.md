@@ -405,7 +405,7 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - `store.js` acepta `DATABASE_URL` (recomendado en Render/Supabase) además de `DB_HOST/DB_*`. Con `DB_SSL=true` (default) se conecta con TLS `rejectUnauthorized:false`; para local usa `DB_SSL=false`.
 - Script de migración única: `DATABASE_URL=postgres://... npm run migrar:pg` lee `DADINI_DATA_DIR/dadini.json` y escribe todas las entidades en Postgres sin borrar el JSON original. Las tablas se crean automáticamente en el esquema `dadini_saas`.
 - Supabase sigue haciendo de réplica/backup: el snapshot JSON se sube a la tabla configurada en `SUPABASE_SYNC_TABLE`. Antes de activar `DATABASE_URL` en Render, ejecuta la migración con los datos actuales; de lo contrario el sistema arrancaría con el seed vacío.
-- Para activar: configurar `DATABASE_URL` en Render (y `DB_SSL=true`) y reiniciar. El health check debe mostrar `"motor": "postgres"`.
+- **Activado en producción**: `DATABASE_URL` apunta al session pooler IPv4 de Supabase, `DB_SSL=true`, y los datos se migraron desde la instantánea remota. `/api/health` muestra `"motor": "postgres"`. Supabase mantiene además la tabla de snapshots como respaldo.
 
 ### Quick wins de interfaz
 
