@@ -206,7 +206,7 @@ function listar(db, filtros = {}, req = null) {
   const todas = clientesVisibles.map((c) => calcular(db, c, idx, montos, limite12m));
   const porSegmento = Object.fromEntries(SEGMENTOS.map((s) => [s, todas.filter((c) => c.segmento === s).length]));
   const resumen = {
-    total: (db.clientes || []).filter((c) => c.activo !== false).length,
+    total: clientesVisibles.filter((c) => c.activo !== false).length,
     por_segmento: porSegmento,
     campeones: porSegmento.Campeones,
     en_riesgo: porSegmento['En riesgo'] + porSegmento.Perdidos,
