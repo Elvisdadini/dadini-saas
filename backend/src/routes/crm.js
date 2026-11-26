@@ -22,13 +22,17 @@ router.get('/segmentos', (req, res) => {
 
 router.get('/clientes', (req, res) => {
   const db = load();
-  return res.json(crm.listar(db, req.query));
+  return res.json(crm.listar(db, req.query, req));
 });
 
 router.get('/clientes/:id', (req, res) => {
   const db = load();
   const detalle = crm.detalle(db, req.params.id);
   if (!detalle) return res.status(404).json({ error: 'Cliente no encontrado.' });
+  if (!require('../alcance').verTodo(req)
+    && !require('../alcance').esMio(detalle.cliente, req, ['vendedor_id', 'usuario_id', 'creado_por'])) {
+    return res.status(403).json({ error: 'No tienes acceso a este cliente.' });
+  }
   return res.json(detalle);
 });
 

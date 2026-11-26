@@ -152,17 +152,20 @@ function calcular(db, cliente, idx, montos, limite12m) {
   };
 }
 
-function listar(db, filtros = {}) {
+function listar(db, filtros = {}, req = null) {
+  const clientesVisibles = req
+    ? require('./alcance').filtrar(req, db.clientes || [], ['vendedor_id', 'usuario_id', 'creado_por'])
+    : (db.clientes || []);
   const idx = indiceColecciones(db);
   const limite12m = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
   // Montos de la cartera para los quintiles del componente monetario.
-  const montos = (db.clientes || []).map((c) => round2(
+  const montos = clientesVisibles.map((c) => round2(
     (idx.pedidos.get(Number(c.id)) || [])
       .filter((p) => p.estado !== 'cancelado' && p.created_at >= limite12m)
       .reduce((s, p) => s + Number(p.total || 0), 0),
   )).filter((v) => v > 0).sort((a, b) => a - b);
 
-  let filas = (db.clientes || []).map((c) => {
+  let filas = clientesVisibles.map((c) => {
     const rfm = calcular(db, c, idx, montos, limite12m);
     return {
       ...rfm,
@@ -200,7 +203,7 @@ function listar(db, filtros = {}) {
   }[orden] || (() => 0);
   filas.sort(cmp);
 
-  const todas = (db.clientes || []).map((c) => calcular(db, c, idx, montos, limite12m));
+  const todas = clientesVisibles.map((c) => calcular(db, c, idx, montos, limite12m));
   const porSegmento = Object.fromEntries(SEGMENTOS.map((s) => [s, todas.filter((c) => c.segmento === s).length]));
   const resumen = {
     total: (db.clientes || []).filter((c) => c.activo !== false).length,
