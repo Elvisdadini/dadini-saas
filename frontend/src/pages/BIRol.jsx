@@ -275,9 +275,6 @@ function ExploradorBI({ global, onIrPedido }) {
 
   const filas = datos?.filas || [];
   const resumen = datos?.resumen || {};
-  const etiquetaVendedor = pila.find((p) => p.filtros?.vendedor_id)?.etiqueta || (filtros.vendedor_id ? `Vendedor #${filtros.vendedor_id}` : '');
-  const etiquetaCliente = pila.find((p) => p.filtros?.cliente_id)?.etiqueta || (filtros.cliente_id ? `Cliente #${filtros.cliente_id}` : '');
-
   return (
     <>
       <div className="panel mt-16">
@@ -315,8 +312,6 @@ function ExploradorBI({ global, onIrPedido }) {
           <div className="inline mb-16" style={{ gap: 6, flexWrap: 'wrap' }}>
             {pila.map((p, i) => <span className="chip" key={i} title={p.etiqueta}>{p.etiqueta || NIVELES.find((n) => n.id === p.nivel)?.label} <ChevronRight size={12} /></span>)}
             {pila.length > 0 && <button className="btn btn-ghost btn-sm" onClick={volver}><ArrowLeft size={12} /> Volver</button>}
-            {etiquetaVendedor && <span className="chip active"><Users size={12} /> {etiquetaVendedor}</span>}
-            {etiquetaCliente && <span className="chip active"><Users size={12} /> {etiquetaCliente}</span>}
           </div>
 
           <div className="stat-grid mb-16" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>
