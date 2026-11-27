@@ -428,8 +428,9 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 
 ### Post venta (POS) rápido
 
-- Lectura de **código de barras, EAN-13 y QR** con la cámara (`BarcodeDetector`) y con lectores de teclado: escriben el código y pulsan Enter, aunque el foco esté en otra parte. El producto se agrega solo al carrito. El campo de búsqueda también acepta `sku`, `codigo_barras` y nombre.
-- **Detección por imagen**: se toma una foto, se compara su color promedio con las imágenes de los productos y se muestran las coincidencias para elegir y agregar (sin créditos de IA). Para lectura exacta, usar el escáner.
+- **Sensor automático permanente**: al abrir *Ventas → Nueva venta* se enciende la cámara (o el lector) sin pulsar botones. Un widget pequeño abajo a la derecha muestra "Sensor automático activo" y permite pausar/reanudar. Si el navegador pide permiso, el widget ofrece el botón *Activar cámara*.
+- Lectura continua de **códigos de barras, EAN-13 y QR** (`BarcodeDetector`) y de lectores tipo teclado: escriben el código y Enter aunque el foco esté en otro campo. El producto se agrega solo al carrito, con enfriamiento de 1,5 s para evitar duplicados. El buscador también acepta `sku`, `codigo_barras` y nombre.
+- **Detección por imagen automática**: cuando no hay código visible, se compara cada fotograma por color promedio con las fotos de los productos y se agrega la coincidencia más cercana (umbral configurable, enfriamiento de 4,5 s), sin créditos de IA. Para lectura exacta, acercar el código al sensor.
 - **Cliente rápido**: busca por nombre, **CI, NIT o código `CLI-001`**; si no existe, se registra desde el POS con `nombre`, `razón social`, `CI/NIT`, WhatsApp y dirección, quedando listo para futuras compras. Con factura SIN se muestran los campos de razón social y NIT/CI y se actualizan en el cliente.
 - Al registrar la venta, el carrito y los descuentos se limpian **automáticamente** para la siguiente venta (se mantiene el cliente). Aparece una barra con el resultado y botones de **WhatsApp**, **Imprimir comprobante/factura** y **Ver pedido**. El envío por WhatsApp se puede activar/desactivar con un check.
 - `productos.codigo_barras` se registra en Inventario y se indexa en el servidor.

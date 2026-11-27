@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, ArrowLeft, BadgePercent, Banknote, Building2, CalendarClock, Camera, CheckCircle2, Crosshair, CreditCard, Images, MapPin, MessageCircle, Minus, Plus, QrCode, Search, ShoppingCart,
@@ -7,8 +7,7 @@ import {
 import { api } from '../api';
 import { puede, useAuth } from '../auth';
 import Mapa from '../components/Mapa';
-import BotonWhatsapp from '../components/BotonWhatsapp';
-import EscanerCodigos from '../components/EscanerCodigos';
+import SensorPOS from '../components/SensorPOS';
 import { distanciaMetros, esCoordenaValida, formatoCoords, obtenerUbicacion } from '../geo';
 import { Badge, EmptyState, Modal, Money, PageHeader, SkeletonRows, useToast } from '../ui';
 
@@ -50,12 +49,10 @@ export default function VentaNueva() {
   const [ubicacion, setUbicacion] = useState(null);
   const [ubicando, setUbicando] = useState(false);
   const [geocerca, setGeocerca] = useState({ aplica: false });
-  const [scanOpen, setScanOpen] = useState(false);
   const [modoImagenes, setModoImagenes] = useState(true);
   const [qrs, setQrs] = useState([]);
   const [qrAlerta, setQrAlerta] = useState([]);
   const [qrOpen, setQrOpen] = useState(false);
-  const [ventaExitosa, setVentaExitosa] = useState(null);
   const [telComprobante, setTelComprobante] = useState('');
   const [estadoVentas, setEstadoVentas] = useState(null);
   const [clienteBusqueda, setClienteBusqueda] = useState('');
@@ -63,8 +60,6 @@ export default function VentaNueva() {
   const [clienteModal, setClienteModal] = useState(false);
   const [clienteForm, setClienteForm] = useState({ nombre: '', razon_social: '', nit: '', ci: '', telefono: '', whatsapp: '', direccion: '', tipo: 'minorista' });
   const [facturaForm, setFacturaForm] = useState({ razon_social: '', nit: '' });
-  const [fotoSugerencias, setFotoSugerencias] = useState(null);
-  const [buscandoImagen, setBuscandoImagen] = useState(false);
   const [autoWhatsapp, setAutoWhatsapp] = useState(true);
   const [ultimaVenta, setUltimaVenta] = useState(null);
   const leerRef = useRef(null);
@@ -220,7 +215,6 @@ export default function VentaNueva() {
     const llaves = (p) => [p.sku, p.codigo_barras, p.codigo, p.nombre].map((x) => String(x || '').toLowerCase());
     const producto = productos.find((p) => llaves(p).includes(termino))
       || productos.find((p) => llaves(p).some((x) => x && x.includes(termino)));
-    setScanOpen(false);
     if (!producto) {
       setSearch(codigo);
       return toast(`No se encontró "${codigo}". Ajusta la búsqueda manual.`, 'error');
@@ -271,6 +265,12 @@ export default function VentaNueva() {
     }
     setCart({ ...cart, [p.id]: actual + paso });
   };
+  const agregarRef = useRef(null);
+  agregarRef.current = agregar;
+  const alDetectarProducto = useCallback((p) => {
+    agregarRef.current?.(p);
+    toast(`${p.nombre} agregado por imagen`, 'success');
+  }, [toast]);
 
   const cambiar = (id, delta) => {
     const producto = productos.find((p) => p.id === Number(id));
@@ -339,43 +339,6 @@ export default function VentaNueva() {
     } catch (error) { toast(error.message, 'error'); } finally { setSaving(false); }
   };
 
-  const promediarColor = (imagen) => {
-    const lienzo = document.createElement('canvas');
-    lienzo.width = 32; lienzo.height = 32;
-    const ctx = lienzo.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(imagen, 0, 0, 32, 32);
-    const datos = ctx.getImageData(0, 0, 32, 32).data;
-    let r = 0; let g = 0; let b = 0;
-    for (let i = 0; i < datos.length; i += 4) { r += datos[i]; g += datos[i + 1]; b += datos[i + 2]; }
-    const n = datos.length / 4;
-    return [r / n, g / n, b / n];
-  };
-
-  const detectarPorImagen = async (evento) => {
-    const archivo = evento.target.files?.[0];
-    if (!archivo) return;
-    setBuscandoImagen(true);
-    try {
-      const Temporal = new Image();
-      Temporal.src = URL.createObjectURL(archivo);
-      await new Promise((res, rej) => { Temporal.onload = res; Temporal.onerror = rej; });
-      const objetivo = promediarColor(Temporal);
-      const candidatos = await Promise.all(productos.filter((p) => p.imagen_url).map((p) => new Promise((res) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-          const c = promediarColor(img);
-          res({ producto: p, distancia: Math.hypot(c[0] - objetivo[0], c[1] - objetivo[1], c[2] - objetivo[2]) });
-        };
-        img.onerror = () => res(null);
-        img.src = p.imagen_url;
-      })));
-      const ordenados = candidatos.filter(Boolean).sort((a, b) => a.distancia - b.distancia).slice(0, 6).map((c) => c.producto);
-      setFotoSugerencias(ordenados.length ? ordenados : productos.filter((p) => p.imagen_url).slice(0, 6));
-      toast('Elige el producto que coincide con la foto', 'success');
-    } catch (error) { toast(error.message, 'error'); } finally { setBuscandoImagen(false); evento.target.value = ''; }
-  };
-
   const sincronizarFactura = async () => {
     if (!cliente) return;
     if (facturaForm.razon_social === (cliente.razon_social || cliente.nombre)
@@ -388,7 +351,6 @@ export default function VentaNueva() {
   const reiniciarParaOtraVenta = () => {
     setCart({});
     setSearch('');
-    setVentaExitosa(null);
     setUbicacion(null);
     setForm((f) => ({ ...f, descuento: 0, descuento_porcentaje: 0, descuento_tipo: 'bs', notas: '', entrega_direccion: cliente?.direccion || '' }));
     setTimeout(() => document.getElementById('buscar-producto')?.focus(), 50);
@@ -484,10 +446,6 @@ export default function VentaNueva() {
     }
   };
 
-  const mensajeComprobante = ventaExitosa
-    ? `Hola ${cliente?.nombre || 'cliente'}, su comprobante de compra DADINI ${ventaExitosa.codigo}:\n${(ventaExitosa.items || []).map((i) => `• ${i.cantidad} x ${i.nombre}`).join('\n')}\nTOTAL: Bs ${Number(ventaExitosa.total || 0).toFixed(2)}\nGracias por comprar DADINI.`
-    : '';
-
   if (loading) {
     return <><PageHeader title="Nueva venta" subtitle="Cargando catálogo y clientes…" /><div className="panel"><SkeletonRows rows={8} /></div></>;
   }
@@ -517,13 +475,19 @@ export default function VentaNueva() {
         </div>
       )}
 
+      <SensorPOS
+        productos={productos}
+        alLeerCodigo={alLeerProducto}
+        alDetectarProducto={alDetectarProducto}
+        activo={!loading}
+      />
+
       <div className="pos-layout">
         <div className="panel">
           <div className="panel-head">
             <div><h3>Catálogo</h3><p>{filtrados.length} productos disponibles · venta por {presentacionVenta} · toca la imagen del producto o escanea su código</p></div>
             <div className="inline">
-              <button className="btn btn-green btn-sm" onClick={() => setScanOpen(true)}><Camera size={13} /> Escanear código/QR</button>
-              <label className="btn btn-soft btn-sm" title="Tomar foto del producto y elegir coincidencia"><Camera size={13} /> {buscandoImagen ? 'Analizando…' : 'Detectar por foto'}<input type="file" accept="image/*" capture="environment" hidden onChange={detectarPorImagen} /></label>
+              <span className="badge badge-green"><Camera size={12} /> Sensor automático activo</span>
               <button className={`btn btn-sm ${modoImagenes ? 'btn-primary' : 'btn-soft'}`} onClick={() => setModoImagenes((v) => !v)}><Images size={13} /> Imágenes</button>
               <div className="pill-group">
                 {['unidad', 'caja', 'paquete'].map((v) => <button key={v} className={`chip ${presentacionVenta === v ? 'active' : ''}`} onClick={() => setPresentacionVenta(v)}>{v}</button>)}
@@ -819,8 +783,6 @@ export default function VentaNueva() {
         </div>
       </div>
 
-      <EscanerCodigos open={scanOpen} onClose={() => setScanOpen(false)} onLeer={alLeerProducto} />
-
       <Modal open={qrOpen} onClose={() => setQrOpen(false)} title="QR de pago" subtitle="Muestra este QR al cliente para recibir el pago" size="sm">
         <div className="form-stack">
           {qrs.length === 0 && <div className="notice notice-warn">No hay QR activo configurado.</div>}
@@ -855,19 +817,6 @@ export default function VentaNueva() {
           <div className="field"><label>Dirección</label><input className="input" value={clienteForm.direccion} onChange={(e) => setClienteForm({ ...clienteForm, direccion: e.target.value })} /></div>
           <span className="hint">El sistema asigna automáticamente un código tipo CLI-001 para buscarlo en futuras ventas.</span>
         </div>
-      </Modal>
-
-      <Modal open={Boolean(fotoSugerencias)} onClose={() => setFotoSugerencias(null)} title="Producto detectado por imagen" subtitle="Elige el que coincide con la foto y se agregará al carrito" size="lg"
-        footer={<button className="btn btn-ghost" onClick={() => setFotoSugerencias(null)}>Cancelar</button>}
-      >
-        <div className="grid grid-3" style={{ gap: 8 }}>
-          {(fotoSugerencias || []).map((p) => <button key={p.id} className="pos-product" onClick={() => { agregar(p); setFotoSugerencias(null); toast(`${p.nombre} agregado al carrito`, 'success'); }}>
-            {p.imagen_url ? <img className="pp-img" src={p.imagen_url} alt={p.nombre} /> : <span className="pp-emoji">{p.emoji}</span>}
-            <span className="pp-name">{p.nombre}</span>
-            <span className="pp-meta"><span className="pp-price"><Money value={precioEfectivo(p)} /></span></span>
-          </button>)}
-        </div>
-        <span className="hint">La comparación es por similitud visual de colores con las imágenes registradas. Para lectura exacta usa el escáner de código/QR.</span>
       </Modal>
 
       <div className="print-only">

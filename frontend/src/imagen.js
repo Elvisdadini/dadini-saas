@@ -21,6 +21,33 @@ export async function optimizarImagen(archivo, maxLado = 800, calidad = 0.8) {
   return datos;
 }
 
+// Color promedio de una imagen (para comparación visual rápida en el POS).
+export function colorPromedio(imagen, lado = 24) {
+  const lienzo = document.createElement('canvas');
+  lienzo.width = lado; lienzo.height = lado;
+  const ctx = lienzo.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(imagen, 0, 0, lado, lado);
+  const datos = ctx.getImageData(0, 0, lado, lado).data;
+  let r = 0; let g = 0; let b = 0;
+  for (let i = 0; i < datos.length; i += 4) { r += datos[i]; g += datos[i + 1]; b += datos[i + 2]; }
+  const n = datos.length / 4;
+  return [r / n, g / n, b / n];
+}
+
+export function distanciaColor(a, b) {
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+
+export function colorDeUrl(url) {
+  return new Promise((res) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { try { res(colorPromedio(img)); } catch (e) { res(null); } };
+    img.onerror = () => res(null);
+    img.src = url;
+  });
+}
+
 export function skuDeArchivo(nombre) {
   return String(nombre || '').replace(/\.[^.]+$/, '').trim().toUpperCase();
 }
