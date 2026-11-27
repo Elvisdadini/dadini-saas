@@ -426,6 +426,11 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`. El acceso también está en el encabezado de **Ventas** y en el menú principal.
 - **APK 21.0.6** (`versionCode 7`): compilada con keystore nuevo y publicada en `/uploads/apk/DADINI-SaaS-21.0.6.apk` (archivo versionado en el repo, sobrevive a reinicios). Al cambiar la firma, quienes tenían la versión anterior deben desinstalar antes de instalar. La contraseña del keystore no se versiona: guárdala fuera del repo.
 
+### Notificaciones interactivas
+
+- Cada aviso del menú de campana es **clickeable**: al abrirlo se marca como leído y navega al módulo que lo origina (empresas → Sucursales, vencimientos → Kardex, QR → Nueva venta, cargas → Distribución, cobranzas → Cobranzas, visitas → Agenda, inventario → Inventario, objetivos → Mi reporte, contabilidad → Contabilidad). El destino se calcula en backend (`notificaciones-rutas.js`), así la web y la APK reciben la misma ruta.
+- La notificación push de la APK abre directamente la URL del módulo indicado, no el panel general.
+
 ### Post venta (POS) rápido
 
 - **Sensor automático permanente**: al abrir *Ventas → Nueva venta* se enciende la cámara (o el lector) sin pulsar botones. Un widget pequeño abajo a la derecha muestra "Sensor automático activo" y permite pausar/reanudar. Si el navegador pide permiso, el widget ofrece el botón *Activar cámara*.

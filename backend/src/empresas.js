@@ -94,7 +94,7 @@ function notificar(db, titulo, detalle, usuarioId = null) {
   if (existe) return false;
   db.notificaciones.unshift({
     id: (db.notificaciones.reduce((m, n) => Math.max(m, Number(n.id) || 0), 0) + 1),
-    tipo: 'empresa', titulo, detalle, leida: false,
+    tipo: 'empresa', titulo, detalle, ruta: '/administracion/sucursales', leida: false,
     fecha: new Date().toISOString(), usuario_id: usuarioId,
   });
   return true;

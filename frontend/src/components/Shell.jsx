@@ -105,6 +105,21 @@ function etiquetaNav(item, user) {
   return item.label;
 }
 
+function destinoNotificacion(nota) {
+  if (nota?.ruta) return nota.ruta;
+  const texto = `${nota?.tipo || ''} ${nota?.titulo || ''}`.toLowerCase();
+  if (/empresa|sucursal/.test(texto)) return '/administracion/sucursales';
+  if (/vencimiento|kardex|lote/.test(texto)) return '/inventario/kardex';
+  if (/carga|entrega|ruta|distribuc/.test(texto)) return '/distribucion';
+  if (/cobranza|cobro|mora/.test(texto)) return '/cobranzas';
+  if (/visita/.test(texto)) return '/ventas/agenda';
+  if (/stock|inventario|producto/.test(texto)) return '/inventario';
+  if (/pedido|venta|factura|qr/.test(texto)) return '/ventas/nueva';
+  if (/objetivo|reporte/.test(texto)) return '/mi-reporte';
+  if (/contabilidad|impuesto|libro|arqueo/.test(texto)) return '/contabilidad';
+  return '/';
+}
+
 function tituloSegunRol(ruta, titulo, user) {
   if (!ROLES_MIS.includes(user?.rol) || !ETIQUETAS_MIS[ruta]) return titulo;
   if (ruta === '/catalogo') return ['Catálogo', 'Ver, compartir y descargar catálogos'];
@@ -268,7 +283,9 @@ export default function Shell({ children }) {
         localStorage.setItem(clave, String(r.ultimo_id));
         setNotifs((actual) => [...r.notificaciones, ...actual].slice(0, 20));
         if (window.DadiniBridge?.notificar) {
-          r.notificaciones.forEach((n) => window.DadiniBridge.notificar(n.titulo, n.detalle, '/'));
+          r.notificaciones.forEach((n) => window.DadiniBridge.notificar(
+            n.titulo, n.detalle, `${window.location.origin}${destinoNotificacion(n)}`,
+          ));
         }
       } catch { /* silencioso: es un aviso secundario */ }
     };
@@ -293,6 +310,14 @@ export default function Shell({ children }) {
     } catch (error) {
       toast(error.message, 'error');
     }
+  };
+
+  const abrirNotificacion = async (nota) => {
+    const destino = destinoNotificacion(nota);
+    try { await api.post(`/notificaciones/leer/${nota.id}`, {}); } catch (error) { /* no bloquea la navegación */ }
+    setNotifs((actual) => actual.filter((n) => n.id !== nota.id));
+    setNotifOpen(false);
+    navigate(destino);
   };
 
   // Sincronización global con progreso: se inicia en el servidor y se sondea
@@ -453,13 +478,14 @@ export default function Shell({ children }) {
                   <div className="notif-list">
                     {notifs.length === 0 && <p style={{ padding: 16, fontSize: 12, color: 'var(--muted)' }}>Todo al día. No tienes alertas pendientes.</p>}
                     {notifs.map((n) => (
-                      <div className="notif-item" key={n.id}>
+                      <button className="notif-item" key={n.id} onClick={() => abrirNotificacion(n)} title={`Ir a ${destinoNotificacion(n)}`}>
                         <span className="notif-dot" />
                         <div>
                           <strong>{n.titulo}</strong>
                           <p>{n.detalle}</p>
+                          <small className="notif-destino">Ir a {destinoNotificacion(n)} <ArrowUpRight size={11} /></small>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                   <button className="dropdown-item" onClick={() => { navigate('/'); setNotifOpen(false); }}>Ver panel completo <ArrowUpRight size={13} style={{ marginLeft: 'auto' }} /></button>

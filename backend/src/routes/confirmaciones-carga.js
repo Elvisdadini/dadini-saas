@@ -65,6 +65,7 @@ router.post('/', allow('almacen', 'admin', 'dueno'), (req, res) => {
     db.notificaciones.unshift({
       id: nextId(db.notificaciones),
       tipo: 'carga',
+      ruta: '/distribucion',
       titulo: `Carga ${carga.codigo} lista para confirmar`,
       detalle: `El almacén confirmó la carga. Revisa novedades: ${_confirm.novedades.length ? _confirm.novedades.map((n) => n.tipo).join(', ') : 'sin novedades'}`,
       leida: false,

@@ -10,7 +10,7 @@ const router = express.Router();
 router.get('/', authRequired, (req, res) => {
   const db = load();
   const data = dashboard(db, String(req.query.periodo || '30d'), req);
-  const notificaciones = db.notificaciones.filter((n) => !n.leida);
+  const notificaciones = require('../notificaciones-rutas').enriquecer(db.notificaciones.filter((n) => !n.leida));
   return res.json({ ...data, notificaciones });
 });
 

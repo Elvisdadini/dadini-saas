@@ -116,6 +116,7 @@ function notificar(db, titulo, detalle, usuarioId = null) {
   if (!Array.isArray(db.notificaciones)) db.notificaciones = [];
   db.notificaciones.unshift({
     id: nextId(db.notificaciones), tipo: 'vencimiento', titulo, detalle,
+    ruta: '/inventario/kardex',
     leida: false, fecha: new Date().toISOString(), usuario_id: usuarioId,
   });
 }

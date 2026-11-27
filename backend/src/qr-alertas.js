@@ -33,6 +33,7 @@ function verificarVencimientos(db) {
         tipo: 'qr',
         titulo,
         detalle,
+        ruta: '/ventas/nueva',
         leida: false,
         fecha: new Date().toISOString(),
       });
