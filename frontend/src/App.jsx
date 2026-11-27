@@ -60,6 +60,7 @@ function Splash() {
         <img src="/logo-dadini-icon.png" alt="DADINI" style={{ width: 52, height: 52, objectFit: 'contain' }} />
         <Loader2 size={20} className="spin" style={{ color: '#ff6500' }} />
         <span style={{ fontSize: 12, color: '#93a9be' }}>Cargando DADINI SaaS…</span>
+        <span style={{ fontSize: 10, color: '#5f7790' }}>Creado por DADINI S STORE</span>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import { Badge, Modal, PageHeader, StatCard, useToast } from '../ui';
 import SelectorEmpleadosWhatsapp from '../components/SelectorEmpleadosWhatsapp';
 
 const VACIA = {
-  logo: '', nombre: 'DADINI', color_primario: '#061C33', color_secundario: '#FF6500',
+  logo: '', nombre: 'DADINI', creado_por: 'Creado por DADINI S STORE', color_primario: '#061C33', color_secundario: '#FF6500',
   color_acento: '#16A34A', color_fondo: '#F4F6FA', tipografia: 'Inter', radio: 14, densidad: 'comfortable',
 };
 
@@ -123,6 +123,10 @@ export default function Personalizacion() {
               <div><label className="btn btn-soft btn-sm"><ImagePlus size={13} /> Subir logo<input type="file" accept="image/*" hidden onChange={subirLogo} /></label><span className="hint">PNG o SVG con fondo transparente.</span></div>
             </div>
             <div className="field"><label>Nombre de la marca</label><input className="input" value={branding.nombre} onChange={(e) => setBranding({ ...branding, nombre: e.target.value })} /></div>
+            <div className="field"><label>Crédito de la marca (pie de página e inicio de sesión)</label>
+              <input className="input" value={branding.creado_por || ''} onChange={(e) => setBranding({ ...branding, creado_por: e.target.value })} placeholder="Creado por DADINI S STORE" />
+              <span className="hint">Texto pequeño que aparece abajo a la derecha del panel y en la pantalla de ingreso.</span>
+            </div>
             <div className="field-row">
               <div className="field"><label>Color primario</label><input type="color" className="input" value={branding.color_primario} onChange={(e) => setBranding({ ...branding, color_primario: e.target.value })} /></div>
               <div className="field"><label>Color secundario</label><input type="color" className="input" value={branding.color_secundario} onChange={(e) => setBranding({ ...branding, color_secundario: e.target.value })} /></div>

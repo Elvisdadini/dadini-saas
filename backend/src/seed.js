@@ -623,6 +623,7 @@ function buildSeed() {
       branding: {
         logo: null,
         nombre: 'DADINI',
+        creado_por: 'Creado por DADINI S STORE',
         color_primario: '#061C33',
         color_secundario: '#FF6500',
         color_acento: '#16A34A',

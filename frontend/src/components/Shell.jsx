@@ -160,7 +160,7 @@ const PAGE_TITLES = {
 let cacheResumen = { id: null, en: 0, data: null };
 
 export default function Shell({ children }) {
-  const { user, plan, refresh, logout, sucursales, sucursalId, cambiarSucursal } = useAuth();
+  const { user, plan, branding, refresh, logout, sucursales, sucursalId, cambiarSucursal } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -383,6 +383,9 @@ export default function Shell({ children }) {
               <span>Uso interno sin límite</span>
               <span>Sin facturación</span>
             </div>
+          </div>
+          <div className="created-by" style={{ fontSize: 10, textAlign: 'right', padding: '0 12px 8px', opacity: 0.75 }}>
+            {branding?.creado_por || 'Creado por DADINI S STORE'}
           </div>
           <div className="sidebar-user">
             <Avatar name={user?.nombre} size={32} tone="orange" />

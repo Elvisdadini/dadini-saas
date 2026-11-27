@@ -426,6 +426,10 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`. El acceso también está en el encabezado de **Ventas** y en el menú principal.
 - **APK 21.0.6** (`versionCode 7`): compilada con keystore nuevo y publicada en `/uploads/apk/DADINI-SaaS-21.0.6.apk` (archivo versionado en el repo, sobrevive a reinicios). Al cambiar la firma, quienes tenían la versión anterior deben desinstalar antes de instalar. La contraseña del keystore no se versiona: guárdala fuera del repo.
 
+### Marca y crédito
+
+- El texto **"Creado por DADINI S STORE"** aparece en pequeño al pie izquierdo del panel, en la pantalla de inicio de sesión y en la pantalla de carga. Se registra en `configuracion.branding.creado_por` (valor por defecto) y se puede editar en Administración → Marca y APK. `/api/health` lo expone públicamente para el login sin sesión.
+
 ### Nombres "Mis …" y alcance asignado
 
 - En la web y la APK, vendedores, distribuidores y cobranzas ven el menú y los títulos como **Mis ventas, Mis clientes, Mis cobranzas / Mis créditos, Mis rutas y zonas, Mis zonas, Mis objetivos, Mis entregas, Mis devoluciones**. Administración, dueño, almacén y supervisión conservan los nombres generales.

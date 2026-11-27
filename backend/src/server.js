@@ -64,6 +64,10 @@ app.get('/api/health', (req, res) => {
     base: base(),
     motor: motor(),
     pedidos: db.pedidos.length,
+    marca: {
+      nombre: db.configuracion?.branding?.nombre || 'DADINI',
+      creado_por: db.configuracion?.branding?.creado_por || 'Creado por DADINI S STORE',
+    },
     fecha: new Date().toISOString(),
   });
 });

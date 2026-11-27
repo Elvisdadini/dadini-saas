@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, Lock, ShieldCheck, Smartphone, Truck, UserRound, Wallet } from 'lucide-react';
+import { api } from '../api';
 import { useAuth } from '../auth';
 
 const CLAVE_USUARIO = 'dadini_usuario';
@@ -18,10 +19,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [codigo2fa, setCodigo2fa] = useState('');
+  const [creadoPor, setCreadoPor] = useState('Creado por DADINI S STORE');
 
   useEffect(() => {
     const guardado = localStorage.getItem(CLAVE_USUARIO);
     if (guardado) { setIdentificador(guardado); setRecordar(true); }
+    api.get('/health').then((r) => { if (r?.marca?.creado_por) setCreadoPor(r.marca.creado_por); }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -87,6 +90,7 @@ export default function LoginPage() {
           <div>
             <strong>DADINI</strong>
             <span>Gestión SaaS · Bolivia</span>
+            <span style={{ display: 'block', fontSize: 10, opacity: 0.75, marginTop: 2 }}>{creadoPor}</span>
           </div>
         </div>
 
@@ -108,6 +112,7 @@ export default function LoginPage() {
 
         <div className="login-footer">
           <span>DADINI © {new Date().getFullYear()} · Cochabamba, Bolivia</span>
+          <span style={{ fontSize: 10, opacity: 0.8 }}>{creadoPor}</span>
           <span>Acceso corporativo</span>
         </div>
       </section>

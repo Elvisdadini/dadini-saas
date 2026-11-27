@@ -279,6 +279,11 @@ function asegurarEstructura(db) {
     if (p.imagen_url === undefined) { p.imagen_url = null; cambio = true; }
   });
   if (!db.configuracion) { db.configuracion = {}; cambio = true; }
+  if (!db.configuracion.branding) { db.configuracion.branding = {}; cambio = true; }
+  if (!db.configuracion.branding.creado_por) {
+    db.configuracion.branding.creado_por = 'Creado por DADINI S STORE';
+    cambio = true;
+  }
   (db.usuarios || []).forEach((u) => {
     if (!Array.isArray(u.permisos)) { u.permisos = permisosPorRol(u.rol); cambio = true; }
     // Migración suave: los usuarios ya creados no tienen los códigos del
