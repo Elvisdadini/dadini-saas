@@ -426,6 +426,14 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`. El acceso también está en el encabezado de **Ventas** y en el menú principal.
 - **APK 21.0.6** (`versionCode 7`): compilada con keystore nuevo y publicada en `/uploads/apk/DADINI-SaaS-21.0.6.apk` (archivo versionado en el repo, sobrevive a reinicios). Al cambiar la firma, quienes tenían la versión anterior deben desinstalar antes de instalar. La contraseña del keystore no se versiona: guárdala fuera del repo.
 
+### Post venta (POS) rápido
+
+- Lectura de **código de barras, EAN-13 y QR** con la cámara (`BarcodeDetector`) y con lectores de teclado: escriben el código y pulsan Enter, aunque el foco esté en otra parte. El producto se agrega solo al carrito. El campo de búsqueda también acepta `sku`, `codigo_barras` y nombre.
+- **Detección por imagen**: se toma una foto, se compara su color promedio con las imágenes de los productos y se muestran las coincidencias para elegir y agregar (sin créditos de IA). Para lectura exacta, usar el escáner.
+- **Cliente rápido**: busca por nombre, **CI, NIT o código `CLI-001`**; si no existe, se registra desde el POS con `nombre`, `razón social`, `CI/NIT`, WhatsApp y dirección, quedando listo para futuras compras. Con factura SIN se muestran los campos de razón social y NIT/CI y se actualizan en el cliente.
+- Al registrar la venta, el carrito y los descuentos se limpian **automáticamente** para la siguiente venta (se mantiene el cliente). Aparece una barra con el resultado y botones de **WhatsApp**, **Imprimir comprobante/factura** y **Ver pedido**. El envío por WhatsApp se puede activar/desactivar con un check.
+- `productos.codigo_barras` se registra en Inventario y se indexa en el servidor.
+
 ### Material comercial
 - `docs/landing-dadini.html`: página de presentación con los banners.
 - `frontend/public/banners/banner-ventas.svg`, `banner-distribucion.svg`, `banner-reportes.svg`: banners vectoriales editables.

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowLeft, BadgePercent, Banknote, Building2, CalendarClock, Camera, Crosshair, CreditCard, Images, MapPin, MessageCircle, Minus, Plus, QrCode, Search, ShoppingCart,
-  Smartphone, Trash2, Truck, UserRound, Wallet,
+  AlertTriangle, ArrowLeft, BadgePercent, Banknote, Building2, CalendarClock, Camera, CheckCircle2, Crosshair, CreditCard, Images, MapPin, MessageCircle, Minus, Plus, QrCode, Search, ShoppingCart,
+  Printer, Smartphone, Trash2, Truck, UserPlus, UserRound, Wallet,
 } from 'lucide-react';
 import { api } from '../api';
 import { puede, useAuth } from '../auth';
@@ -58,6 +58,16 @@ export default function VentaNueva() {
   const [ventaExitosa, setVentaExitosa] = useState(null);
   const [telComprobante, setTelComprobante] = useState('');
   const [estadoVentas, setEstadoVentas] = useState(null);
+  const [clienteBusqueda, setClienteBusqueda] = useState('');
+  const [clienteResultados, setClienteResultados] = useState([]);
+  const [clienteModal, setClienteModal] = useState(false);
+  const [clienteForm, setClienteForm] = useState({ nombre: '', razon_social: '', nit: '', ci: '', telefono: '', whatsapp: '', direccion: '', tipo: 'minorista' });
+  const [facturaForm, setFacturaForm] = useState({ razon_social: '', nit: '' });
+  const [fotoSugerencias, setFotoSugerencias] = useState(null);
+  const [buscandoImagen, setBuscandoImagen] = useState(false);
+  const [autoWhatsapp, setAutoWhatsapp] = useState(true);
+  const [ultimaVenta, setUltimaVenta] = useState(null);
+  const leerRef = useRef(null);
   const [form, setForm] = useState({
     cliente_id: '',
     whatsapp_cliente: '',
@@ -106,6 +116,12 @@ export default function VentaNueva() {
   }, [toast, params, user?.rol]);
 
   const cliente = clientes.find((c) => c.id === Number(form.cliente_id));
+
+  useEffect(() => {
+    if (!cliente) return;
+    setFacturaForm({ razon_social: cliente.razon_social || cliente.nombre, nit: cliente.nit || cliente.ci || '' });
+    if (!clienteBusqueda) setClienteBusqueda(cliente.nombre);
+  }, [cliente?.id]);
   const almacen = almacenes.find((a) => a.id === Number(form.almacen_id));
 
   useEffect(() => {
@@ -201,18 +217,49 @@ export default function VentaNueva() {
 
   const alLeerProducto = (codigo) => {
     const termino = String(codigo || '').trim().toLowerCase();
-    const producto = productos.find((p) =>
-      String(p.sku || '').toLowerCase() === termino || String(p.nombre || '').toLowerCase() === termino)
-      || productos.find((p) =>
-        String(p.sku || '').toLowerCase().includes(termino) || String(p.nombre || '').toLowerCase().includes(termino));
+    const llaves = (p) => [p.sku, p.codigo_barras, p.codigo, p.nombre].map((x) => String(x || '').toLowerCase());
+    const producto = productos.find((p) => llaves(p).includes(termino))
+      || productos.find((p) => llaves(p).some((x) => x && x.includes(termino)));
     setScanOpen(false);
     if (!producto) {
       setSearch(codigo);
       return toast(`No se encontró "${codigo}". Ajusta la búsqueda manual.`, 'error');
     }
     agregar(producto);
+    setSearch('');
     toast(`${producto.nombre} agregado al carrito`, 'success');
   };
+  leerRef.current = alLeerProducto;
+
+  // Lectores de barras «teclado»: escriben el código y pulsan Enter aunque
+  // el foco esté en otro lado. Se ignora mientras se escribe en otros campos.
+  useEffect(() => {
+    let buffer = '';
+    let ultima = 0;
+    const alTeclear = (evento) => {
+      const etiqueta = evento.target?.tagName;
+      const escribiendo = ['INPUT', 'SELECT', 'TEXTAREA'].includes(etiqueta);
+      if (escribiendo) {
+        if (evento.target?.id === 'buscar-producto' && evento.key === 'Enter' && search.trim()) {
+          evento.preventDefault();
+          leerRef.current?.(search.trim());
+          buffer = '';
+        }
+        return;
+      }
+      if (/^\d$/.test(evento.key)) {
+        if (Date.now() - ultima > 150) buffer = '';
+        buffer += evento.key;
+        ultima = Date.now();
+      } else if (evento.key === 'Enter' && buffer.length >= 4) {
+        const codigo = buffer;
+        buffer = '';
+        leerRef.current?.(codigo);
+      } else if (evento.key === 'Escape') buffer = '';
+    };
+    window.addEventListener('keydown', alTeclear);
+    return () => window.removeEventListener('keydown', alTeclear);
+  }, [search]);
 
   const agregar = (p) => {
     const disponible = stockEn(p);
@@ -247,6 +294,118 @@ export default function VentaNueva() {
     setForm((f) => ({ ...f, canal, envio: canal === 'delivery' ? Number(empresa?.tarifa_envio ?? 5) : 0 }));
   };
 
+  const seleccionarCliente = (c) => {
+    setForm((f) => ({
+      ...f, cliente_id: c.id,
+      whatsapp_cliente: c.whatsapp || c.telefono || f.whatsapp_cliente,
+      entrega_direccion: c.direccion || f.entrega_direccion,
+    }));
+    setFacturaForm({ razon_social: c.razon_social || c.nombre, nit: c.nit || c.ci || '' });
+    setClienteBusqueda(`${c.nombre}${c.codigo ? ` · ${c.codigo}` : ''}`);
+    setClienteResultados([]);
+  };
+
+  const buscarCliente = async () => {
+    const termino = clienteBusqueda.trim();
+    if (!termino) return;
+    try {
+      const r = await api.get(`/clientes?search=${encodeURIComponent(termino)}`);
+      const lista = (r.clientes || []).filter((c) => c.activo !== false);
+      if (!lista.length) {
+        setClienteForm({
+          nombre: termino, razon_social: termino, nit: '', ci: /^\d{5,}$/.test(termino) ? termino : '',
+          telefono: '', whatsapp: '', direccion: '', tipo: 'minorista',
+        });
+        setClienteModal(true);
+        return;
+      }
+      if (lista.length === 1) return seleccionarCliente(lista[0]);
+      setClienteResultados(lista.slice(0, 6));
+      toast(`${lista.length} clientes coinciden. Elige uno.`, 'success');
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const guardarCliente = async () => {
+    if (!clienteForm.nombre.trim()) return toast('Escribe el nombre del cliente.', 'error');
+    setSaving(true);
+    try {
+      const r = await api.post('/clientes', clienteForm);
+      if (!r.ok) throw new Error(r.error);
+      const lista = await api.get('/clientes');
+      setClientes((lista.clientes || []).filter((c) => c.activo !== false));
+      seleccionarCliente(r.cliente);
+      setClienteModal(false);
+      toast(`Cliente ${r.cliente.codigo} registrado para futuras ventas`);
+    } catch (error) { toast(error.message, 'error'); } finally { setSaving(false); }
+  };
+
+  const promediarColor = (imagen) => {
+    const lienzo = document.createElement('canvas');
+    lienzo.width = 32; lienzo.height = 32;
+    const ctx = lienzo.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(imagen, 0, 0, 32, 32);
+    const datos = ctx.getImageData(0, 0, 32, 32).data;
+    let r = 0; let g = 0; let b = 0;
+    for (let i = 0; i < datos.length; i += 4) { r += datos[i]; g += datos[i + 1]; b += datos[i + 2]; }
+    const n = datos.length / 4;
+    return [r / n, g / n, b / n];
+  };
+
+  const detectarPorImagen = async (evento) => {
+    const archivo = evento.target.files?.[0];
+    if (!archivo) return;
+    setBuscandoImagen(true);
+    try {
+      const Temporal = new Image();
+      Temporal.src = URL.createObjectURL(archivo);
+      await new Promise((res, rej) => { Temporal.onload = res; Temporal.onerror = rej; });
+      const objetivo = promediarColor(Temporal);
+      const candidatos = await Promise.all(productos.filter((p) => p.imagen_url).map((p) => new Promise((res) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const c = promediarColor(img);
+          res({ producto: p, distancia: Math.hypot(c[0] - objetivo[0], c[1] - objetivo[1], c[2] - objetivo[2]) });
+        };
+        img.onerror = () => res(null);
+        img.src = p.imagen_url;
+      })));
+      const ordenados = candidatos.filter(Boolean).sort((a, b) => a.distancia - b.distancia).slice(0, 6).map((c) => c.producto);
+      setFotoSugerencias(ordenados.length ? ordenados : productos.filter((p) => p.imagen_url).slice(0, 6));
+      toast('Elige el producto que coincide con la foto', 'success');
+    } catch (error) { toast(error.message, 'error'); } finally { setBuscandoImagen(false); evento.target.value = ''; }
+  };
+
+  const sincronizarFactura = async () => {
+    if (!cliente) return;
+    if (facturaForm.razon_social === (cliente.razon_social || cliente.nombre)
+      && facturaForm.nit === (cliente.nit || cliente.ci || '')) return;
+    try {
+      await api.put(`/clientes/${cliente.id}`, { razon_social: facturaForm.razon_social, nit: facturaForm.nit, ci: cliente.ci || '' });
+    } catch (error) { console.error('[POS] datos de factura:', error.message); }
+  };
+
+  const reiniciarParaOtraVenta = () => {
+    setCart({});
+    setSearch('');
+    setVentaExitosa(null);
+    setUbicacion(null);
+    setForm((f) => ({ ...f, descuento: 0, descuento_porcentaje: 0, descuento_tipo: 'bs', notas: '', entrega_direccion: cliente?.direccion || '' }));
+    setTimeout(() => document.getElementById('buscar-producto')?.focus(), 50);
+  };
+
+  const enviarComprobante = async (pedido, telefono, abrir = true) => {
+    if (!pedido || !telefono) return null;
+    try {
+      const r = await api.post('/whatsapp', {
+        tipo: 'pedido', pedido_id: pedido.id, cliente_id: pedido.cliente_id,
+        telefono, mensaje: `Hola ${cliente?.nombre || 'cliente'}, su comprobante DADINI ${pedido.codigo} por Bs ${Number(pedido.total || 0).toFixed(2)}. ${pedido.documento_entrega === 'factura_siat' ? 'Factura con registro en el SIN.' : 'Comprobante de entrega.'} Gracias por comprar DADINI.`,
+      });
+      if (abrir && r.url) window.open(r.url, '_blank', 'noopener,noreferrer');
+      return r.url;
+    } catch (error) { toast(error.message, 'error'); return null; }
+  };
+
   const guardar = async () => {
     if (!form.cliente_id) return toast('Selecciona un cliente.', 'error');
     if (!lineas.length) return toast('Agrega al menos un producto.', 'error');
@@ -270,6 +429,7 @@ export default function VentaNueva() {
     }
     setSaving(true);
     try {
+      if (form.documento_entrega === 'factura_siat') await sincronizarFactura();
       const data = await api.post('/pedidos', {
         cliente_id: Number(form.cliente_id),
         whatsapp_cliente: form.whatsapp_cliente,
@@ -291,10 +451,12 @@ export default function VentaNueva() {
         documento_entrega: form.documento_entrega,
         items: lineas.map((l) => ({ producto_id: l.producto.id, cantidad: l.cantidad })),
       });
-      toast(`Venta ${data.pedido.codigo} registrada correctamente`);
-      setVentaExitosa(data.pedido);
+      toast(`Venta ${data.pedido.codigo} registrada · lista para otra venta`);
+      setUltimaVenta(data.pedido);
       setTelComprobante(data.pedido.whatsapp_cliente || cliente?.whatsapp || cliente?.telefono || '');
-      setCart({});
+      const telefono = data.pedido.whatsapp_cliente || cliente?.whatsapp || cliente?.telefono || '';
+      if (autoWhatsapp && telefono) await enviarComprobante(data.pedido, telefono, true);
+      reiniciarParaOtraVenta();
       if (params.get('from') === 'mapa') {
         try {
           await api.post('/visitas', {
@@ -339,12 +501,29 @@ export default function VentaNueva() {
         actions={<button className="btn btn-ghost" onClick={() => navigate('/ventas')}><ArrowLeft size={15} /> Volver a ventas</button>}
       />
 
+      {ultimaVenta && (
+        <div className="notice notice-info mb-16">
+          <CheckCircle2 size={15} />
+          <div>
+            <strong>Venta {ultimaVenta.codigo} registrada · Bs {Number(ultimaVenta.total || 0).toFixed(2)}</strong>
+            <span className="hint">El carrito ya está limpio para la siguiente venta.</span>
+          </div>
+          <div className="inline" style={{ marginLeft: 'auto' }}>
+            <button className="btn btn-green btn-sm" onClick={() => enviarComprobante(ultimaVenta, telComprobante, true)}><MessageCircle size={12} /> WhatsApp</button>
+            <button className="btn btn-outline btn-sm" onClick={() => window.print()}><Printer size={12} /> Imprimir comprobante</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/ventas/${ultimaVenta.id}`)}>Ver pedido</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setUltimaVenta(null)}>×</button>
+          </div>
+        </div>
+      )}
+
       <div className="pos-layout">
         <div className="panel">
           <div className="panel-head">
             <div><h3>Catálogo</h3><p>{filtrados.length} productos disponibles · venta por {presentacionVenta} · toca la imagen del producto o escanea su código</p></div>
             <div className="inline">
-              <button className="btn btn-green btn-sm" onClick={() => setScanOpen(true)}><Camera size={13} /> Escanear producto</button>
+              <button className="btn btn-green btn-sm" onClick={() => setScanOpen(true)}><Camera size={13} /> Escanear código/QR</button>
+              <label className="btn btn-soft btn-sm" title="Tomar foto del producto y elegir coincidencia"><Camera size={13} /> {buscandoImagen ? 'Analizando…' : 'Detectar por foto'}<input type="file" accept="image/*" capture="environment" hidden onChange={detectarPorImagen} /></label>
               <button className={`btn btn-sm ${modoImagenes ? 'btn-primary' : 'btn-soft'}`} onClick={() => setModoImagenes((v) => !v)}><Images size={13} /> Imágenes</button>
               <div className="pill-group">
                 {['unidad', 'caja', 'paquete'].map((v) => <button key={v} className={`chip ${presentacionVenta === v ? 'active' : ''}`} onClick={() => setPresentacionVenta(v)}>{v}</button>)}
@@ -356,7 +535,7 @@ export default function VentaNueva() {
             <div className="filters" style={{ marginBottom: 13 }}>
               <div className="search-box">
                 <Search size={15} />
-                <input className="input" placeholder="Buscar producto o SKU…" value={search} onChange={(e) => setSearch(e.target.value)} />
+                <input id="buscar-producto" className="input" placeholder="Buscar producto, SKU, código de barras o QR…" value={search} onChange={(e) => setSearch(e.target.value)} />
               </div>
               <select className="select" value={form.almacen_id} onChange={(e) => setForm({ ...form, almacen_id: Number(e.target.value) })}>
                 {almacenes.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
@@ -397,9 +576,18 @@ export default function VentaNueva() {
           <div className="panel-body">
             <div className="field mb-12">
               <label>Cliente <span className="req">*</span></label>
-              <select className="select" value={form.cliente_id} onChange={(e) => setForm({ ...form, cliente_id: e.target.value })}>
-                <option value="">Seleccionar cliente…</option>
-                {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre} · {c.zona}</option>)}
+              <div className="inline">
+                <input className="input" value={clienteBusqueda} onChange={(e) => { setClienteBusqueda(e.target.value); setClienteResultados([]); }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); buscarCliente(); } }} placeholder="Nombre, CI/NIT o código CLI-001" />
+                <button className="btn btn-soft btn-sm" title="Buscar cliente" onClick={buscarCliente}><UserRound size={13} /> Buscar</button>
+                <button className="btn btn-outline btn-sm" title="Registrar cliente nuevo" onClick={() => { setClienteForm({ nombre: clienteBusqueda, razon_social: clienteBusqueda, nit: '', ci: /^\d{5,}$/.test(clienteBusqueda) ? clienteBusqueda : '', telefono: '', whatsapp: '', direccion: '', tipo: 'minorista' }); setClienteModal(true); }}><UserPlus size={13} /> Nuevo</button>
+              </div>
+              <span className="hint">Escribe el carnet, NIT, nombre o código y pulsa Enter. Si no existe, se registra para futuras compras.</span>
+              {clienteResultados.length > 0 && <div className="panel mt-8" style={{ boxShadow: 'none' }}>
+                {clienteResultados.map((c) => <button key={c.id} className="btn btn-ghost btn-sm btn-block" onClick={() => seleccionarCliente(c)}>{c.nombre} · {c.codigo} · {c.ci || c.nit || 'sin CI/NIT'}</button>)}
+              </div>}
+              <select className="select mt-8" value={form.cliente_id} onChange={(e) => { const c = clientes.find((x) => x.id === Number(e.target.value)); setForm({ ...form, cliente_id: e.target.value }); if (c) seleccionarCliente(c); }}>
+                <option value="">O seleccionar de la lista…</option>
+                {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre} · {c.codigo}</option>)}
               </select>
             </div>
 
@@ -519,6 +707,15 @@ export default function VentaNueva() {
                 <span className="hint">El comprobante lo imprime almacén o el distribuidor, o se envía por WhatsApp. La factura SIN requiere autorización de administración.</span>
               </div>
             </div>
+
+            {form.documento_entrega === 'factura_siat' && (
+              <div className="field-row mb-12">
+                <div className="field"><label>Nombre del cliente</label><input className="input" value={cliente?.nombre || ''} readOnly /></div>
+                <div className="field"><label>Razón social para la factura</label><input className="input" value={facturaForm.razon_social} onChange={(e) => setFacturaForm({ ...facturaForm, razon_social: e.target.value })} placeholder={cliente?.nombre || 'Razón social'} /></div>
+                <div className="field"><label>NIT / CI</label><input className="input" value={facturaForm.nit} onChange={(e) => setFacturaForm({ ...facturaForm, nit: e.target.value })} placeholder={cliente?.ci || cliente?.nit || '0'} /></div>
+              </div>
+            )}
+            <label className="check mb-12"><input type="checkbox" checked={autoWhatsapp} onChange={(e) => setAutoWhatsapp(e.target.checked)} /> Enviar comprobante por WhatsApp al registrar la venta</label>
             <div className="field mb-12"><label>Notas del pedido</label><input className="input" placeholder="Referencia, horario o indicaciones…" value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} /></div>
 
             {form.canal === 'delivery' && (
@@ -639,32 +836,50 @@ export default function VentaNueva() {
         </div>
       </Modal>
 
-      <Modal open={Boolean(ventaExitosa)} onClose={() => setVentaExitosa(null)} title={`Venta ${ventaExitosa?.codigo || ''} registrada`} subtitle="Envía el comprobante por WhatsApp o abre el pedido" size="md"
-        footer={<>
-          <button className="btn btn-ghost" onClick={() => { setVentaExitosa(null); setCart({}); }}>Nueva venta</button>
-          <button className="btn btn-outline" onClick={() => navigate(`/ventas/${ventaExitosa.id}`)}>Ver pedido</button>
-        </>}
+      <Modal open={Boolean(clienteModal)} onClose={() => setClienteModal(false)} title="Registrar cliente" subtitle="Se guarda para futuras transacciones" size="md"
+        footer={<><button className="btn btn-ghost" onClick={() => setClienteModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={guardarCliente} disabled={saving}>{saving ? 'Guardando…' : 'Guardar cliente'}</button></>}
       >
         <div className="form-stack">
-          <div className="summary-box">
-            <div className="split"><span className="small muted">Total de la compra</span><strong><Money value={ventaExitosa?.total} /></strong></div>
-            <div className="split mt-8"><span className="small muted">Forma de pago</span><strong>{ventaExitosa?.forma_pago}</strong></div>
+          <div className="field-row">
+            <div className="field"><label>Nombre del cliente *</label><input className="input" value={clienteForm.nombre} onChange={(e) => setClienteForm({ ...clienteForm, nombre: e.target.value })} /></div>
+            <div className="field"><label>Razón social</label><input className="input" value={clienteForm.razon_social} onChange={(e) => setClienteForm({ ...clienteForm, razon_social: e.target.value })} placeholder="Igual al nombre si es persona natural" /></div>
           </div>
-          <div className="field"><label>Número de WhatsApp del cliente</label>
-            <input className="input" value={telComprobante} onChange={(e) => setTelComprobante(e.target.value)} placeholder="5917XXXXXXX" />
-            <span className="hint">Puedes corregirlo antes de enviar el comprobante.</span>
+          <div className="field-row">
+            <div className="field"><label>CI / Carnet</label><input className="input" value={clienteForm.ci} onChange={(e) => setClienteForm({ ...clienteForm, ci: e.target.value })} /></div>
+            <div className="field"><label>NIT</label><input className="input" value={clienteForm.nit} onChange={(e) => setClienteForm({ ...clienteForm, nit: e.target.value })} /></div>
           </div>
-          <BotonWhatsapp
-            tipo="pedido"
-            clienteId={ventaExitosa?.cliente_id}
-            pedidoId={ventaExitosa?.id}
-            telefono={telComprobante}
-            mensaje={mensajeComprobante}
-            label="Enviar comprobante por WhatsApp"
-            disabled={!telComprobante.trim()}
-          />
+          <div className="field-row">
+            <div className="field"><label>WhatsApp</label><input className="input" value={clienteForm.whatsapp} onChange={(e) => setClienteForm({ ...clienteForm, whatsapp: e.target.value })} placeholder="5917XXXXXXX" /></div>
+            <div className="field"><label>Teléfono</label><input className="input" value={clienteForm.telefono} onChange={(e) => setClienteForm({ ...clienteForm, telefono: e.target.value })} /></div>
+          </div>
+          <div className="field"><label>Dirección</label><input className="input" value={clienteForm.direccion} onChange={(e) => setClienteForm({ ...clienteForm, direccion: e.target.value })} /></div>
+          <span className="hint">El sistema asigna automáticamente un código tipo CLI-001 para buscarlo en futuras ventas.</span>
         </div>
       </Modal>
+
+      <Modal open={Boolean(fotoSugerencias)} onClose={() => setFotoSugerencias(null)} title="Producto detectado por imagen" subtitle="Elige el que coincide con la foto y se agregará al carrito" size="lg"
+        footer={<button className="btn btn-ghost" onClick={() => setFotoSugerencias(null)}>Cancelar</button>}
+      >
+        <div className="grid grid-3" style={{ gap: 8 }}>
+          {(fotoSugerencias || []).map((p) => <button key={p.id} className="pos-product" onClick={() => { agregar(p); setFotoSugerencias(null); toast(`${p.nombre} agregado al carrito`, 'success'); }}>
+            {p.imagen_url ? <img className="pp-img" src={p.imagen_url} alt={p.nombre} /> : <span className="pp-emoji">{p.emoji}</span>}
+            <span className="pp-name">{p.nombre}</span>
+            <span className="pp-meta"><span className="pp-price"><Money value={precioEfectivo(p)} /></span></span>
+          </button>)}
+        </div>
+        <span className="hint">La comparación es por similitud visual de colores con las imágenes registradas. Para lectura exacta usa el escáner de código/QR.</span>
+      </Modal>
+
+      <div className="print-only">
+        <h3>DADINI · {ultimaVenta?.documento_entrega === 'factura_siat' ? 'Factura' : 'Comprobante de entrega'}</h3>
+        <p className="small">{ultimaVenta?.codigo || ''} · {cliente?.nombre || 'Cliente'} · {facturaForm.razon_social} · NIT/CI {facturaForm.nit}</p>
+        <table className="data-table"><thead><tr><th>Producto</th><th>Cantidad</th><th>P. unit.</th><th>Subtotal</th></tr></thead><tbody>
+          {(ultimaVenta?.items || []).map((i, idx) => <tr key={idx}><td>{i.nombre}</td><td>{i.cantidad}</td><td>Bs {Number(i.precio || 0).toFixed(2)}</td><td>Bs {Number(i.subtotal || 0).toFixed(2)}</td></tr>)}
+        </tbody></table>
+        <p className="small mt-8"><strong>Total Bs {Number(ultimaVenta?.total || 0).toFixed(2)}</strong> · {ultimaVenta?.forma_pago || ''}</p>
+        {ultimaVenta?.factura && <p className="small">Factura N° {ultimaVenta.factura.numero} · IVA Bs {Number(ultimaVenta.factura.iva || 0).toFixed(2)} · IT Bs {Number(ultimaVenta.factura.it || 0).toFixed(2)}</p>}
+        <p className="small muted">Creado por DADINI S STORE</p>
+      </div>
     </>
   );
 }

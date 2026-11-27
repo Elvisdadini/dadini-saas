@@ -14,7 +14,7 @@ import {
   Badge, Confirm, EmptyState, Fecha, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, Tabs, useToast,
 } from '../ui';
 
-const PRODUCTO_VACIO = { nombre: '', categoria: '', categoria_id: '', marca: '', marca_id: '', imagen_url: '', precio: '', costo: '', unidad: 'unidad', unidades_por_caja: 24, unidades_por_paquete: 12, presentacion: 'unidad', vender_por: ['unidad', 'caja', 'paquete'], categorias_clientes: [], peso_kg: 0.25, stock_minimo: 10, stock_inicial: 0, emoji: '📦', color: '#FF6500', activo: true };
+const PRODUCTO_VACIO = { nombre: '', categoria: '', categoria_id: '', marca: '', marca_id: '', imagen_url: '', codigo_barras: '', precio: '', costo: '', unidad: 'unidad', unidades_por_caja: 24, unidades_por_paquete: 12, presentacion: 'unidad', vender_por: ['unidad', 'caja', 'paquete'], categorias_clientes: [], peso_kg: 0.25, stock_minimo: 10, stock_inicial: 0, emoji: '📦', color: '#FF6500', activo: true };
 const ALMACEN_VACIO = { nombre: '', direccion: '', zona: '', ciudad: 'Cochabamba', encargado: '', telefono: '' };
 
 export default function Inventario() {
@@ -95,7 +95,7 @@ export default function Inventario() {
   const abrirProducto = (p = null) => {
     setEditing(p);
     setImagenPendiente(p?.imagen_url || null);
-    setForm(p ? { nombre: p.nombre, categoria: p.categoria, categoria_id: p.categoria_id || '', marca: p.marca || '', marca_id: p.marca_id || '', imagen_url: p.imagen_url || '', precio: p.precio, costo: p.costo, unidad: p.unidad, unidades_por_caja: p.unidades_por_caja || (p.unidad === 'caja' ? 1 : 24), categorias_clientes: p.categorias_clientes || [], peso_kg: p.peso_kg || 0.25, unidades_por_paquete: p.unidades_por_paquete || 12, presentacion: p.presentacion || p.unidad || 'unidad', vender_por: p.vender_por || ['unidad', 'caja', 'paquete'], stock_minimo: p.stock_minimo, stock_inicial: 0, emoji: p.emoji, color: p.color, activo: p.activo } : PRODUCTO_VACIO);
+    setForm(p ? { nombre: p.nombre, categoria: p.categoria, categoria_id: p.categoria_id || '', marca: p.marca || '', marca_id: p.marca_id || '', imagen_url: p.imagen_url || '', codigo_barras: p.codigo_barras || '', precio: p.precio, costo: p.costo, unidad: p.unidad, unidades_por_caja: p.unidades_por_caja || (p.unidad === 'caja' ? 1 : 24), categorias_clientes: p.categorias_clientes || [], peso_kg: p.peso_kg || 0.25, unidades_por_paquete: p.unidades_por_paquete || 12, presentacion: p.presentacion || p.unidad || 'unidad', vender_por: p.vender_por || ['unidad', 'caja', 'paquete'], stock_minimo: p.stock_minimo, stock_inicial: 0, emoji: p.emoji, color: p.color, activo: p.activo } : PRODUCTO_VACIO);
     setProductModal(true);
   };
 
@@ -490,7 +490,10 @@ export default function Inventario() {
         footer={<><button className="btn btn-ghost" onClick={() => setProductModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={guardarProducto} disabled={busy}>{busy ? 'Guardando…' : 'Guardar producto'}</button></>}
       >
         <div className="form-stack">
-          <div className="field"><label>Nombre del producto <span className="req">*</span></label><input className="input" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej. KEKITO CHOCOLATE" /></div>
+          <div className="field-row">
+            <div className="field"><label>Nombre del producto <span className="req">*</span></label><input className="input" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej. KEKITO CHOCOLATE" /></div>
+            <div className="field"><label>Código de barras / EAN</label><input className="input" value={form.codigo_barras || ''} onChange={(e) => setForm({ ...form, codigo_barras: e.target.value })} placeholder="Ej. 7701234567890" /><span className="hint">Lo lee la cámara o el lector de barras en el POS.</span></div>
+          </div>
           <div className="field"><label>Imagen del producto</label>
             <div className="inline">
               {imagenPendiente ? <img src={imagenPendiente} alt="Vista previa" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} /> : <div className="logo-empty"><ImagePlus size={22} /></div>}

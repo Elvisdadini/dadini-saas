@@ -32,7 +32,7 @@ router.get('/', (req, res) => {
   if (tipo && tipo !== 'todos') clientes = clientes.filter((c) => c.tipo === tipo);
   if (zona && zona !== 'todas') clientes = clientes.filter((c) => c.zona === zona);
   if (con_saldo === 'true') clientes = clientes.filter((c) => c.saldo > 0);
-  if (search) clientes = clientes.filter((c) => matches(`${c.nombre} ${c.codigo} ${c.contacto} ${c.zona} ${c.telefono}`, search));
+  if (search) clientes = clientes.filter((c) => matches(`${c.nombre} ${c.razon_social || ''} ${c.nit || ''} ${c.ci || ''} ${c.codigo} ${c.contacto} ${c.zona} ${c.telefono}`, search));
   let rutaFiltro = ruta_venta;
   let diaFiltro = dia_visita;
   if (agenda === 'true') {
@@ -95,12 +95,19 @@ router.get('/:id', (req, res) => {
 
 router.post('/', requirePermiso('clientes_crear'), allow('ventas', 'preventista', 'vendedor_camion', 'cobranzas'), (req, res) => {
   const db = load();
-  const { nombre, tipo, zona, direccion, telefono, whatsapp, email, limite_credito, contacto, notas, latitud, longitud, precision, ruta_venta, dia_visita, categoria_cliente_id } = req.body || {};
+  const { nombre, razon_social, nit, ci, tipo, zona, direccion, telefono, whatsapp, email, limite_credito, contacto, notas, latitud, longitud, precision, ruta_venta, dia_visita, categoria_cliente_id } = req.body || {};
   if (!nombre) return res.status(400).json({ error: 'El nombre del cliente es obligatorio.' });
+  const documento = String(ci || nit || '').trim();
+  if (documento && (db.clientes || []).some((c) => String(c.ci || c.nit || '').trim() === documento)) {
+    return res.status(400).json({ error: 'Ya existe un cliente con ese NIT/CI.' });
+  }
   const cliente = {
     id: nextId(db.clientes),
     codigo: `CLI-${String(nextId(db.clientes)).padStart(3, '0')}`,
     nombre: String(nombre).trim(),
+    razon_social: String(razon_social || nombre).trim(),
+    nit: String(nit || '').trim(),
+    ci: String(ci || '').trim(),
     tipo: tipo || 'minorista',
     zona: zona || 'Centro',
     direccion: direccion || '',
@@ -338,7 +345,7 @@ router.put('/:id', requirePermiso('clientes_editar'), allow('ventas', 'preventis
   const cliente = db.clientes.find((c) => c.id === Number(req.params.id));
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado.' });
   if (!puedeGestionar(req, cliente)) return res.status(403).json({ error: 'Solo puedes gestionar los clientes que se te asignaron.' });
-  const campos = ['nombre', 'tipo', 'zona', 'direccion', 'telefono', 'whatsapp', 'email', 'contacto', 'notas', 'activo'];
+  const campos = ['nombre', 'razon_social', 'nit', 'ci', 'tipo', 'zona', 'direccion', 'telefono', 'whatsapp', 'email', 'contacto', 'notas', 'activo'];
   campos.forEach((c) => { if (req.body?.[c] !== undefined) cliente[c] = req.body[c]; });
   if (req.body?.limite_credito !== undefined) cliente.limite_credito = num(req.body.limite_credito);
   if (req.body?.ruta_venta !== undefined) cliente.ruta_venta = req.body.ruta_venta || null;

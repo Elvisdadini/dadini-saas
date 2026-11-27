@@ -302,8 +302,13 @@ router.post('/', requireActividad('vender'), requireHorarioVentas, requirePermis
       modalidad: fiscal.modalidad || 'computarizada_sfv',
       autorizacion: fiscal.autorizacion || '',
       codigo_control: fiscal.codigo_control || '',
-      comprador: requiereDatos
-        ? { nombre: cliente.nombre, nit: clienteFactura?.nit || clienteFactura?.telefono || '0' }
+      comprador: (requiereDatos || tipoDocumento === 'factura_siat')
+        ? {
+          nombre: clienteFactura?.razon_social || cliente.nombre,
+          nombre_cliente: cliente.nombre,
+          nit: clienteFactura?.nit || clienteFactura?.ci || clienteFactura?.telefono || '0',
+          ci: clienteFactura?.ci || null,
+        }
         : { nombre: 'S/N', nit: '0' },
       items: lineas.map((l) => ({ nombre: l.nombre, cantidad: l.cantidad, precio: l.precio, subtotal: l.subtotal })),
       subtotal: impuestos.neto,
