@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../auth';
-import { Badge, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
+import { Badge, Confirm, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, useToast } from '../ui';
 
 const VACIA = {
   codigo: '', nombre: '', direccion: '', empresa: '', razon_social: '', padre_id: '', activa: true,
@@ -60,6 +60,7 @@ export default function Sucursales() {
   const [migrar, setMigrar] = useState(null);
   const [migrarForm, setMigrarForm] = useState({ origen_id: '', entidades: [] });
   const [importables, setImportables] = useState([]);
+  const [eliminar, setEliminar] = useState(null);
 
   const cargar = useCallback(async () => {
     setBusy(true);
@@ -129,6 +130,26 @@ export default function Sucursales() {
       });
       toast(r.enviada ? 'Notificación registrada' : 'Ya existe una notificación con ese título');
     } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const cambiarEstado = async (s) => {
+    try {
+      const r = await api.post(`/sucursales/${s.id}/${s.activa !== false ? 'desactivar' : 'activar'}`, {});
+      if (!r.ok) throw new Error(r.error);
+      toast(r.sucursal.activa ? 'Empresa activada' : 'Empresa desactivada');
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); }
+  };
+
+  const confirmarEliminar = async () => {
+    setBusy(true);
+    try {
+      const r = await api.del(`/sucursales/${eliminar.id}`);
+      if (!r.ok) throw new Error(r.error);
+      toast(`Empresa ${r.eliminada} eliminada`);
+      setEliminar(null);
+      await cargar();
+    } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
   };
 
   const abrirAsignar = (s) => {
@@ -203,7 +224,9 @@ export default function Sucursales() {
                       <button className="btn btn-outline btn-sm" onClick={() => abrirAsignar(s)}><Users size={12} /> Usuarios</button>
                       <button className="btn btn-soft btn-sm" title="Migrar datos desde otra empresa" onClick={() => abrirMigrar(s)}><ArrowRightLeft size={12} /> Migrar</button>
                       <button className="btn btn-ghost btn-sm" title="Enviar notificación manual" onClick={() => notificar(s)}><Bell size={12} /> Avisar</button>
+                      <button className="btn btn-ghost btn-sm" title={s.activa !== false ? 'Desactivar empresa' : 'Activar empresa'} onClick={() => cambiarEstado(s)}>{s.activa !== false ? 'Desactivar' : 'Activar'}</button>
                       <button className="icon-btn" title="Editar configuración" onClick={() => abrirEditar(s)}><Pencil size={14} /></button>
+                      <button className="icon-btn danger" title="Eliminar empresa" onClick={() => setEliminar(s)}>×</button>
                     </td>
                   </tr>
                 ))}
@@ -317,6 +340,16 @@ export default function Sucursales() {
           </div></div>
         </div>
       </Modal>
+
+      <Confirm
+        open={Boolean(eliminar)}
+        onClose={() => setEliminar(null)}
+        onConfirm={confirmarEliminar}
+        title={`Eliminar ${eliminar?.nombre || ''}`}
+        message="Se borrarán la empresa, sus usuarios y todos sus datos aislados. Esta acción no se puede deshacer."
+        danger
+        loading={busy}
+      />
     </>
   );
 }

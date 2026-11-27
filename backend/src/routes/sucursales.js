@@ -239,6 +239,52 @@ router.post('/:id/usuarios', requirePermiso('sucursales.editar'), (req, res) => 
   return res.json({ ok: true, asignados });
 });
 
+router.post('/:id/activar', (req, res) => {
+  const db = load();
+  const real = tenant.dbReal() || db;
+  const sucursal = (real.sucursales || []).find((s) => s.id === Number(req.params.id));
+  if (!sucursal) return res.status(404).json({ error: 'Sucursal no encontrada.' });
+  sucursal.activa = req.path.endsWith('/activar');
+  audit(db, req, sucursal.activa ? 'Empresa activada' : 'Empresa desactivada', 'Sucursales', sucursal.nombre);
+  save();
+  return res.json({ ok: true, sucursal: publica(real, sucursal) });
+});
+
+router.post('/:id/desactivar', (req, res) => {
+  const db = load();
+  const real = tenant.dbReal() || db;
+  const sucursal = (real.sucursales || []).find((s) => s.id === Number(req.params.id));
+  if (!sucursal) return res.status(404).json({ error: 'Sucursal no encontrada.' });
+  sucursal.activa = false;
+  audit(db, req, 'Empresa desactivada', 'Sucursales', sucursal.nombre);
+  save();
+  return res.json({ ok: true, sucursal: publica(real, sucursal) });
+});
+
+router.delete('/:id', (req, res) => {
+  const db = load();
+  const real = tenant.dbReal() || db;
+  const id = Number(req.params.id);
+  const sucursal = (real.sucursales || []).find((s) => s.id === id);
+  if (!sucursal) return res.status(404).json({ error: 'Sucursal no encontrada.' });
+  if (id === 1 || Number(req.user.sucursal_id || 1) === id) {
+    return res.status(400).json({ error: 'No puedes eliminar la casa matriz ni la empresa en la que estás trabajando.' });
+  }
+  const usuarios = (real.usuarios || []).filter((u) => Number(u.sucursal_id || 1) === id);
+  real.usuarios = (real.usuarios || []).filter((u) => Number(u.sucursal_id || 1) !== id);
+  // Se eliminan los datos propios de la empresa; los globales no se tocan.
+  const tenantModule = require('../tenant');
+  const { ENTIDADES } = require('../store');
+  ENTIDADES.filter((e) => !tenantModule.GLOBALES?.has?.(e) && e !== 'sucursales' && e !== 'empresas').forEach((clave) => {
+    if (Array.isArray(real[clave])) real[clave] = real[clave].filter((f) => Number(f.sucursal_id || 1) !== id);
+  });
+  real.sucursales = real.sucursales.filter((s) => s.id !== id);
+  if (sucursal.empresa_id) real.empresas = (real.empresas || []).filter((e) => e.id !== Number(sucursal.empresa_id));
+  audit(db, req, 'Empresa eliminada', 'Sucursales', `${sucursal.nombre} · ${usuarios.length} usuarios`);
+  save();
+  return res.json({ ok: true, eliminada: sucursal.nombre, usuarios_eliminados: usuarios.length });
+});
+
 router.post('/:id/notificar', (req, res) => {
   const db = load();
   const real = tenant.dbReal() || db;
