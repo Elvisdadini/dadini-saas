@@ -175,7 +175,8 @@ function permisosPorPlantilla(id) {
 }
 
 function permisosPorRol(rol) {
-  if (rol === 'admin' || rol === 'dueno') return [...TODOS];
+  if (rol === 'dueno') return [...TODOS];
+  if (rol === 'admin') return TODOS.filter((c) => c !== 'dueno' && c !== 'sucursales' && !c.startsWith('sucursales.'));
   const plantilla = PLANTILLAS.find((p) => p.rol === rol) || PLANTILLAS.find((p) => p.id === rol);
   return plantilla ? [...plantilla.permisos] : ['dashboard'];
 }
@@ -212,7 +213,11 @@ const TECHO_POR_ROL = {
 
 function permisosUsuario(usuario) {
   if (!usuario) return [];
-  if (usuario.rol === 'admin' || usuario.rol === 'dueno') return [...TODOS];
+  if (usuario.rol === 'dueno') return [...TODOS];
+  // Un administrador de empresa no recibe los módulos privativos del dueño.
+  if (usuario.rol === 'admin') {
+    return TODOS.filter((c) => c !== 'dueno' && c !== 'sucursales' && !c.startsWith('sucursales.'));
+  }
   const guardados = Array.isArray(usuario.permisos) ? usuario.permisos : permisosPorRol(usuario.rol);
   const techo = TECHO_POR_ROL[usuario.rol];
   if (!techo) return [...new Set(guardados.filter((c) => TODOS.includes(c)))];
