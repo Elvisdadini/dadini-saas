@@ -42,6 +42,12 @@ function validarLimites(db, sucursalId, usuarios, excluirId = null) {
   const sucursal = (db.sucursales || []).find((s) => Number(s.id) === Number(sucursalId));
   if (!sucursal?.limites) return;
   const conteo = empresas.conteoPorRol(db, sucursalId);
+  const limiteTotal = Number(sucursal.limites.usuarios);
+  if (Number.isFinite(limiteTotal) && limiteTotal > 0 && conteo.total + (Array.isArray(usuarios) ? usuarios : []).length > limiteTotal) {
+    const error = new Error(`La empresa alcanzó el límite total de usuarios (${conteo.total}/${limiteTotal}).`);
+    error.status = 400;
+    throw error;
+  }
   (Array.isArray(usuarios) ? usuarios : []).forEach((u) => {
     Object.keys(empresas.ROLES_CUPADOS).forEach((clave) => {
       if (!empresas.ROLES_CUPADOS[clave].includes(u.rol)) return;
@@ -67,7 +73,11 @@ function configuracionDelCuerpo(body, db) {
     limites: {
       vendedores: limites.vendedores === '' || limites.vendedores === null ? null : Number(limites.vendedores) || null,
       distribucion: limites.distribucion === '' || limites.distribucion === null ? null : Number(limites.distribucion) || null,
+      almacen: limites.almacen === '' || limites.almacen === null ? null : Number(limites.almacen) || null,
+      contador: limites.contador === '' || limites.contador === null ? null : Number(limites.contador) || null,
       cobranzas: limites.cobranzas === '' || limites.cobranzas === null ? null : Number(limites.cobranzas) || null,
+      administradores: limites.administradores === '' || limites.administradores === null ? null : Number(limites.administradores) || null,
+      usuarios: limites.usuarios === '' || limites.usuarios === null ? null : Number(limites.usuarios) || null,
     },
     vigencia: { desde: vigencia.desde || null, hasta: vigencia.hasta || null },
     notificacion: {
@@ -125,7 +135,7 @@ router.post('/alta-empresa', requirePermiso('sucursales.crear'), (req, res) => {
     created_at: new Date().toISOString(),
   };
   real.empresas.push(empresa);
-  const cfg = configuracionDelCuerpo({ ...body, id: idSucursal }, db);
+  const cfg = configuracionDelCuerpo({ ...body, id: idSucursal, limites: body.limites || empresas.limitesPorDefecto }, db);
   const sucursal = {
     id: idSucursal,
     codigo: String(body.codigo || '').trim().toUpperCase() || `EMP-${String(idSucursal).padStart(3, '0')}`,

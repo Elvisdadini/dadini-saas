@@ -77,6 +77,20 @@ function authRequired(req, res, next) {
       bloqueos: user.bloqueos || null,
     };
     req.db = db;
+    // La empresa solo puede usar el sistema durante la vigencia contratada.
+    if (user.rol !== 'dueno') {
+      const tenantMod = require('./tenant');
+      const real = tenantMod.dbReal() || db;
+      const sucursal = (real.sucursales || []).find((s) => Number(s.id) === Number(user.sucursal_id || 1));
+      if (sucursal?.activa === false) {
+        return res.status(403).json({ error: 'La empresa está desactivada. Contacta al dueño del sistema.' });
+      }
+      const hasta = sucursal?.vigencia?.hasta;
+      const hoy = require('./horario').fechaBolivia();
+      if (hasta && hoy > String(hasta).slice(0, 10)) {
+        return res.status(403).json({ error: `El acceso de la empresa venció el ${hasta}. Solicita la renovación al dueño del sistema.` });
+      }
+    }
     protegerRespuesta(req, res);
     const tenant = require('./tenant');
     return tenant.ejecutar(tenant.resolver(req), () => {

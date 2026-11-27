@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es-BO">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Demo animada · DADINI SaaS</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#061c33;font-family:Inter,Arial,sans-serif;color:#fff;overflow:hidden}
+#escena{position:relative;width:100vw;height:100vh;display:grid;place-items:center;text-align:center}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;align-items:center;padding:8vw}
+.slide.activa{display:flex;animation:entrar .6s ease}
+@keyframes entrar{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.tag{background:#ff6500;padding:8px 18px;border-radius:20px;font-weight:bold;font-size:14px}
+h1{font-size:5vw;margin:22px 0 10px;line-height:1.1}h1 em{color:#ff6500;font-style:normal}
+p{font-size:2vw;color:#c9d9e8;max-width:900px;line-height:1.5}
+.pasos{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:28px}
+.paso{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:18px 22px;border-radius:14px;min-width:180px;font-weight:bold}
+.paso small{display:block;color:#7fd1ff;font-weight:normal;margin-top:6px}
+.barra{position:absolute;bottom:34px;left:10%;width:80%;height:6px;background:rgba(255,255,255,.15);border-radius:4px;overflow:hidden}
+.barra i{display:block;height:100%;background:#ff6500;width:0}
+.marca{position:absolute;bottom:10px;right:20px;font-size:12px;color:#8fa9bf}
+</style>
+</head>
+<body>
+<div id="escena">
+  <div class="slide activa"><span class="tag">DADINI SaaS</span><h1>Todo tu negocio,<br>en un solo <em>lugar.</em></h1><p>Plataforma operativa para ventas, distribución, cobranzas y contabilidad.</p></div>
+  <div class="slide"><span class="tag">1 · Ventas</span><h1>Registra una venta <em>en segundos</em></h1><p>Carrito, descuentos autorizados, factura SIN o comprobante de entrega y WhatsApp al cliente.</p><div class="pasos"><div class="paso">POS<small>Bs / porcentaje</small></div><div class="paso">Factura<small>SIN o entrega</small></div><div class="paso">WhatsApp<small>Comprobante</small></div></div></div>
+  <div class="slide"><span class="tag">2 · Explorador BI</span><h1>De la venta al <em>detalle</em></h1><p>Vendedor → clientes → productos → descuentos → visitas. Filtros por fecha y avance al objetivo en cada nivel.</p><div class="pasos"><div class="paso">15 clientes<small>por vendedor</small></div><div class="paso">40 visitas<small>38 visitadas</small></div><div class="paso">18 compraron<small>20 no compraron</small></div></div></div>
+  <div class="slide"><span class="tag">3 · Distribución</span><h1>Rutas y entregas <em>controladas</em></h1><p>Hojas de ruta, carga por camión, firma, foto y geolocalización de cada entrega.</p><div class="pasos"><div class="paso">Zonas<small>y geocercas</small></div><div class="paso">Carga<small>manifiesto impreso</small></div><div class="paso">Entrega<small>firma + foto</small></div></div></div>
+  <div class="slide"><span class="tag">4 · Mi reporte</span><h1>Cada quien ve <em>solo lo suyo</em></h1><p>Mis ventas, mis clientes, mis entregas, mis cobranzas y mis devoluciones. Nunca los resultados de otro compañero.</p><div class="pasos"><div class="paso">Vendedor<small>solo sus ventas</small></div><div class="paso">Distribuidor<small>solo sus rutas</small></div><div class="paso">Cobrador<small>solo sus cobros</small></div></div></div>
+  <div class="slide"><span class="tag">5 · Empresas</span><h1>Multiempresa <em>aislada</em></h1><p>El dueño registra empresas, activa módulos, fija cupos y vigencia, y migrate datos de ejemplo. Nadie ve los datos de otra empresa.</p><div class="pasos"><div class="paso">DIPROL<small>empresa 1</small></div><div class="paso">MECI<small>empresa 2</small></div><div class="paso">Cupos<small>vigencia y avisos</small></div></div></div>
+  <div class="slide"><span class="tag">Listo</span><h1>Prueba <em>15 días gratis</em></h1><p>Solicita una demo y recibe la empresa configurada con tus módulos y usuarios autorizados.</p><div class="pasos"><div class="paso">Web + APK<small>mismos permisos</small></div><div class="paso">Sin clonación<small>licencia de uso</small></div></div></div>
+  <div class="barra"><i id="progreso"></i></div>
+  <div class="marca">Creado por DADINI S STORE</div>
+</div>
+<script>
+const slides=[...document.querySelectorAll('.slide')];let i=0;const total=7000;
+function mostrar(){
+  slides.forEach((s,n)=>s.classList.toggle('activa',n===i));
+  document.getElementById('progreso').style.transition='none';
+  document.getElementById('progreso').style.width='0%';
+  requestAnimationFrame(()=>{document.getElementById('progreso').style.transition=`width ${total}ms linear`;document.getElementById('progreso').style.width='100%';});
+  i=(i+1)%slides.length;
+}
+mostrar();setInterval(mostrar,total);
+</script>
+</body>
+</html>

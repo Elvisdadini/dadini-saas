@@ -426,6 +426,12 @@ Página **Ventas → Mapa de zonas**: se elige una zona y se pulsa **Dibujar cua
 - Endpoints: `GET/POST /api/cambios`, `GET /:id`, `POST /:id/confirmar`, `POST /:id/rechazar`, `DELETE /:id`, `GET /cambios/catalogo`. El acceso también está en el encabezado de **Ventas** y en el menú principal.
 - **APK 21.0.6** (`versionCode 7`): compilada con keystore nuevo y publicada en `/uploads/apk/DADINI-SaaS-21.0.6.apk` (archivo versionado en el repo, sobrevive a reinicios). Al cambiar la firma, quienes tenían la versión anterior deben desinstalar antes de instalar. La contraseña del keystore no se versiona: guárdala fuera del repo.
 
+### Material comercial
+- `docs/landing-dadini.html`: página de presentación con los banners.
+- `frontend/public/banners/banner-ventas.svg`, `banner-distribucion.svg`, `banner-reportes.svg`: banners vectoriales editables.
+- `docs/demo-dadini.webm`: video demostrativo animado (7 escenas) y `docs/demo-dadini.html` para reproducirlo con más detalle.
+- `docs/Contrato_Compra_Venta_DADINI_SaaS.md`, `docs/Contrato_Licencia_Mensual_DADINI_SaaS.md`, `docs/Plan_Precios_y_Prueba.md`: contratos simples, cláusula de **no clonación**, precios mensuales/anuales y prueba de 15 días.
+
 ### Empresas: alta, módulos, cupos y vigencia (solo dueño)
 
 - `sucursales` y el **panel del dueño** están bloqueados para todos los roles salvo `dueno`. El middleware `soloDueno` protege `/api/sucursales/*` y `/api/configuracion/panel-dueno`; ni un administrador de empresa puede entrar (403). En la interfaz, menú y ruta usan el mismo criterio.

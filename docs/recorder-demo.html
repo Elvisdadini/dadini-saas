@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Grabador demo DADINI</title></head><body>
+<canvas id="c" width="1280" height="720"></canvas>
+<button id="b">Grabar demo</button>
+<script>
+const slides=[
+ ['DADINI SaaS','Todo tu negocio, en un solo lugar.','Ventas · Distribución · Cobranzas · Contabilidad'],
+ ['1 · Ventas','Registra una venta en segundos','Bs o % · Factura SIN o comprobante · WhatsApp'],
+ ['2 · Explorador BI','De la venta al detalle','Vendedor → clientes → productos → descuentos → visitas'],
+ ['3 · Distribución','Rutas y entregas controladas','Hojas de ruta · firma · foto · geolocalización'],
+ ['4 · Mi reporte','Cada quien ve solo lo suyo','Vendedor · distribuidor · cobrador · contador'],
+ ['5 · Empresas','Multiempresa aislada','Módulos · cupos · vigencia · avisos automáticos'],
+ ['Listo','Prueba 15 días gratis','Web + APK con los mismos permisos'],
+];
+const ctx=document.getElementById('c').getContext('2d');
+function dibujar(n){
+ const s=slides[n%slides.length];
+ const g=ctx.createLinearGradient(0,0,1280,720);g.addColorStop(0,'#061c33');g.addColorStop(1,'#0d3b66');
+ ctx.fillStyle=g;ctx.fillRect(0,0,1280,720);
+ ctx.fillStyle='#ff6500';ctx.fillRect(80,90,190,44);
+ ctx.fillStyle='#fff';ctx.font='bold 20px Arial';ctx.fillText(s[0],100,120);
+ ctx.fillStyle='#fff';ctx.font='bold 64px Arial';ctx.fillText(s[1],80,330,1120);
+ ctx.fillStyle='#c9d9e8';ctx.font='26px Arial';ctx.fillText(s[2],80,410,1120);
+ ctx.fillStyle='#8fa9bf';ctx.font='16px Arial';ctx.fillText('Creado por DADINI S STORE',80,680);
+}
+dibujar(0);
+document.getElementById('b').onclick=async()=>{
+ const stream=document.getElementById('c').captureStream(30);
+ const tipo=MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm;codecs=vp9':'video/webm';
+ const rec=new MediaRecorder(stream,{mimeType:tipo});const partes=[];
+ rec.ondataavailable=e=>{if(e.data.size)partes.push(e.data)};
+ rec.onstop=()=>{const blob=new Blob(partes,{type:'video/webm'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='demo-dadini.webm';a.click();window.__listo=true};
+ rec.start();
+ for(let i=0;i<slides.length;i++){dibujar(i);await new Promise(r=>setTimeout(r,3000))}
+ rec.stop();
+};
+</script></body></html>

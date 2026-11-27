@@ -10,7 +10,7 @@ import { Badge, Confirm, Modal, Money, Num, PageHeader, SkeletonRows, StatCard, 
 const VACIA = {
   codigo: '', nombre: '', direccion: '', empresa: '', razon_social: '', padre_id: '', activa: true,
   modulos: ['operacion'],
-  limites: { vendedores: '', distribucion: '', cobranzas: '' },
+  limites: { vendedores: 1, distribucion: 1, almacen: 1, contador: 1, cobranzas: 1, administradores: 1, usuarios: 10 },
   vigencia: { desde: '', hasta: '' },
   notificacion: { activa: true, dias_anticipacion: 30, modo: 'manual' },
   admin: { nombre: '', usuario: '', email: '', password: 'Dadini2026!', telefono: '' },
@@ -33,8 +33,10 @@ function formDe(s) {
     padre_id: s.padre_id || '', activa: s.activa !== false,
     modulos: Array.isArray(s.modulos) ? s.modulos : [],
     limites: {
-      vendedores: s.limites?.vendedores ?? '', distribucion: s.limites?.distribucion ?? '',
-      cobranzas: s.limites?.cobranzas ?? '',
+      vendedores: s.limites?.vendedores ?? 1, distribucion: s.limites?.distribucion ?? 1,
+      almacen: s.limites?.almacen ?? 1, contador: s.limites?.contador ?? 1,
+      cobranzas: s.limites?.cobranzas ?? 1, administradores: s.limites?.administradores ?? 1,
+      usuarios: s.limites?.usuarios ?? 10,
     },
     vigencia: { desde: s.vigencia?.desde || '', hasta: s.vigencia?.hasta || '' },
     notificacion: {
@@ -215,7 +217,7 @@ export default function Sucursales() {
                     <td className="cell-strong">{s.nombre}<span className="cell-sub">{s.codigo} · {s.empresa || ''}{s.direccion ? ` · ${s.direccion}` : ''}</span></td>
                     <td><Badge tone={s.activa !== false ? 'green' : 'gray'}>{s.activa !== false ? 'Activa' : 'Inactiva'}</Badge></td>
                     <td><div className="inline" style={{ gap: 4, flexWrap: 'wrap' }}>{(s.modulos || []).map((m) => <span className="badge badge-blue" key={m}>{m}</span>)}{!(s.modulos || []).length && <span className="muted">—</span>}</div></td>
-                    <td className="small">V {s.por_rol?.vendedores ?? 0}{s.limites?.vendedores ? `/${s.limites.vendedores}` : ''} · D {s.por_rol?.distribucion ?? 0}{s.limites?.distribucion ? `/${s.limites.distribucion}` : ''} · C {s.por_rol?.cobranzas ?? 0}{s.limites?.cobranzas ? `/${s.limites.cobranzas}` : ''}</td>
+                    <td className="small">V {s.por_rol?.vendedores ?? 0}{s.limites?.vendedores ? `/${s.limites.vendedores}` : ''} · D {s.por_rol?.distribucion ?? 0}{s.limites?.distribucion ? `/${s.limites.distribucion}` : ''} · A {s.por_rol?.almacen ?? 0}{s.limites?.almacen ? `/${s.limites.almacen}` : ''} · C {s.por_rol?.cobranzas ?? 0}{s.limites?.cobranzas ? `/${s.limites.cobranzas}` : ''} · Total {s.usuarios}{s.limites?.usuarios ? `/${s.limites.usuarios}` : ''}</td>
                     <td className="small">{s.vigencia?.desde || '—'} → {s.vigencia?.hasta || '—'}</td>
                     <td className="num"><Num value={s.usuarios} /></td>
                     <td className="num"><Money value={s.ventas} /></td>
@@ -267,11 +269,17 @@ export default function Sucursales() {
 
           <div className="divider" />
           <h4 className="small">3 · Límites de uso por rol (vacío = sin límite)</h4>
-          <div className="grid grid-3" style={{ gap: 8 }}>
-            <div className="field"><label>Vendedores</label><input className="input" type="number" min="0" value={form.limites.vendedores} onChange={(e) => setLimite('vendedores', e.target.value)} placeholder="Sin límite" /></div>
-            <div className="field"><label>Distribuidores</label><input className="input" type="number" min="0" value={form.limites.distribucion} onChange={(e) => setLimite('distribucion', e.target.value)} placeholder="Sin límite" /></div>
-            <div className="field"><label>Cobradores</label><input className="input" type="number" min="0" value={form.limites.cobranzas} onChange={(e) => setLimite('cobranzas', e.target.value)} placeholder="Sin límite" /></div>
+          <div className="grid grid-4" style={{ gap: 8 }}>
+            {[['vendedores', 'Vendedores'], ['distribucion', 'Distribuidores'], ['almacen', 'Almaceneros'], ['contador', 'Contadores']].map(([clave, etiqueta]) => (
+              <div className="field" key={clave}><label>{etiqueta}</label><input className="input" type="number" min="0" value={form.limites[clave]} onChange={(e) => setLimite(clave, e.target.value)} /></div>
+            ))}
           </div>
+          <div className="field-row mt-8">
+            <div className="field"><label>Cobradores</label><input className="input" type="number" min="0" value={form.limites.cobranzas} onChange={(e) => setLimite('cobranzas', e.target.value)} /></div>
+            <div className="field"><label>Administradores</label><input className="input" type="number" min="0" value={form.limites.administradores} onChange={(e) => setLimite('administradores', e.target.value)} /></div>
+            <div className="field"><label>Total de usuarios</label><input className="input" type="number" min="0" value={form.limites.usuarios} onChange={(e) => setLimite('usuarios', e.target.value)} /></div>
+          </div>
+          <span className="hint">Por defecto: 1 vendedor, 1 distribuidor, 1 almacenero, 1 contador y 1 administrador (5 usuarios). Con 5 usuarios más se llega a 10, que será el límite total; el administrador no podrá crear otro sin autorización del dueño.</span>
 
           <div className="divider" />
           <h4 className="small">4 · Vigencia y notificación de vencimiento</h4>

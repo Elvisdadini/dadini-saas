@@ -84,6 +84,18 @@ test('empresas: cupos por rol se validan contra la sucursal', () => {
   assert.equal(empresas.validarCupo(db, 2, 'preventista', 1).ok, true);
   assert.equal(empresas.validarCupo(db, 2, 'distribucion').ok, true);
   assert.equal(empresas.conteoPorRol(db, 2).vendedores, 1);
+  assert.deepEqual(empresas.limitesPorDefecto, {
+    vendedores: 1, distribucion: 1, almacen: 1, contador: 1,
+    cobranzas: 1, administradores: 1, usuarios: 10,
+  });
+  const conTotal = {
+    sucursales: [{ id: 3, limites: { usuarios: 2 } }],
+    usuarios: [
+      { id: 1, rol: 'admin', sucursal_id: 3 },
+      { id: 2, rol: 'vendedor_camion', sucursal_id: 3 },
+    ],
+  };
+  assert.equal(empresas.validarCupo(conTotal, 3, 'admin').ok, false);
 });
 
 test('techo por rol: un preventista con todos los códigos no puede exceder su puesto', () => {

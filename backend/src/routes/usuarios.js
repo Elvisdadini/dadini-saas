@@ -15,6 +15,12 @@ function validarCupoDestino(db, sucursalId, usuarios) {
   const sucursal = (db.sucursales || []).find((s) => Number(s.id) === Number(sucursalId));
   if (!sucursal?.limites) return;
   const conteo = empresas.conteoPorRol(db, sucursalId);
+  const limiteTotal = Number(sucursal.limites.usuarios);
+  if (Number.isFinite(limiteTotal) && limiteTotal > 0 && conteo.total + (usuarios || []).length > limiteTotal) {
+    const error = new Error(`La empresa alcanzó el límite total de usuarios (${conteo.total}/${limiteTotal}).`);
+    error.status = 400;
+    throw error;
+  }
   (usuarios || []).forEach((u) => {
     Object.keys(empresas.ROLES_CUPADOS).forEach((clave) => {
       if (!empresas.ROLES_CUPADOS[clave].includes(u.rol)) return;

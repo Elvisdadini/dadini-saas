@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es-BO">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DADINI SaaS · Todo tu negocio en un solo lugar</title>
+<style>
+:root{--navy:#061c33;--orange:#ff6500;--bg:#f4f7fb}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--navy)}
+header{background:var(--navy);color:#fff;padding:22px 8%;display:flex;justify-content:space-between;align-items:center}
+header strong{font-size:22px;letter-spacing:.5px}header span{color:#7fd1ff;font-size:13px}
+.btn{background:var(--orange);color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:bold}
+.hero{padding:60px 8%;text-align:center;background:linear-gradient(135deg,#061c33,#0d3b66);color:#fff}
+.hero h1{font-size:46px;margin:0 0 14px}.hero h1 em{color:var(--orange);font-style:normal}
+.hero p{font-size:19px;color:#c9d9e8;max-width:760px;margin:0 auto 28px}
+.banners{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;padding:40px 8%}
+.banners img{width:100%;border-radius:14px;box-shadow:0 12px 30px rgba(6,28,51,.15)}
+.planes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;padding:10px 8% 50px}
+.card{background:#fff;border-radius:16px;padding:26px;box-shadow:0 8px 24px rgba(6,28,51,.08)}
+.card h3{margin:0 0 8px}.card .precio{font-size:30px;color:var(--orange);font-weight:bold}
+.card ul{padding-left:18px;color:#45627d;line-height:1.8}
+footer{background:var(--navy);color:#c9d9e8;padding:30px 8%;text-align:center;font-size:13px}
+</style>
+</head>
+<body>
+<header><div><strong>DADINI SaaS</strong><br><span>Gestión integral para empresas de distribución</span></div><a class="btn" href="demo-dadini.html">Ver demo animada</a></header>
+<section class="hero">
+  <h1>Todo tu negocio, en un solo <em>lugar.</em></h1>
+  <p>Ventas, rutas, entregas, cobranzas, inventario y contabilidad conectados en tiempo real. Web y app móvil con la misma información y permisos por rol.</p>
+  <a class="btn" href="Plan_Precios_y_Prueba.md">Ver planes y prueba gratis</a>
+</section>
+<section class="banners">
+  <img src="../frontend/public/banners/banner-ventas.svg" alt="Ventas">
+  <img src="../frontend/public/banners/banner-distribucion.svg" alt="Distribución">
+  <img src="../frontend/public/banners/banner-reportes.svg" alt="Reportes">
+</section>
+<section class="planes">
+  <div class="card"><h3>Inicial</h3><div class="precio">Bs 350/mes</div><p>O Bs 3.500/año · 10 usuarios</p><ul><li>Ventas y clientes</li><li>Inventario</li><li>Mi reporte</li></ul></div>
+  <div class="card"><h3>Profesional</h3><div class="precio">Bs 700/mes</div><p>O Bs 7.000/año · 30 usuarios</p><ul><li>Rutas y entregas</li><li>Cobranzas y CRM</li><li>Contabilidad</li></ul></div>
+  <div class="card"><h3>Empresa</h3><div class="precio">Bs 1.200/mes</div><p>O Bs 12.000/año · ilimitado</p><ul><li>Multiempresa</li><li>Todos los módulos</li><li>Soporte prioritario</li></ul></div>
+</section>
+<footer>Creado por DADINI S STORE · Cochabamba, Bolivia · Prueba gratuita de 15 días</footer>
+</body>
+</html>

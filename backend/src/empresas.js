@@ -43,7 +43,18 @@ function permisosParaModulos(modulos) {
 const ROLES_CUPADOS = {
   vendedores: ['ventas', 'preventista', 'vendedor_camion'],
   distribucion: ['distribucion'],
+  almacen: ['almacen'],
+  contador: ['contador'],
   cobranzas: ['cobranzas'],
+  administradores: ['admin'],
+};
+
+// Cupo inicial que se activa al registrar una empresa: 1 de cada rol clave
+// y 10 usuarios en total. Si el dueño asigna 5 usuarios más llega a 10 y
+// ningún administrador puede crear otro sin autorización del dueño.
+const limitesPorDefecto = {
+  vendedores: 1, distribucion: 1, almacen: 1, contador: 1,
+  cobranzas: 1, administradores: 1, usuarios: 10,
 };
 
 function conteoPorRol(db, sucursalId) {
@@ -59,10 +70,16 @@ function conteoPorRol(db, sucursalId) {
 function validarCupo(db, sucursalId, rol, excluirId = null) {
   const sucursal = (db.sucursales || []).find((s) => Number(s.id) === Number(sucursalId));
   if (!sucursal?.limites) return { ok: true };
+  const totalUsuarios = (db.usuarios || []).filter((u) => Number(u.sucursal_id || 1) === Number(sucursalId)
+    && Number(u.id) !== Number(excluirId)).length;
+  const limiteTotal = Number(sucursal.limites.usuarios);
+  if (Number.isFinite(limiteTotal) && limiteTotal > 0 && totalUsuarios >= limiteTotal) {
+    return { ok: false, error: `La empresa alcanzó el límite total de usuarios (${totalUsuarios}/${limiteTotal}). Solicita al dueño que amplíe el cupo.` };
+  }
   const clave = Object.keys(ROLES_CUPADOS).find((k) => ROLES_CUPADOS[k].includes(rol));
-  if (!clave) return { ok: true };
+  if (!clave) return { ok: true, actual: totalUsuarios };
   const limite = Number(sucursal.limites[clave]);
-  if (!Number.isFinite(limite) || limite <= 0) return { ok: true };
+  if (!Number.isFinite(limite) || limite <= 0) return { ok: true, actual: totalUsuarios };
   const actual = (db.usuarios || []).filter((u) => Number(u.sucursal_id || 1) === Number(sucursalId)
     && ROLES_CUPADOS[clave].includes(u.rol) && Number(u.id) !== Number(excluirId)).length;
   if (actual >= limite) {
@@ -118,6 +135,6 @@ function notificarVencimientos(db, { forzar = false } = {}) {
 }
 
 module.exports = {
-  GRUPOS_MODULOS, MODULOS_CONTRATABLES, ROLES_CUPADOS, basesDe, permisosParaModulos,
+  GRUPOS_MODULOS, MODULOS_CONTRATABLES, ROLES_CUPADOS, limitesPorDefecto, basesDe, permisosParaModulos,
   conteoPorRol, validarCupo, notificar, notificarVencimientos, fechaBolivia,
 };

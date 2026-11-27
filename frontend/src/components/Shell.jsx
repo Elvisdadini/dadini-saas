@@ -167,6 +167,7 @@ export default function Shell({ children }) {
   const [open, setOpen] = useState(false);
   const [tema, setTema] = useState(() => localStorage.getItem('dadini_tema') || 'claro');
   const [resumen, setResumen] = useState(null);
+  const [miEmpresa, setMiEmpresa] = useState(null);
   const [errorResumen, setErrorResumen] = useState('');
   const [enLinea, setEnLinea] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
   const [colaPendiente, setColaPendiente] = useState(0);
@@ -225,6 +226,13 @@ export default function Shell({ children }) {
       window.removeEventListener('dadini:sincronizado', terminado);
     };
   }, [toast]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    let vivo = true;
+    api.get('/mi-empresa').then((data) => { if (vivo) setMiEmpresa(data); }).catch(() => {});
+    return () => { vivo = false; };
+  }, [user]);
 
   // El resumen se consulta una vez por usuario y se reutiliza 60 s: navegar
   // por el menú no debe recalcular el dashboard en el servidor.
@@ -375,13 +383,21 @@ export default function Shell({ children }) {
         <div className="sidebar-footer">
           <div className="plan-mini">
             <div className="plan-row">
-              <strong>DADINI SaaS · Acceso libre</strong>
-              <span>Todos los módulos</span>
+              <strong>{miEmpresa?.empresa || 'DADINI SaaS'}</strong>
+              <span>{miEmpresa?.activa === false ? 'Desactivada' : 'Acceso habilitado'}</span>
             </div>
-            <div className="plan-bar"><i style={{ width: '100%' }} /></div>
+            <div className="plan-bar"><i style={{ width: miEmpresa?.dias_restantes != null && miEmpresa?.vigencia?.hasta
+              ? `${Math.max(4, Math.min(100, Number(miEmpresa.dias_restantes) / 365 * 100))}%` : '100%' }} /></div>
             <div className="plan-row">
-              <span>Uso interno sin límite</span>
-              <span>Sin facturación</span>
+              <span className="small" title={(miEmpresa?.modulos || []).join(', ')}>{(miEmpresa?.modulos || []).join(' · ') || 'Todos los módulos'}</span>
+            </div>
+            <div className="plan-row">
+              <span>Usuarios {miEmpresa?.usuarios?.total ?? 0}{miEmpresa?.usuarios?.limites?.usuarios ? `/${miEmpresa.usuarios.limites.usuarios}` : ''}</span>
+              <span>Faltan {miEmpresa?.usuarios?.restantes?.usuarios ?? '—'}</span>
+            </div>
+            <div className="plan-row">
+              <span>Hasta {miEmpresa?.vigencia?.hasta || 'sin vencimiento'}</span>
+              <span>{miEmpresa?.dias_restantes != null ? `${miEmpresa.dias_restantes} días` : 'Sin límite'}</span>
             </div>
           </div>
           <div className="created-by" style={{ fontSize: 10, textAlign: 'right', padding: '0 12px 8px', opacity: 0.75 }}>

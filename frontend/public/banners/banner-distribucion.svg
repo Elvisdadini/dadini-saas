@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 628" width="1200" height="628">
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#04182c"/><stop offset="1" stop-color="#124e78"/>
+    </linearGradient>
+    <linearGradient id="naranja" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff6500"/><stop offset="1" stop-color="#ffab5e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="628" fill="url(#fondo)"/>
+  <g opacity="0.18" stroke="#7fd1ff" stroke-width="2" fill="none">
+    <path d="M700 80 L900 180 L820 340 L1050 470"/>
+    <path d="M760 520 L860 380 L1080 320 L1150 140"/>
+  </g>
+  <g fill="#ff6500"><circle cx="900" cy="180" r="10"/><circle cx="820" cy="340" r="10"/><circle cx="1050" cy="470" r="10"/></g>
+  <g transform="translate(830,210)">
+    <rect x="0" y="30" width="180" height="70" rx="10" fill="#fff" opacity="0.95"/>
+    <rect x="18" y="48" width="60" height="8" rx="4" fill="#061c33" opacity="0.6"/>
+    <rect x="18" y="68" width="110" height="8" rx="4" fill="#ff6500" opacity="0.9"/>
+    <circle cx="150" cy="65" r="18" fill="#061c33"/>
+    <text x="150" y="71" font-family="Arial" font-size="16" fill="#fff" text-anchor="middle">✓</text>
+  </g>
+  <rect x="80" y="100" width="130" height="34" rx="17" fill="url(#naranja)"/>
+  <text x="145" y="123" font-family="Arial" font-size="15" fill="#fff" text-anchor="middle" font-weight="bold">DISTRIBUCIÓN</text>
+  <text x="80" y="235" font-family="Arial, Helvetica" font-size="60" fill="#fff" font-weight="bold">Rutas, entregas y</text>
+  <text x="80" y="308" font-family="Arial, Helvetica" font-size="60" fill="#fff" font-weight="bold">carga <tspan fill="#ff6500">sin perder</tspan></text>
+  <text x="80" y="380" font-family="Arial, Helvetica" font-size="60" fill="#fff" font-weight="bold">ningún cliente.</text>
+  <text x="80" y="440" font-family="Arial, Helvetica" font-size="23" fill="#c9d9e8">Planifica por zona, imprime hojas de ruta y registra cada</text>
+  <text x="80" y="474" font-family="Arial, Helvetica" font-size="23" fill="#c9d9e8">entrega con firma, foto y geolocalización.</text>
+  <rect x="80" y="520" width="220" height="56" rx="12" fill="url(#naranja)"/>
+  <text x="190" y="556" font-family="Arial" font-size="19" fill="#fff" text-anchor="middle" font-weight="bold">Ver demostración</text>
+  <text x="80" y="605" font-family="Arial" font-size="15" fill="#8fa9bf">Creado por DADINI S STORE</text>
+</svg>

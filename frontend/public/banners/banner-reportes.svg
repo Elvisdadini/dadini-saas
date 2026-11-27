@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 628" width="1200" height="628">
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4f7fb"/><stop offset="1" stop-color="#dce9f5"/>
+    </linearGradient>
+    <linearGradient id="naranja" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff6500"/><stop offset="1" stop-color="#ff9b45"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="628" fill="url(#fondo)"/>
+  <rect x="700" y="90" width="430" height="450" rx="20" fill="#fff" opacity="0.95"/>
+  <text x="730" y="135" font-family="Arial" font-size="18" fill="#061c33" font-weight="bold">Mi reporte</text>
+  <g fill="#ff6500"><rect x="730" y="300" width="36" height="160" rx="6"/><rect x="790" y="250" width="36" height="210" rx="6"/><rect x="850" y="210" width="36" height="250" rx="6"/><rect x="910" y="270" width="36" height="190" rx="6"/></g>
+  <circle cx="1040" cy="300" r="75" fill="none" stroke="#dce9f5" stroke-width="24"/>
+  <circle cx="1040" cy="300" r="75" fill="none" stroke="#16a34a" stroke-width="24" stroke-dasharray="330 470" transform="rotate(-90 1040 300)"/>
+  <text x="1040" y="308" font-family="Arial" font-size="26" fill="#061c33" text-anchor="middle" font-weight="bold">92%</text>
+  <rect x="60" y="95" width="125" height="34" rx="17" fill="url(#naranja)"/>
+  <text x="122" y="118" font-family="Arial" font-size="14" fill="#fff" text-anchor="middle" font-weight="bold">INTELIGENCIA</text>
+  <text x="60" y="235" font-family="Arial, Helvetica" font-size="58" fill="#061c33" font-weight="bold">Decisiones con</text>
+  <text x="60" y="306" font-family="Arial, Helvetica" font-size="58" fill="#061c33" font-weight="bold">datos <tspan fill="#ff6500">reales.</tspan></text>
+  <text x="60" y="368" font-family="Arial, Helvetica" font-size="23" fill="#45627d">Explora ventas por vendedor, cliente, producto,</text>
+  <text x="60" y="402" font-family="Arial, Helvetica" font-size="23" fill="#45627d">descuentos y visitas hasta el último detalle.</text>
+  <rect x="60" y="455" width="230" height="56" rx="12" fill="#061c33"/>
+  <text x="175" y="491" font-family="Arial" font-size="19" fill="#fff" text-anchor="middle" font-weight="bold">Conocer el sistema</text>
+  <text x="60" y="580" font-family="Arial" font-size="15" fill="#6d8298">Creado por DADINI S STORE · Cochabamba, Bolivia</text>
+</svg>
