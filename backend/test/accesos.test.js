@@ -96,6 +96,7 @@ test('empresas: cupos por rol se validan contra la sucursal', () => {
     ],
   };
   assert.equal(empresas.validarCupo(conTotal, 3, 'admin').ok, false);
+  assert.match(empresas.fechaBolivia(), /^\d{4}-\d{2}-\d{2}$/);
 });
 
 test('techo por rol: un preventista con todos los códigos no puede exceder su puesto', () => {

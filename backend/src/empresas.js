@@ -101,9 +101,10 @@ function notificar(db, titulo, detalle, usuarioId = null) {
 }
 
 function fechaBolivia() {
-  return new Intl.DateTimeFormat('es-BO', {
+  const partes = new Intl.DateTimeFormat('es-BO', {
     timeZone: 'America/La_Paz', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date());
+  }).formatToParts(new Date()).reduce((acc, p) => ({ ...acc, [p.type]: p.value }), {});
+  return `${partes.year}-${partes.month}-${partes.day}`;
 }
 
 // Aviso 1 mes (o los días configurados) antes del vencimiento.
