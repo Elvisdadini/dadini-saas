@@ -57,6 +57,35 @@ test('contador: cierre de caja, validaciones, libros e impuestos', () => {
   assert.equal(tienePermiso({ rol: 'cobranzas', permisos: cobrador }, 'contabilidad.validar_caja'), false);
 });
 
+test('empresas: sucursales y panel del dueño son exclusivos del dueño', () => {
+  const empresas = require('../src/empresas');
+  const { soloDueno } = require('../src/auth');
+  const respuesta = { status: (c) => { respuesta.codigo = c; return respuesta; }, json: () => respuesta };
+  soloDueno({ user: { rol: 'admin' } }, respuesta, () => { respuesta.paso = true; });
+  assert.equal(respuesta.codigo, 403);
+  assert.equal(respuesta.paso, undefined);
+  const dueño = { status: () => dueño, json: () => dueño };
+  soloDueno({ user: { rol: 'dueno' } }, dueño, () => { dueño.paso = true; });
+  assert.equal(dueño.paso, true);
+  const permisos = empresas.permisosParaModulos(['operacion', 'contabilidad']);
+  assert.equal(permisos.includes('dueno'), false);
+  assert.equal(permisos.includes('sucursales'), false);
+  assert.equal(permisos.includes('ventas.crear'), true);
+  assert.equal(permisos.includes('caja.cierre'), true);
+});
+
+test('empresas: cupos por rol se validan contra la sucursal', () => {
+  const empresas = require('../src/empresas');
+  const db = {
+    sucursales: [{ id: 2, limites: { vendedores: 1, distribucion: 0, cobranzas: null } }],
+    usuarios: [{ id: 1, rol: 'preventista', sucursal_id: 2 }],
+  };
+  assert.equal(empresas.validarCupo(db, 2, 'preventista').ok, false);
+  assert.equal(empresas.validarCupo(db, 2, 'preventista', 1).ok, true);
+  assert.equal(empresas.validarCupo(db, 2, 'distribucion').ok, true);
+  assert.equal(empresas.conteoPorRol(db, 2).vendedores, 1);
+});
+
 test('techo por rol: un preventista con todos los códigos no puede exceder su puesto', () => {
   const permisos = permisosUsuario({ rol: 'preventista', permisos: [...TODOS] });
   for (const codigo of ['rentabilidad', 'finanzas.ver_margenes', 'inventario.ver_costos',

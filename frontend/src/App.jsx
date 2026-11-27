@@ -130,7 +130,7 @@ export default function App() {
             <Route path="dueno" element={<Guard module="dueno"><Dueno /></Guard>} />
             <Route path="contabilidad" element={<Guard module="contabilidad"><Contabilidad /></Guard>} />
             <Route path="administracion" element={<Guard module="administracion"><Administracion /></Guard>} />
-            <Route path="administracion/sucursales" element={<Guard module="administracion"><Sucursales /></Guard>} />
+            <Route path="administracion/sucursales" element={<Guard module="sucursales"><Sucursales /></Guard>} />
             <Route path="administracion/personalizacion" element={<Guard module="administracion"><Personalizacion /></Guard>} />
             <Route path="administracion/permisos" element={<Guard module="administracion"><Permisos /></Guard>} />
             <Route path="*" element={<Navigate to="/" replace />} />

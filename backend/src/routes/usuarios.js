@@ -9,6 +9,25 @@ const router = express.Router();
 router.use(authRequired, allow());
 
 const ROLES = ['admin', 'dueno', 'supervisor', 'ventas', 'preventista', 'vendedor_camion', 'almacen', 'distribucion', 'cobranzas', 'contador'];
+const empresas = require('../empresas');
+
+function validarCupoDestino(db, sucursalId, usuarios) {
+  const sucursal = (db.sucursales || []).find((s) => Number(s.id) === Number(sucursalId));
+  if (!sucursal?.limites) return;
+  const conteo = empresas.conteoPorRol(db, sucursalId);
+  (usuarios || []).forEach((u) => {
+    Object.keys(empresas.ROLES_CUPADOS).forEach((clave) => {
+      if (!empresas.ROLES_CUPADOS[clave].includes(u.rol)) return;
+      const limite = Number(sucursal.limites[clave]);
+      if (Number.isFinite(limite) && limite > 0 && conteo[clave] >= limite) {
+        const error = new Error(`La empresa alcanzó el límite de ${clave} (${conteo[clave]}/${limite}).`);
+        error.status = 400;
+        throw error;
+      }
+      conteo[clave] += 1;
+    });
+  });
+}
 
 // Asigna automáticamente el distribuidor con menos vendedores para equilibrar
 // la carga entre repartidores activos.
@@ -56,11 +75,15 @@ router.post('/', (req, res) => {
   const { nombre, email, usuario, rol, cargo, telefono, whatsapp, password, pin, repartidor_id, vehiculo_id, ruta_venta, dias_visita, zona_venta, geocerca_activa, geocerca_radio_m, categoria_cliente_id, es_venta_directa, almacen_movil_id, salario_base, comision_venta_pct, comision_distribucion_pct, bono_fijo, descuento_fijo, antiguedad_anios, permisos, plantilla, bloqueos } = req.body || {};
   if (!nombre || !rol) return res.status(400).json({ error: 'Nombre y rol son obligatorios.' });
   if (!ROLES.includes(rol)) return res.status(400).json({ error: 'Rol inválido.' });
+  if (rol === 'dueno' && req.user.rol !== 'dueno') return res.status(403).json({ error: 'Solo el dueño del sistema puede crear otro dueño.' });
   const nombreUsuario = String(usuario || '').trim() || generarUsuario(db, nombre);
   if (db.usuarios.some((u) => String(u.usuario || '').toLowerCase() === nombreUsuario.toLowerCase())) return res.status(400).json({ error: 'Ya existe un usuario con ese nombre de acceso.' });
   const correo = String(email || '').trim().toLowerCase() || `${nombreUsuario}@dadini.bo`;
   if (db.usuarios.some((u) => u.email.toLowerCase() === correo)) return res.status(400).json({ error: 'Ya existe un usuario con ese correo.' });
   if (pin && !/^\d{4,8}$/.test(String(pin))) return res.status(400).json({ error: 'El PIN debe tener entre 4 y 8 dígitos.' });
+  const sucursalId = Number(req.body?.sucursal_id || req.user.sucursal_id || 1);
+  const cupo = empresas.validarCupo(db, sucursalId, rol);
+  if (!cupo.ok) return res.status(400).json({ error: cupo.error });
   const repartidor = repartidor_id ? (db.repartidores || []).find((r) => r.id === Number(repartidor_id)) : null;
   if (repartidor_id && !repartidor) return res.status(400).json({ error: 'El distribuidor seleccionado no existe.' });
   const esVendedor = ['ventas', 'preventista', 'vendedor_camion'].includes(rol);
@@ -76,6 +99,7 @@ router.post('/', (req, res) => {
     email: correo,
     usuario: nombreUsuario,
     rol,
+    sucursal_id: sucursalId,
     cargo: cargo || '',
     telefono: telefono || '',
     whatsapp: whatsapp || telefono || '',
@@ -133,6 +157,18 @@ router.put('/:id', (req, res) => {
   if (activo === false && user.id === req.user.id) return res.status(400).json({ error: 'No puedes desactivar tu propia cuenta.' });
   if (rol && user.id === req.user.id && rol !== 'admin') return res.status(400).json({ error: 'No puedes quitarte el rol de administrador.' });
   const cambioRol = Boolean(rol && rol !== user.rol);
+  if (cambioRol) {
+    const cupo = empresas.validarCupo(db, Number(user.sucursal_id || 1), rol, user.id);
+    if (!cupo.ok) return res.status(400).json({ error: cupo.error });
+  }
+  if (req.body?.sucursal_id !== undefined) {
+    const destino = Number(req.body.sucursal_id);
+    const sucursal = (db.sucursales || []).find((s) => Number(s.id) === destino);
+    if (!sucursal) return res.status(400).json({ error: 'La sucursal seleccionada no existe.' });
+    const ya = (db.usuarios || []).filter((u) => Number(u.sucursal_id || 1) === destino && Number(u.id) !== Number(user.id));
+    validarCupoDestino(db, destino, ya);
+    user.sucursal_id = destino;
+  }
   ['nombre', 'email', 'rol', 'cargo', 'telefono', 'whatsapp'].forEach((c) => { if (req.body?.[c] !== undefined) user[c] = req.body[c]; });
   if (cambioRol && req.body?.permisos === undefined && req.body?.plantilla === undefined) {
     user.permisos = permisosPorPlantilla(user.plantilla_permisos) || permisosPorRol(rol);

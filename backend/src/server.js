@@ -173,6 +173,22 @@ async function arrancar() {
   setInterval(() => {
     try { webhooks.procesarPendientes(); } catch (error) { console.error('[webhooks]', error.message); }
   }, 5000).unref();
+  // Aviso automático de vencimientos de empresas (1 mes antes por defecto).
+  const empresas = require('./empresas');
+  const revisarVencimientos = () => {
+    try {
+      const db = load();
+      const hoyISO = new Date().toISOString().slice(0, 10);
+      if (db.configuracion?.ultima_revision_vencimientos === hoyISO) return;
+      const enviadas = empresas.notificarVencimientos(db);
+      db.configuracion.ultima_revision_vencimientos = hoyISO;
+      save();
+      if (enviadas) console.log(`[empresas] ${enviadas} aviso(s) de vencimiento enviados.`);
+    } catch (error) { console.error('[empresas]', error.message); }
+  };
+  setTimeout(revisarVencimientos, 10 * 1000).unref();
+  setInterval(revisarVencimientos, 60 * 60 * 1000).unref();
+
   // Reportes automáticos: prepara los chats wa.me a la hora configurada.
   // No envía por sí solo (no hay Business API): deja los links listos para abrir.
   const reportesAuto = require('./reportes-auto');

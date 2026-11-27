@@ -108,6 +108,15 @@ function requirePermiso(...codigos) {
   };
 }
 
+// Accesos de dueño del sistema: ni un administrador de empresa puede entrar.
+function soloDueno(req, res, next) {
+  if (!req.user) return res.status(401).json({ error: 'Sesión requerida.' });
+  if (req.user.rol !== 'dueno') {
+    return res.status(403).json({ error: 'Esta función está reservada al dueño del sistema.' });
+  }
+  return next();
+}
+
 function hash(password) {
   return bcrypt.hashSync(password, 10);
 }
@@ -121,4 +130,4 @@ function compareAsync(password, hashed) {
   return bcrypt.compare(password, hashed);
 }
 
-module.exports = { sign, verify, authRequired, allow, requirePermiso, hash, compare, compareAsync, limpiar };
+module.exports = { sign, verify, authRequired, allow, requirePermiso, soloDueno, hash, compare, compareAsync, limpiar };

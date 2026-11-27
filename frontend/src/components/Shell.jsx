@@ -74,9 +74,9 @@ const NAV = [
   {
     group: 'Sistema',
     items: [
-      { to: '/dueno', label: 'Panel del dueño', icon: Crown, key: 'dueno' },
+      { to: '/dueno', label: 'Panel del dueño', icon: Crown, key: 'dueno', roles: ['dueno'] },
       { to: '/administracion', label: 'Administración', icon: Settings, key: 'administracion' },
-      { to: '/administracion/sucursales', label: 'Sucursales', icon: Building2, key: 'administracion' },
+      { to: '/administracion/sucursales', label: 'Sucursales', icon: Building2, key: 'sucursales', roles: ['dueno'] },
       { to: '/facturacion', label: 'Facturación SIAT', icon: Receipt, key: 'administracion' },
       { to: '/administracion/personalizacion', label: 'Marca y APK', icon: Palette, key: 'administracion' },
       { to: '/administracion/permisos', label: 'Roles y permisos', icon: Lock, key: 'administracion' },

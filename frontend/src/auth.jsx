@@ -66,6 +66,10 @@ export const PERMISOS = {
 
 export function puede(user, modulo) {
   if (!user) return false;
+  // Sucursales y panel del dueño son exclusivos del dueño del sistema.
+  if (modulo === 'dueno' || modulo === 'sucursales' || modulo === 'administracion/sucursales') {
+    return user.rol === 'dueno';
+  }
   if (user.rol === 'admin' || user.rol === 'dueno') return true;
   // Los permisos guardados en el usuario son la fuente de verdad; el mapa por
   // rol se conserva solo para cuentas creadas antes de esta versión.

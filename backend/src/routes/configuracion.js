@@ -4,7 +4,7 @@ const path = require('path');
 const multer = require('multer');
 const config = require('../config');
 const { load, save } = require('../db');
-const { authRequired, allow } = require('../auth');
+const { authRequired, allow, soloDueno } = require('../auth');
 const { audit, num, round2 } = require('../utils');
 const { normalizarConfig, config: configCredito } = require('../credito');
 const { asegurarApkPorDefecto } = require('../apk');
@@ -51,6 +51,35 @@ router.get('/', (req, res) => {
       porcentaje_almacenes: plan.almacenes_incluidos ? Math.round((uso.almacenes / plan.almacenes_incluidos) * 100) : 0,
     },
   });
+});
+
+// Panel del dueño: planes, descuentos globales y reglas de cobranza.
+// Ni un administrador de empresa puede entrar aquí.
+router.get('/panel-dueno', soloDueno, (req, res) => {
+  const db = load();
+  return res.json({
+    configuracion: {
+      plan: db.configuracion.plan, planes: db.configuracion.planes || [],
+      descuentos_globales: db.configuracion.descuentos_globales || [],
+      cobranza: db.configuracion.cobranza || {},
+      empresas: db.empresas || [],
+    },
+  });
+});
+
+router.put('/panel-dueno', soloDueno, (req, res) => {
+  const db = load();
+  const { planes, descuentos_globales, cobranza, plan } = req.body || {};
+  if (planes) db.configuracion.planes = planes;
+  if (descuentos_globales) db.configuracion.descuentos_globales = descuentos_globales;
+  if (cobranza) db.configuracion.cobranza = { ...(db.configuracion.cobranza || {}), ...cobranza };
+  if (plan) {
+    ['nombre', 'precio', 'ciclo', 'vence', 'estado'].forEach((c) => { if (plan[c] !== undefined) db.configuracion.plan[c] = plan[c]; });
+    ['usuarios_incluidos', 'almacenes_incluidos'].forEach((c) => { if (plan[c] !== undefined) db.configuracion.plan[c] = num(plan[c]); });
+  }
+  audit(db, req, 'Panel del dueño actualizado', 'Sistema', 'Planes, descuentos y cobranza');
+  save();
+  return res.json({ ok: true, configuracion: db.configuracion });
 });
 
 router.put('/', allow(), (req, res) => {

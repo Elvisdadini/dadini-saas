@@ -29,7 +29,7 @@ export default function Dueno() {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [c, u] = await Promise.all([api.get('/configuracion'), api.get('/usuarios')]);
+      const [c, u] = await Promise.all([api.get('/configuracion/panel-dueno'), api.get('/usuarios')]);
       const cfg = c.configuracion;
       setConfig(cfg);
       setPlanes(cfg.planes || []);
@@ -44,7 +44,7 @@ export default function Dueno() {
   const guardarTodo = async () => {
     setSaving(true);
     try {
-      await api.put('/configuracion', { planes, descuentos_globales: descuentos, cobranza });
+      await api.put('/configuracion/panel-dueno', { planes, descuentos_globales: descuentos, cobranza });
       toast('Configuración del dueño guardada');
       await cargar();
     } catch (error) { toast(error.message, 'error'); } finally { setSaving(false); }
