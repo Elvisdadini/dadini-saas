@@ -163,7 +163,7 @@ router.post('/alta-empresa', requirePermiso('sucursales.crear'), (req, res) => {
     password: bcrypt.hashSync(String(admin.password || 'Dadini2026!'), 10),
     pin: admin.pin ? bcrypt.hashSync(String(admin.pin), 10) : null,
     activo: true, sucursal_id: idSucursal,
-    permisos: permisosParaModulos(cfg.modulos),
+    permisos: empresas.permisosParaModulos(cfg.modulos),
     plantilla_permisos: null,
     bloqueos: null,
     creado_por: req.user.id,
